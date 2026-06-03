@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-03
+
+実機安全の節目リリース（pre-alpha）。Safety Guard に **actuator（関節）空間の limit enforcement**
+を追加し、生成/retarget/tracking した関節角列を**実機コマンド直前に位置/速度/加速度へクランプ**
+できるようになった。`sim_certificate`（物理的妥当性）の先にある最終 gate が揃い、実機への橋渡しが
+一段進んだ。なお摂動頑健性は調査の上で誇張を避けて見送った（下記 Notes）。
+
 ### Added
 - **Joint-space safety guard（§5.6）**（`demo-joint-safety`, `robotdance_ros2.safety_guard`）:
   Safety Guard に **actuator（関節）空間の limit enforcement** を追加。actuator-space IK /
@@ -22,6 +29,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   回復には踏み出し＝接地変更が必要だが planted 参照＋追従報酬がそれを許さない）。domain randomization
   で学習しても摂動下 survival は PD と同等（PD 0.43 / RL 0.43, 改善 +0.00）。**正直な RL>PD の優位が
   存在しない**ため、誇張を避けて本機能は出さず、より確実な価値のある joint-space safety guard を採用した。
+
+[0.9.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.9.0
 
 ## [0.8.0] - 2026-06-03
 
