@@ -10,6 +10,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   AMASS と同じ skeleton-first 経路（SMPL model file 不要）。`dataset://aist/...` で manifest 指定可。
 - **dataset 重複除去**（`build-dataset --dedupe`）: motion embedding で near-duplicate を検出し
   各グループ 1 本だけ残す。除去内訳は Data Bill of Materials に記録。
+- **学習 motion encoder**（masked motion modeling, `[learn]` extra / torch）: 小型 Transformer を
+  マスク再構成で自己教師あり学習（`train-encoder`）。手作りと同じ前処理・`embed` interface で
+  `MotionIndex(embed_fn=...)` に差し込める（`demo-motion-map --checkpoint`）。合成 corpus で
+  loss 低下・クラス分離を実証（v0 は基盤提供であり手作り baseline 超えは主張しない）。
 
 ## [0.1.0] - 2026-06-03
 

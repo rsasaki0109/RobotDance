@@ -50,6 +50,10 @@ sim = [
     "mujoco>=3.0",
     "scipy>=1.10",
 ]
+# 学習 motion encoder（masked motion modeling）。CI には含めない（重いため）。
+learn = [
+    "torch>=2.0",
+]
 ros2 = []        # ROS2 は colcon / ament 管理のため別ワークスペース想定
 dev = [
     "pytest>=8.0",

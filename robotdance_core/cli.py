@@ -238,11 +238,33 @@ def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_
     return 0
 
 
-def _demo_motion_map(out: Path) -> int:
-    """多様な合成モーションを埋め込み、検索・重複・2D マップを示す（§6.2 Demo 3）。"""
+def _train_encoder(out: Path, epochs: int, device: str | None) -> int:
+    from robotdance_models.train import train_encoder
+
+    res = train_encoder(out_path=out, epochs=epochs, device=device)
+    h = res["loss_history"]
+    print(f"✓ motion encoder 学習完了: {out}")
+    print(f"  windows={res['windows']} device={res['device']} epochs={epochs}")
+    print(f"  masked 再構成 loss: {h[0]:.4f} → {h[-1]:.4f}（{100 * (1 - h[-1] / max(h[0], 1e-9)):.0f}% 減少）")
+    return 0
+
+
+def _demo_motion_map(out: Path, checkpoint: Path | None = None) -> int:
+    """多様な合成モーションを埋め込み、検索・重複・2D マップを示す（§6.2 Demo 3）。
+
+    checkpoint を渡すと学習 encoder（robotdance_models）、無ければ手作り embedding を使う。
+    """
     from .synthetic import generate_backflip, generate_dance
     from robotdance_motion.embeddings import MotionIndex, embed
     from robotdance_viewer.motion_map import render_motion_map
+
+    embed_fn = embed
+    tag = "hand-crafted"
+    if checkpoint is not None:
+        from robotdance_models.train import LearnedMotionEncoder
+
+        embed_fn = LearnedMotionEncoder(checkpoint).embed
+        tag = f"learned({checkpoint.name})"
 
     specs = {
         "dance_normal": generate_dance(beats_per_second=1.0),
@@ -254,18 +276,19 @@ def _demo_motion_map(out: Path) -> int:
         "backflip_a": generate_backflip(duration=1.6),
         "backflip_b": generate_backflip(duration=1.4),
     }
-    index = MotionIndex()
+    index = MotionIndex(embed_fn=embed_fn)
     for mid, mir in specs.items():
         mir.motion_id = mid
         index.add_mir(mir)
 
     labels = list(index.ids)
     groups = [lab.split("_")[0] for lab in labels]  # dance / idle / backflip
-    render_motion_map(index.project_2d(), labels, out, groups=groups)
+    render_motion_map(index.project_2d(), labels, out, groups=groups,
+                      title=f"RobotDance Motion Map ({tag})")
 
-    print(f"✓ Motion Map: {out}")
+    print(f"✓ Motion Map [{tag}]: {out}")
     print("  retrieval（query=dance_fast）:")
-    for mid, sim in index.query(embed(specs["dance_fast"]), k=3):
+    for mid, sim in index.query(embed_fn(specs["dance_fast"]), k=3):
         print(f"    {mid:14s} cos={sim:.3f}")
     print("  near-duplicates (>=0.98):")
     for a, b, s in index.duplicates(0.98):
@@ -455,6 +478,13 @@ def main(argv: list[str] | None = None) -> int:
 
     p_mmap = sub.add_parser("demo-motion-map", help="合成モーションを埋め込み Motion Map を描く")
     p_mmap.add_argument("-o", "--out", type=Path, default=Path("motion_map.png"))
+    p_mmap.add_argument("--checkpoint", type=Path, default=None,
+                        help="学習 encoder の .pt（省略時は手作り embedding）")
+
+    p_train = sub.add_parser("train-encoder", help="masked motion modeling encoder を学習する")
+    p_train.add_argument("-o", "--out", type=Path, default=Path("motion_encoder.pt"))
+    p_train.add_argument("--epochs", type=int, default=40)
+    p_train.add_argument("--device", default=None, help="cpu / cuda（既定: 自動）")
 
     p_build = sub.add_parser("build-dataset", help="RD-Manifest から RD-MIR を構築（license firewall）")
     p_build.add_argument("manifest", type=Path, help="manifest JSON（配列 or 単体）")
@@ -524,7 +554,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "benchmark":
         return _benchmark(args.robots, args.motions_dir, not args.no_sim, args.out)
     if args.command == "demo-motion-map":
-        return _demo_motion_map(args.out)
+        return _demo_motion_map(args.out, args.checkpoint)
+    if args.command == "train-encoder":
+        return _train_encoder(args.out, args.epochs, args.device)
     if args.command == "build-dataset":
         return _build_dataset(args.manifest, args.data_root, args.out, args.dedupe)
     if args.command == "smooth":

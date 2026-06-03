@@ -33,15 +33,22 @@ def _yaw_align(rel: np.ndarray) -> np.ndarray:
     return out
 
 
-def embed(mir: RdMir) -> np.ndarray:
-    """RD-MIR を固定長 motion embedding（生特徴ベクトル）に符号化する。"""
-    kps = mir.keypoints_3d_array()  # [T, J, 3]
-    rel = kps - kps[:, _PELVIS:_PELVIS + 1, :]  # root-relative
+def normalized_keypoints(mir: RdMir) -> np.ndarray:
+    """RD-MIR を位置/向き/スケール不変な canonical keypoints [T, J, 3] に正規化する。
 
-    # スケール正規化（pelvis→head 距離の時間平均）。
+    root-relative → pelvis→head 距離でスケール正規化 → per-frame yaw 整列。
+    手作り embedding と学習 encoder（robotdance_models）が共有する前処理。
+    """
+    kps = mir.keypoints_3d_array()
+    rel = kps - kps[:, _PELVIS:_PELVIS + 1, :]
     scale = float(np.linalg.norm(rel[:, _HEAD], axis=1).mean())
     rel = rel / max(scale, _EPS)
-    rel = _yaw_align(rel)
+    return _yaw_align(rel)
+
+
+def embed(mir: RdMir) -> np.ndarray:
+    """RD-MIR を固定長 motion embedding（生特徴ベクトル）に符号化する。"""
+    rel = normalized_keypoints(mir)  # [T, J, 3] 正規化済み
 
     fps = mir.fps
     vel = np.diff(rel, axis=0) * fps if rel.shape[0] > 1 else np.zeros((1, NUM_JOINTS, 3))
@@ -60,8 +67,8 @@ def embed(mir: RdMir) -> np.ndarray:
         speed.mean(axis=0),             # joint ごとの平均速度 (J)
         np.array(cr),                   # 接地比率 (2)
         np.array([
-            float(speed.mean()),                         # 全体運動エネルギー
-            float(kps[:, _PELVIS, 2].std() / max(scale, _EPS)),  # 上下バウンス
+            float(speed.mean()),            # 全体運動エネルギー
+            float(rel[:, :, 2].std()),      # 鉛直方向の動きの広がり（正規化済み）
         ]),
     ])
     return features.astype(np.float64)
@@ -73,11 +80,14 @@ EMBEDDING_DIM = NUM_JOINTS * 3 * 2 + NUM_JOINTS + 2 + 2
 class MotionIndex:
     """motion embedding の索引。類似検索・重複検出・2D 射影を提供する。"""
 
-    def __init__(self) -> None:
+    def __init__(self, embed_fn=embed) -> None:
+        """embed_fn: RdMir → 生特徴ベクトル。既定は手作り embed。学習 encoder の
+        `LearnedMotionEncoder().embed` を渡すと学習表現で索引できる。"""
         self.ids: list[str] = []
         self._raw: list[np.ndarray] = []
         self._mean: np.ndarray | None = None
         self._std: np.ndarray | None = None
+        self._embed_fn = embed_fn
 
     def add(self, motion_id: str, embedding: np.ndarray) -> None:
         self.ids.append(motion_id)
@@ -85,7 +95,7 @@ class MotionIndex:
         self._mean = None  # 統計を無効化（次回 query 時に再計算）
 
     def add_mir(self, mir: RdMir) -> None:
-        self.add(mir.motion_id, embed(mir))
+        self.add(mir.motion_id, self._embed_fn(mir))
 
     def _matrix(self) -> np.ndarray:
         return np.stack(self._raw) if self._raw else np.zeros((0, EMBEDDING_DIM))
