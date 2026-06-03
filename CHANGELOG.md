@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-06-03
+
+text-motion データ入口拡充の節目リリース（pre-alpha）。AMASS/AIST++ に続き、**HumanML3D / BABEL**
+adapter を追加し、データ入口に「動き + 自然文記述 / 行動ラベル」の実データが入った。contrastive
+検索・text2motion の実データ化への布石。
+
 ### Added
 - **HumanML3D / BABEL adapter（§4.1, text-motion データ入口）**（`import-humanml3d` / `import-babel`,
   `robotdance_data.humanml3d` / `robotdance_data.babel`）: text 注釈付き motion データセットを
@@ -17,6 +23,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
     AMASS .npz が見つからない entry はスキップ。
   どちらも numpy のみで **CI でも検証**。データセット本体は同梱せず利用者が各自取得（license_state は
   research_only）。HumanML3D は frame 正規化が近似・betas 未使用。Motion-X は今後。
+
+[0.16.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.16.0
 
 ## [0.15.0] - 2026-06-03
 
