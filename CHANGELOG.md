@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-03
+
+動画入口の高品質化の節目リリース（pre-alpha）。MediaPipe（2D→近似 3D landmark）に加え、
+**HMR（Human Mesh Recovery）adapter** を追加し、4DHumans / GVHMR が回帰した SMPL 出力を
+canonical RD-MIR に取り込めるようになった。オクルージョン・奥行き・world-grounded な global
+trajectory に強い入口が揃い、in-the-wild 動画の品質がパイプライン全体に効く。
+
 ### Added
 - **HMR adapter（§4.1, 4DHumans / GVHMR → RD-MIR）**（`import-hmr`, `robotdance_perception.hmr`）:
   HMR モデルが画像から回帰した **per-frame SMPL パラメータ**（global_orient / body_pose / transl）を、
@@ -17,6 +24,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   `license_state="unknown"`）。numpy/scipy のみで **CI でも検証**。v0 は skeleton-first（近似 rest
   offset・betas/shape 未使用）で、特定モデル版 pin ではなく文書化された出力構造に対する検証。
   native `.pkl`/`.pt` 直接ロード・multi-person・betas 反映は今後。
+
+[0.10.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.10.0
 
 ## [0.9.0] - 2026-06-03
 
