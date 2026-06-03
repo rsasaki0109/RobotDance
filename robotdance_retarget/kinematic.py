@@ -1,6 +1,6 @@
 """Kinematic retargeting（v0）。
 
-人間 canonical motion（RD-MIR）を robot embodiment（v0 は Unitree G1 プロキシ）へ写像する。
+人間 canonical motion（RD-MIR）を任意の robot embodiment（RobotMorphology）へ写像する。
 手法は direction-preserving + morphology normalization:
 
   1. 人間 keypoints から各 bone の単位方向を取る
@@ -18,7 +18,7 @@ import numpy as np
 from robotdance_core.rd_mir import RdMir, Skeleton
 from robotdance_core.rd_motion import RdMotion
 from robotdance_core.skeleton import FOOT_JOINTS, JOINT_NAMES, NUM_JOINTS, PARENTS
-from robotdance_unitree import g1
+from robotdance_retarget.embodiment import RobotMorphology
 
 _EPS = 1e-8
 
@@ -37,19 +37,19 @@ def _height(kps_frame: np.ndarray) -> float:
     return float(kps_frame[:, 2].max() - kps_frame[:, 2].min())
 
 
-def retarget_to_g1(mir: RdMir) -> RdMotion:
-    """RD-MIR を Unitree G1（v0 プロキシ）へ kinematic retarget して RD-Motion を返す。"""
+def retarget(mir: RdMir, morphology: RobotMorphology) -> RdMotion:
+    """RD-MIR を任意 robot 形態へ kinematic retarget して RD-Motion を返す。"""
     human = mir.keypoints_3d_array()  # [T, J, 3]
     n_frames = human.shape[0]
     if human.shape[1] != NUM_JOINTS:
         raise ValueError(f"想定 joint 数 {NUM_JOINTS} と不一致: {human.shape[1]}")
 
     dirs = _bone_directions(human)
-    bone_len = g1.BONE_LENGTHS
+    bone_len = morphology.bone_lengths
 
     # 人間 root の水平移動はそのまま、垂直は morphology に合わせて height 比でスケール。
     human_h = float(np.median([_height(human[f]) for f in range(n_frames)]))
-    height_scale = g1.NOMINAL_HEIGHT / max(human_h, _EPS)
+    height_scale = morphology.nominal_height / max(human_h, _EPS)
 
     robot = np.zeros_like(human)
     for f in range(n_frames):
@@ -71,7 +71,7 @@ def retarget_to_g1(mir: RdMir) -> RdMotion:
     metrics = _retarget_metrics(human, robot, contacts, height_scale)
 
     return RdMotion(
-        robot_name=g1.ROBOT_NAME,
+        robot_name=morphology.name,
         fps=mir.fps,
         duration=mir.duration,
         source_motion_id=mir.motion_id,
@@ -84,6 +84,13 @@ def retarget_to_g1(mir: RdMir) -> RdMotion:
         sim_certificate=None,  # v0 kinematic: 物理検証なし
         source_provenance={"rd_mir_motion_id": mir.motion_id, "method": "direction_preserving_fk"},
     )
+
+
+def retarget_to_g1(mir: RdMir) -> RdMotion:
+    """RD-MIR を Unitree G1（v0 プロキシ）へ retarget する薄いラッパー。"""
+    from robotdance_unitree import g1
+
+    return retarget(mir, g1.MORPHOLOGY)
 
 
 def _retarget_metrics(

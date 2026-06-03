@@ -66,15 +66,16 @@ def _view(path: Path, out: Path, stride: int) -> int:
     return 0
 
 
-def _retarget(path: Path, out: Path) -> int:
+def _retarget(path: Path, out: Path, robot: str) -> int:
     from .rd_mir import RdMir
-    from robotdance_retarget.kinematic import retarget_to_g1
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_unitree import get_morphology
 
     mir = RdMir.load(path)
-    motion = retarget_to_g1(mir)
+    motion = retarget(mir, get_morphology(robot))
     motion.save(out)
     m = motion.retarget_metrics or {}
-    print(f"✓ G1 RD-Motion を書き出しました: {out}")
+    print(f"✓ {robot} RD-Motion を書き出しました: {out}")
     print(f"  height_scale={m.get('height_scale')} "
           f"bone_direction_cosine={m.get('bone_direction_cosine')} "
           f"foot_sliding={m.get('foot_sliding_m_per_frame')}")
@@ -125,6 +126,31 @@ def _demo_g1(out: Path, stride: int) -> int:
     return 0
 
 
+# multi-embodiment デモで描き分ける色。
+_ROBOT_COLORS = {"unitree_g1": "#ff7f0e", "unitree_h1": "#2ca02c"}
+
+
+def _demo_multi(out: Path, robots: list[str], stride: int) -> int:
+    """synth → 複数ロボットへ retarget → "Same motion, many humanoids" を一括描画。"""
+    from .synthetic import generate_dance
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_unitree import get_morphology
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    mir = generate_dance()
+    panels = [(mir.keypoints_3d_array(), "Human (RD-MIR)", "#1f77b4")]
+    for name in robots:
+        motion = retarget(mir, get_morphology(name))
+        m = motion.retarget_metrics or {}
+        panels.append((motion.keypoints_3d_array(), name, _ROBOT_COLORS.get(name, "#9467bd")))
+        print(f"  {name}: height_scale={m.get('height_scale')} "
+              f"foot_sliding={m.get('foot_sliding_m_per_frame')}")
+    render_side_by_side(panels, out, fps=mir.fps, stride=stride)
+    print(f"✓ multi-embodiment デモ GIF を書き出しました: {out}（{len(panels)} panels）")
+    print("  ⚠️ kinematic preview のみ — 物理 sim 未検証（Phase 2）")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="robotdance", description="RobotDance core CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -143,9 +169,11 @@ def main(argv: list[str] | None = None) -> int:
     p_view.add_argument("-o", "--out", type=Path, default=Path("skeleton.gif"))
     p_view.add_argument("--stride", type=int, default=2, help="何フレームおきに描画するか")
 
-    p_ret = sub.add_parser("retarget", help="RD-MIR を Unitree G1 へ kinematic retarget する")
+    p_ret = sub.add_parser("retarget", help="RD-MIR を Unitree ロボットへ kinematic retarget する")
     p_ret.add_argument("path", type=Path, help="RD-MIR JSON")
-    p_ret.add_argument("-o", "--out", type=Path, default=Path("g1.rdmotion.json"))
+    p_ret.add_argument("-o", "--out", type=Path, default=Path("robot.rdmotion.json"))
+    p_ret.add_argument("--robot", default="unitree_g1",
+                       help="対象ロボット（unitree_g1 / unitree_h1）")
 
     p_pair = sub.add_parser("view-pair", help="human RD-MIR と robot RD-Motion を side-by-side 描画")
     p_pair.add_argument("human", type=Path, help="RD-MIR JSON")
@@ -157,6 +185,11 @@ def main(argv: list[str] | None = None) -> int:
     p_demo.add_argument("-o", "--out", type=Path, default=Path("g1_side_by_side.gif"))
     p_demo.add_argument("--stride", type=int, default=2)
 
+    p_multi = sub.add_parser("demo-multi", help="synth → 複数ロボット retarget → 横並び描画")
+    p_multi.add_argument("-o", "--out", type=Path, default=Path("many_humanoids.gif"))
+    p_multi.add_argument("--robots", nargs="+", default=["unitree_g1", "unitree_h1"])
+    p_multi.add_argument("--stride", type=int, default=2)
+
     args = parser.parse_args(argv)
     if args.command == "validate":
         return _validate(args.spec, args.path)
@@ -165,11 +198,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "view":
         return _view(args.path, args.out, args.stride)
     if args.command == "retarget":
-        return _retarget(args.path, args.out)
+        return _retarget(args.path, args.out, args.robot)
     if args.command == "view-pair":
         return _view_pair(args.human, args.robot, args.out, args.stride)
     if args.command == "demo-g1":
         return _demo_g1(args.out, args.stride)
+    if args.command == "demo-multi":
+        return _demo_multi(args.out, args.robots, args.stride)
     parser.error(f"unknown command: {args.command}")
     return 2
 

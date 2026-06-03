@@ -6,9 +6,10 @@
 
 *RobotDance は、権利管理された人間動画を、ヒューマノイドロボットの運動データ・運動埋め込み・学習 policy・実行可能モーションへ変換する OSS モーションコンパイラです。*
 
-![RobotDance human-to-G1 retarget demo](assets/readme/g1_side_by_side.gif)
+![RobotDance: same motion, many humanoids](assets/readme/many_humanoids.gif)
 
-<sub>↑ 合成モーション → RD-MIR → **Unitree G1 への kinematic retarget** → side-by-side（左: human / 右: G1）。pose モデル・物理 sim 不要の運動学プレビュー。実 URDF / 物理検証は Phase 2。</sub>
+<sub>↑ **Same motion, many humanoids** — 1 つの人間モーション（RD-MIR）を Unitree G1（小型）と H1（full-size）へ
+**kinematic retarget**。embodiment 非依存を一撃で示す。pose モデル・物理 sim 不要の運動学プレビュー。実 URDF / 物理検証は Phase 2。</sub>
 
 </div>
 
@@ -76,15 +77,15 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 ```bash
 pip install -e ".[demo]"
 
-# 最短: 合成モーション → G1 retarget → side-by-side GIF を一括生成
-robotdance demo-g1 -o g1_side_by_side.gif
+# 最短: 合成モーション → G1+H1 retarget → "Same motion, many humanoids" GIF
+robotdance demo-multi -o many_humanoids.gif --robots unitree_g1 unitree_h1
 
 # 個別ステップでも実行できる:
-robotdance synth     -o dance.rdmir.json --duration 4 --fps 30   # 合成 RD-MIR
-robotdance validate  mir dance.rdmir.json                        # v0 schema 検証
-robotdance view      dance.rdmir.json -o dance.gif               # 3D スケルトン GIF
-robotdance retarget  dance.rdmir.json -o g1.rdmotion.json        # G1 kinematic retarget
-robotdance view-pair dance.rdmir.json g1.rdmotion.json -o pair.gif  # human | G1
+robotdance synth     -o dance.rdmir.json --duration 4 --fps 30          # 合成 RD-MIR
+robotdance validate  mir dance.rdmir.json                               # v0 schema 検証
+robotdance view      dance.rdmir.json -o dance.gif                      # 3D スケルトン GIF
+robotdance retarget  dance.rdmir.json -o h1.rdmotion.json --robot unitree_h1  # 任意ロボットへ
+robotdance view-pair dance.rdmir.json h1.rdmotion.json -o pair.gif      # human | robot
 ```
 
 > ここで使う動画は**合成データ**で、pose 推定や物理 sim は**まだ含みません**。
@@ -129,8 +130,8 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 | Robot | 状態 |
 | --- | --- |
-| Unitree G1 | ✅ kinematic retarget（v0 簡略プロキシ）+ side-by-side demo。実 URDF / 物理 sim は Phase 2 |
-| Unitree H1 | full-size humanoid benchmark（今後） |
+| Unitree G1 | ✅ kinematic retarget（v0 簡略プロキシ, 小型）。実 URDF / 物理 sim は Phase 2 |
+| Unitree H1 | ✅ kinematic retarget（v0 簡略プロキシ, full-size）。実 URDF / 物理 sim は Phase 2 |
 | R1 / H2 / Figure / Digit / Booster / NEO | future adapter |
 
 ## ロードマップ
@@ -149,8 +150,9 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 ## ステータス
 
 🚧 **Pre-v0.1。** specs v0（RD-MIR/Manifest/Embodiment/Motion）、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
-**G1 kinematic retarget**、3D スケルトン & side-by-side ビューア（`synth`/`validate`/`view`/`retarget`/`view-pair`/`demo-g1`）まで動作。
-次は実動画からの 3D 復元（pose/HMR adapter）と G1 の物理検証（sim）。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+**G1/H1 への kinematic retarget（multi-embodiment）**、3D & multi-panel ビューア
+（`synth`/`validate`/`view`/`retarget`/`view-pair`/`demo-g1`/`demo-multi`）まで動作。
+次は実動画からの 3D 復元（pose/HMR adapter）と物理検証（sim）。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 

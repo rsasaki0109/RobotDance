@@ -1,0 +1,211 @@
+{
+  "rd_embodiment_version": "0",
+  "robot_name": "unitree_h1",
+  "urdf_ref": "TODO(Phase2): unitree_ros2 / h1_description URDF",
+  "joint_names": [
+    "pelvis",
+    "spine",
+    "chest",
+    "neck",
+    "head",
+    "left_shoulder",
+    "left_elbow",
+    "left_wrist",
+    "right_shoulder",
+    "right_elbow",
+    "right_wrist",
+    "left_hip",
+    "left_knee",
+    "left_ankle",
+    "left_foot",
+    "right_hip",
+    "right_knee",
+    "right_ankle",
+    "right_foot"
+  ],
+  "joint_limits": {
+    "pelvis": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "spine": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "chest": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "neck": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "head": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "left_shoulder": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "left_elbow": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "left_wrist": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "right_shoulder": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "right_elbow": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "right_wrist": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "left_hip": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "left_knee": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "left_ankle": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "left_foot": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "right_hip": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "right_knee": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "right_ankle": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    },
+    "right_foot": {
+      "position": [
+        -3.14,
+        3.14
+      ],
+      "velocity": 12.0,
+      "torque": 60.0
+    }
+  },
+  "link_lengths": {
+    "spine": 0.1200000000000001,
+    "chest": 0.21999999999999997,
+    "neck": 0.21999999999999997,
+    "head": 0.15999999999999992,
+    "left_shoulder": 0.27202941017470883,
+    "left_elbow": 0.3201562118716425,
+    "left_wrist": 0.3201562118716424,
+    "right_shoulder": 0.27202941017470883,
+    "right_elbow": 0.3201562118716425,
+    "right_wrist": 0.3201562118716424,
+    "left_hip": 0.12083045973594574,
+    "left_knee": 0.44999999999999996,
+    "left_ankle": 0.44,
+    "left_foot": 0.18248287590894657,
+    "right_hip": 0.12083045973594574,
+    "right_knee": 0.44999999999999996,
+    "right_ankle": 0.44,
+    "right_foot": 0.18248287590894657
+  },
+  "end_effectors": [
+    "left_foot",
+    "right_foot",
+    "left_wrist",
+    "right_wrist"
+  ],
+  "control_modes": [
+    "position",
+    "policy"
+  ],
+  "runtime_adapter": "unitree_sdk2"
+}
