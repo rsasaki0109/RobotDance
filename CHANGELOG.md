@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **HumanML3D / BABEL adapter（§4.1, text-motion データ入口）**（`import-humanml3d` / `import-babel`,
+  `robotdance_data.humanml3d` / `robotdance_data.babel`）: text 注釈付き motion データセットを
+  既存の **skeleton-first SMPL 経路**で canonical RD-MIR 化する。
+  - **HumanML3D**: 前処理済み SMPL joint 位置 [T,22,3]（`new_joints/*.npy`）を canonical 19-joint に
+    変換し、記述文（`texts/*.txt` の `caption#tokens#start#end` を parse）を `semantics` に格納。
+    smpl.py に位置版マップ `smpl_joints_to_canonical` を追加。
+  - **BABEL**: AMASS へ付与された**行動ラベル**（sequence/frame-level）を読み、対応 AMASS を
+    `load_amass_npz` で読んで `semantics`（action_label / babel_labels / babel_segments）に付与。
+    AMASS .npz が見つからない entry はスキップ。
+  どちらも numpy のみで **CI でも検証**。データセット本体は同梱せず利用者が各自取得（license_state は
+  research_only）。HumanML3D は frame 正規化が近似・betas 未使用。Motion-X は今後。
+
 ## [0.15.0] - 2026-06-03
 
 sim スタック汎用化の節目リリース（pre-alpha）。物理検証 backend を **pluggable** にする

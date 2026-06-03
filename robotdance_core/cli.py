@@ -179,6 +179,42 @@ def _model_card(path: Path, mir_path: Path | None, out: Path, json_out: Path | N
     return 0
 
 
+def _import_humanml3d(joints: Path, text: Path | None, fps: float, out: Path) -> int:
+    """HumanML3D の joint 位置(.npy)+記述(.txt) を RD-MIR 化する（§4.1）。"""
+    from robotdance_data.humanml3d import load_humanml3d
+
+    mir = load_humanml3d(joints, text, fps=fps)
+    mir.save(out)
+    sem = mir.semantics or {}
+    print(f"✓ HumanML3D {joints.name} → RD-MIR: {out}")
+    print(f"  frames={mir.num_frames} fps={mir.fps:g} caption=\"{sem.get('action_label')}\" "
+          f"captions={len(sem.get('captions', []))} license_state={mir.license_state}")
+    print("  ⚠️ skeleton-first（SMPL joint 位置→canonical, frame 正規化は近似・betas 未使用）。"
+          "AMASS 由来で license_state=research_only。")
+    return 0
+
+
+def _import_babel(babel_json: Path, amass_root: Path, limit: int | None, out_dir: Path) -> int:
+    """BABEL の行動ラベル + AMASS を RD-MIR 群に変換する（§4.1）。"""
+    from collections import Counter
+
+    from robotdance_data.babel import iter_babel
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    labels: Counter = Counter()
+    count = 0
+    for mir in iter_babel(babel_json, amass_root, limit=limit):
+        mir.save(out_dir / f"{mir.motion_id}.rdmir.json")
+        labels[(mir.semantics or {}).get("action_label", "unknown")] += 1
+        count += 1
+    print(f"✓ BABEL → {count} RD-MIR を保存: {out_dir}")
+    if labels:
+        top = ", ".join(f"{k}={v}" for k, v in labels.most_common(6))
+        print(f"  action_label 上位: {top}")
+    print("  ⚠️ AMASS .npz が見つからない entry はスキップ。license_state=research_only。")
+    return 0 if count else 1
+
+
 def _import_hmr(path: Path, source: str, fps: float | None, out: Path) -> int:
     """HMR（4DHumans/GVHMR）の SMPL 出力（.npz 交換フォーマット）を RD-MIR 化する（§4.1）。"""
     from robotdance_perception.hmr import load_hmr_npz
@@ -1135,6 +1171,20 @@ def main(argv: list[str] | None = None) -> int:
     p_card.add_argument("--json", dest="json_out", type=Path, default=None,
                         help="機械可読カード JSON の保存先")
 
+    p_h3d = sub.add_parser("import-humanml3d",
+                           help="HumanML3D の joint(.npy)+text(.txt) を RD-MIR 化（§4.1）")
+    p_h3d.add_argument("joints", type=Path, help="HumanML3D new_joints/<id>.npy")
+    p_h3d.add_argument("--text", type=Path, default=None, help="texts/<id>.txt")
+    p_h3d.add_argument("--fps", type=float, default=20.0)
+    p_h3d.add_argument("-o", "--out", type=Path, default=Path("humanml3d.rdmir.json"))
+
+    p_bab = sub.add_parser("import-babel",
+                           help="BABEL 行動ラベル + AMASS を RD-MIR 群に変換（§4.1）")
+    p_bab.add_argument("babel_json", type=Path, help="BABEL の *.json")
+    p_bab.add_argument("--amass-root", type=Path, required=True, help="AMASS .npz のルート")
+    p_bab.add_argument("--limit", type=int, default=None)
+    p_bab.add_argument("--out-dir", type=Path, default=Path("babel_rdmir"))
+
     p_hmr = sub.add_parser("import-hmr",
                            help="HMR(4DHumans/GVHMR)の SMPL 出力(.npz)を RD-MIR 化（§4.1）")
     p_hmr.add_argument("path", type=Path, help="HMR 出力 .npz（global_orient/body_pose[/transl/fps]）")
@@ -1259,6 +1309,10 @@ def main(argv: list[str] | None = None) -> int:
         return _overlay(args.video, args.mir, args.out, args.stride)
     if args.command == "extract":
         return _extract(args.video, args.out, args.model)
+    if args.command == "import-humanml3d":
+        return _import_humanml3d(args.joints, args.text, args.fps, args.out)
+    if args.command == "import-babel":
+        return _import_babel(args.babel_json, args.amass_root, args.limit, args.out_dir)
     if args.command == "import-hmr":
         return _import_hmr(args.path, args.source, args.fps, args.out)
     if args.command == "model-card":

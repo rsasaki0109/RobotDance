@@ -92,8 +92,23 @@ def fk_smpl_body(poses: np.ndarray, trans: np.ndarray | None = None) -> np.ndarr
 def smpl_poses_to_canonical(poses: np.ndarray, trans: np.ndarray | None = None) -> np.ndarray:
     """SMPL body poses [T, 22, 3] → canonical 19-joint keypoints [T, 19, 3]（z-up）。"""
     smpl_pos = _smpl_to_canonical_frame(fk_smpl_body(poses, trans))  # [T,22,3] canonical frame
+    return _reindex_smpl_to_canonical(smpl_pos)
+
+
+def smpl_joints_to_canonical(joints: np.ndarray) -> np.ndarray:
+    """SMPL body の **joint 位置** [T, 22, 3]（SMPL frame）→ canonical 19-joint [T, 19, 3]。
+
+    HumanML3D 等は axis-angle pose ではなく FK 済みの joint 位置を配布する。本関数はそれを
+    canonical frame に変換し 19-joint へ再マップする（pose→canonical と同じ写像の位置版）。
+    """
+    pos = _smpl_to_canonical_frame(np.asarray(joints, dtype=np.float64))  # [T,22,3] canonical frame
+    return _reindex_smpl_to_canonical(pos)
+
+
+def _reindex_smpl_to_canonical(smpl_pos: np.ndarray) -> np.ndarray:
+    """canonical frame の SMPL 22-joint [T,22,3] → canonical 19-joint [T,19,3] へ再マップ。"""
     name_to_idx = {n: i for i, n in enumerate(SMPL_BODY_JOINTS)}
-    out = np.zeros((poses.shape[0], NUM_JOINTS, 3))
+    out = np.zeros((smpl_pos.shape[0], NUM_JOINTS, 3))
     for smpl_name, canon_name in _SMPL_TO_CANONICAL.items():
         out[:, index_of(canon_name)] = smpl_pos[:, name_to_idx[smpl_name]]
     return out

@@ -9,12 +9,18 @@ manifests, source adapters, dataset builder, dedupe, license firewall — URL/ma
 | `smpl.py` | SMPL/SMPL-H body skeleton の FK（**SMPL model file 不要**の skeleton-first）+ canonical 19 へのマップ |
 | `amass.py` | `load_amass_npz(path) -> RdMir`。AMASS の SMPL pose を canonical RD-MIR 化 |
 | `aist.py` | `load_aist_pkl(path) -> RdMir`。AIST++（ダンス, 60fps）の SMPL pose を canonical RD-MIR 化 |
+| `humanml3d.py` | **HumanML3D**（text-motion）。`load_humanml3d(npy, txt)`: 前処理済み SMPL joint 位置 [T,22,3] を canonical 化し、**記述文を `semantics` に格納** |
+| `babel.py` | **BABEL**（AMASS への行動ラベル）。`babel_entry_to_mir` / `load_babel(json, amass_root)`: 注釈から AMASS を読み、**行動ラベル（seq/frame）を `semantics` に付与** |
 | `manifest.py` | RD-Manifest 読込・schema 検証 + **license firewall**（`evaluate(manifest) -> FirewallDecision`） |
 | `dataset.py` | manifest 駆動ビルダー。firewall + **motion embedding 重複除去** を通し、**Data Bill of Materials** を出力 |
 
 ```bash
 robotdance build-dataset manifests.json --data-root /path/to/data --dedupe -o build/
 # → build/<clip>.rdmir.json と build/DATA_CARD.md（Data Bill of Materials）
+
+# text-motion データセット（§4.1）
+robotdance import-humanml3d new_joints/000.npy --text texts/000.txt -o clip.rdmir.json
+robotdance import-babel babel_v1.0/train.json --amass-root /path/to/amass --limit 100 --out-dir out/
 ```
 
 source_uri は `dataset://<name>/<相対パス>` 形式（`<name>` = `amass` / `aist`）で dataset とローカル位置を指定。
@@ -29,5 +35,7 @@ source_uri は `dataset://<name>/<相対パス>` 形式（`<name>` = `amass` / `
 - ビルドのたびに **Data Bill of Materials** を出力し、どの source が・どの権利で・公開されたかを明示。
 
 > ⚠️ **v0 注意:** SMPL FK の rest offset は近似（正確な shape-conditioned joint regressor は未使用）。
-> retarget は direction-preserving なので下流に影響は小さい。AIST++ / Motion-X 等の adapter、
-> 重複除去（perceptual/motion hash）は今後。実 AMASS は登録制で同梱せず、利用者が各自取得する。
+> retarget は direction-preserving なので下流に影響は小さい。**HumanML3D** は frame 正規化が近似
+> （前処理 frame を SMPL frame とみなす）、**BABEL** は AMASS .npz が見つかる entry のみ変換。
+> Motion-X 等の adapter・重複除去（perceptual hash）は今後。実 AMASS/HumanML3D/BABEL は登録制で
+> 同梱せず、利用者が各自取得する（license_state は research_only）。
