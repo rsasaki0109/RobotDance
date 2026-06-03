@@ -126,6 +126,31 @@ def _demo_g1(out: Path, stride: int) -> int:
     return 0
 
 
+def _benchmark_extraction(out_csv: Path, out_md: Path, seed: int) -> int:
+    """抽出 adapter（MediaPipe/HMR 等）を共通 GT に対し定量比較する（§4.1）。"""
+    from robotdance_benchmarks.extraction import (
+        compare_extractions,
+        render_extraction_markdown,
+        synthetic_extraction_demo,
+        write_extraction_csv,
+    )
+
+    gt, preds = synthetic_extraction_demo(seed=seed)
+    rows = compare_extractions(gt, preds)
+    print("📊 extraction benchmark（共通 GT に対する抽出品質, 小さいほど良い）:")
+    print(f"  {'extractor':16s} {'MPJPE':>8s} {'PA-MPJPE':>9s} {'PCK@5cm':>8s} "
+          f"{'MPJVE':>8s} {'jitter':>8s}")
+    for r in rows:
+        print(f"  {r['extractor']:16s} {r['mpjpe_m']:8.4f} {r['pa_mpjpe_m']:9.4f} "
+              f"{r['pck@5cm']:8.3f} {r['mpjve_m_s']:8.4f} {r['jitter_pred']:8.5f}")
+    write_extraction_csv(rows, out_csv)
+    out_md.write_text(render_extraction_markdown(rows, gt_id=gt.motion_id), encoding="utf-8")
+    print(f"✓ CSV: {out_csv} / Markdown leaderboard: {out_md}")
+    print("  ⚠️ v0: 評価ハーネス。同梱デモは合成 GT への模擬劣化で、実モデルの精度主張ではない"
+          "（実 adapter 比較は実 video の抽出結果と GT を渡して行う）。")
+    return 0
+
+
 def _model_card(path: Path, mir_path: Path | None, out: Path, json_out: Path | None) -> int:
     """RD-MIR / RD-Motion から Model Card（lineage / license / failure modes / safety）を生成（§7）。"""
     import json
@@ -997,6 +1022,12 @@ def main(argv: list[str] | None = None) -> int:
     p_extract.add_argument("-o", "--out", type=Path, default=Path("video.rdmir.json"))
     p_extract.add_argument("--model", type=Path, default=None, help="pose model (.task) パス")
 
+    p_bx = sub.add_parser("benchmark-extraction",
+                          help="抽出 adapter（MediaPipe/HMR）を共通 GT に対し定量比較（§4.1）")
+    p_bx.add_argument("--out-csv", type=Path, default=Path("extraction_benchmark.csv"))
+    p_bx.add_argument("--out-md", type=Path, default=Path("extraction_benchmark.md"))
+    p_bx.add_argument("--seed", type=int, default=0)
+
     p_card = sub.add_parser("model-card",
                             help="RD-MIR/RD-Motion の Model Card（lineage/license/failure/safety）を生成（§7）")
     p_card.add_argument("path", type=Path, help="RD-MIR または RD-Motion JSON")
@@ -1123,6 +1154,8 @@ def main(argv: list[str] | None = None) -> int:
         return _import_hmr(args.path, args.source, args.fps, args.out)
     if args.command == "model-card":
         return _model_card(args.path, args.mir, args.out, args.json_out)
+    if args.command == "benchmark-extraction":
+        return _benchmark_extraction(args.out_csv, args.out_md, args.seed)
     if args.command == "video-to-robot":
         return _video_to_robot(args.video, args.robot, args.out, args.stride)
     parser.error(f"unknown command: {args.command}")

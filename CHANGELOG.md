@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Extraction benchmark（§4.1）**（`benchmark-extraction`, `robotdance_benchmarks.extraction`）:
+  video→RD-MIR の抽出 adapter（MediaPipe / HMR(4DHumans/GVHMR) 等）を **共通 ground-truth に対し
+  定量比較**する評価ハーネス。指標は **MPJPE**（root-relative）/ **PA-MPJPE**（Umeyama 相似整列後）/
+  **PCK@5cm·10cm** / **MPJVE**（速度誤差）/ **jitter**（時間的滑らかさ）/ **bone-length MAE**。
+  `extraction_metrics(gt, pred)` / `compare_extractions(gt, {name: pred})` → MPJPE 昇順の
+  leaderboard（CSV/Markdown）。純 numpy・画像不要で **CI でも検証**。同梱デモは合成 GT に
+  MediaPipe 風（奥行きノイズ+jitter）/ HMR 風（骨長近似+時間的に滑らか）の劣化を加えて harness を
+  実演する（実 adapter 比較は実 video の抽出結果と GT を渡して行う。**実モデルの精度主張ではない**）。
+
 ## [0.12.0] - 2026-06-03
 
 実機安全 gate 完成の節目リリース（pre-alpha）。joint-space safety guard に**アクチュエータ トルク
