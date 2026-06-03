@@ -285,6 +285,39 @@ def _train_encoder(out: Path, epochs: int, device: str | None) -> int:
     return 0
 
 
+def _train_text_motion(out: Path, epochs: int, device: str | None) -> int:
+    from robotdance_models.contrastive import train_text_motion
+
+    res = train_text_motion(out_path=out, epochs=epochs, device=device)
+    h = res["loss_history"]
+    print(f"✓ text-motion contrastive 学習完了: {out}")
+    print(f"  pairs={res['pairs']} motions={res['motions']} device={res['device']} epochs={epochs}")
+    print(f"  InfoNCE loss: {h[0]:.4f} → {h[-1]:.4f}")
+    print(f"  caption→motion retrieval: group top-1 {100 * res['group_top1']:.0f}% "
+          f"/ exact top-1 {100 * res['train_top1']:.0f}%")
+    return 0
+
+
+def _search_text(query: str, checkpoint: Path, k: int) -> int:
+    """テキスト query から合成モーション・スイートを意味検索する（§4.2 デモ）。"""
+    from robotdance_core.synthetic import generate_backflip, generate_dance
+    from robotdance_models.contrastive import TextMotionModel
+
+    motions = {
+        "dance_fast": generate_dance(beats_per_second=1.6),
+        "dance_normal": generate_dance(beats_per_second=1.0),
+        "dance_slow": generate_dance(beats_per_second=0.7),
+        "idle": generate_dance(beats_per_second=0.5, arm_amp=0.15, sway_amp=0.04),
+        "backflip": generate_backflip(duration=1.6),
+    }
+    model = TextMotionModel(checkpoint)
+    print(f'🔎 query: "{query}"')
+    for mid, sim in model.search(query, motions, k=k):
+        bar = "█" * round(max(sim, 0.0) * 20)
+        print(f"  {mid:14s} cos={sim:+.3f} {bar}")
+    return 0
+
+
 def _demo_motion_map(out: Path, checkpoint: Path | None = None) -> int:
     """多様な合成モーションを埋め込み、検索・重複・2D マップを示す（§6.2 Demo 3）。
 
@@ -533,6 +566,17 @@ def main(argv: list[str] | None = None) -> int:
     p_train.add_argument("--epochs", type=int, default=40)
     p_train.add_argument("--device", default=None, help="cpu / cuda（既定: 自動）")
 
+    p_tm = sub.add_parser("train-text-motion", help="contrastive text-motion encoder を学習する")
+    p_tm.add_argument("-o", "--out", type=Path, default=Path("text_motion.pt"))
+    p_tm.add_argument("--epochs", type=int, default=120)
+    p_tm.add_argument("--device", default=None, help="cpu / cuda（既定: 自動）")
+
+    p_st = sub.add_parser("search-text", help="テキストで合成モーションを意味検索する")
+    p_st.add_argument("query", help='検索文（例: "a person doing a backflip"）')
+    p_st.add_argument("--checkpoint", type=Path, default=Path("text_motion.pt"),
+                      help="train-text-motion の .pt")
+    p_st.add_argument("-k", type=int, default=5)
+
     p_build = sub.add_parser("build-dataset", help="RD-Manifest から RD-MIR を構築（license firewall）")
     p_build.add_argument("manifest", type=Path, help="manifest JSON（配列 or 単体）")
     p_build.add_argument("--data-root", type=Path, default=Path("."), help="ローカル source の基準ディレクトリ")
@@ -608,6 +652,10 @@ def main(argv: list[str] | None = None) -> int:
         return _import_urdf(args.urdf, args.name, args.save)
     if args.command == "train-encoder":
         return _train_encoder(args.out, args.epochs, args.device)
+    if args.command == "train-text-motion":
+        return _train_text_motion(args.out, args.epochs, args.device)
+    if args.command == "search-text":
+        return _search_text(args.query, args.checkpoint, args.k)
     if args.command == "build-dataset":
         return _build_dataset(args.manifest, args.data_root, args.out, args.dedupe)
     if args.command == "smooth":

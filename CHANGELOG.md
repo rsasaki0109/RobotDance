@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Contrastive text-motion 検索**（`train-text-motion` / `search-text`,
+  `robotdance_models.contrastive`, torch）: motion encoder（masked modeling の再利用）と
+  決定的ハッシュ n-gram テキスト特徴（`robotdance_models.text`, 依存なし）を**共有埋め込み空間**に
+  射影し、(motion, caption) を **multi-positive InfoNCE** で整合させる。学習後は
+  `embed_text("a person doing a backflip")` と `embed_motion(rd_mir)` が同じ単位球面に乗り、
+  自然文でモーションを意味検索できる。合成 corpus で **caption→motion を action 群レベル top-1 100%**
+  で引け、学習に無い言い回し（"flipping backwards through the air" → backflip 等）にも汎化する。
+  v0 は事前学習言語モデルなし・合成 corpus（実キャプション規模・CLIP 等への差し替えは今後）。
+
 ## [0.3.0] - 2026-06-03
 
 実機パスの節目リリース（pre-alpha）。**人間動画/mocap → 実 G1 の実関節角 → ROS2 /joint_states 配信**
