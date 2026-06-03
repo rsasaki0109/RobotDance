@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-06-03
+
+実機橋渡しの節目リリース（pre-alpha）。予定フィールドのみだった **RD-Policy** spec を v0 で確定し、
+学習済み tracking policy を I/O 規約・安全制約・weights 参照付きの配布 artifact（+ONNX）として
+export できるようにした。spec 一式（RD-MIR/Manifest/Embodiment/Motion/**Policy**）が出揃った。
+
 ### Added
 - **RD-Policy spec 確定 + policy export（§3/§4.5）**（`export-policy`, `validate policy`,
   `robotdance_core.rd_policy`, `robotdance_models.policy_export`）: 学習済み motion policy の **配布
@@ -16,6 +22,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   model_card registry を再利用、safety_limits は下流の joint-space safety guard で強制する旨を記録。
   weights を埋め込まず参照する **license/容量 safe** 設計。spec/モデル/assembly は依存なしで **CI 検証**
   （ONNX/checkpoint export は torch）。`validate` の対象に `motion` / `policy` を追加。
+
+[0.17.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.17.0
 
 ## [0.16.0] - 2026-06-03
 
