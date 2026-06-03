@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Joint-space safety guard（§5.6）**（`demo-joint-safety`, `robotdance_ros2.safety_guard`）:
+  Safety Guard に **actuator（関節）空間の limit enforcement** を追加。actuator-space IK /
+  tracking policy が出す関節角列を、実機コマンド直前に **位置 limit・速度・加速度**へクランプする。
+  これは `sim_certificate`（物理的妥当性）の**先**にある最終 gate で、コマンド自体を機構的に安全な
+  範囲へ整形する。`SafetyGuard.filter_frame()` が `MotionFrame.joint_angles` を stateful にクランプし、
+  `clamp_joint_trajectory(angles, dt, limits, names)` が軌道全体を一括整形して report（raw/safe の
+  最大速度・加速度、各 limit 発火フレーム数）を返す。`SafetyLimits` に `max_joint_speed` /
+  `max_joint_accel` / `joint_position_limits` を追加。純 numpy・ROS2 非依存で **CI でも検証**。
+  v0 は位置/速度を厳密 bound・加速度は best-effort。トルク/電流 limit は実機モデルが入る Phase 4+。
+
+### Notes
+- **摂動頑健性（perturbation robustness）を調査したが見送り**: v0 の両足接地＋剛 PD モデルは静的な
+  転倒閾値が鋭く、閾値超過のトルク shove は 1 制御ステップで倒れ切る（残差トルクでは間に合わず、
+  回復には踏み出し＝接地変更が必要だが planted 参照＋追従報酬がそれを許さない）。domain randomization
+  で学習しても摂動下 survival は PD と同等（PD 0.43 / RL 0.43, 改善 +0.00）。**正直な RL>PD の優位が
+  存在しない**ため、誇張を避けて本機能は出さず、より確実な価値のある joint-space safety guard を採用した。
+
 ## [0.8.0] - 2026-06-03
 
 制御スタック汎化の節目リリース（pre-alpha）。v0.7 の RL tracking 方策は**単一参照専用**だったが、

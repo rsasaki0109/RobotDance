@@ -14,7 +14,11 @@ from robotdance_core.synthetic import generate_dance
 from robotdance_retarget.kinematic import retarget
 from robotdance_ros2.messages import MotionFrame, SafetyStatus
 from robotdance_ros2.motion_server import MotionServer
-from robotdance_ros2.safety_guard import SafetyGuard, SafetyLimits
+from robotdance_ros2.safety_guard import (
+    SafetyGuard,
+    SafetyLimits,
+    clamp_joint_trajectory,
+)
 from robotdance_unitree import get_morphology
 
 
@@ -83,6 +87,91 @@ def test_fall_detection_aborts() -> None:
     guard.filter_frame(_frame(0, z=0.7), None, dt=0.033)        # nominal z=0.7
     _, state = guard.filter_frame(_frame(1, z=0.3), _frame(0, z=0.7), dt=0.033)  # 0.3 < 0.7*0.65
     assert state.is_abort
+
+
+# --- safety guard: joint-space limit enforcement (§5.6) ---
+
+def test_clamp_joint_trajectory_bounds_position_and_velocity() -> None:
+    """関節角列の位置・速度が limit 内に整形される（offline export）。"""
+    dt = 1.0 / 30.0
+    raw = np.zeros((40, 4))
+    raw[:, 0] = np.linspace(0.0, 5.0, 40)  # 緩やかに位置 limit(±2)超過 → 位置クランプ
+    raw[20, 1] = 9.0                        # 単発スパイク → 速度クランプ
+    # 加速度を実質無制限にし、速度クランプを主役にする（位置 vs 速度を分離して検査）。
+    limits = SafetyLimits(
+        max_joint_speed=10.0, max_joint_accel=1e9,
+        joint_position_limits={f"j{i}": (-2.0, 2.0) for i in range(4)},
+    )
+    safe, rep = clamp_joint_trajectory(raw, dt, limits, [f"j{i}" for i in range(4)])
+    # 位置は ±2.0 に bound。
+    assert float(np.abs(safe).max()) <= 2.0 + 1e-9
+    # 速度は max_joint_speed に bound。
+    assert rep["safe_max_joint_speed_rad_s"] <= 10.0 + 1e-6
+    # raw は明確に超過していた。
+    assert rep["raw_max_joint_speed_rad_s"] > 10.0
+    assert rep["position_limit_frames"] > 0
+    assert rep["velocity_clamp_frames"] > 0
+
+
+def test_clamp_joint_trajectory_bounds_acceleration() -> None:
+    """加速度 limit が往復ジャークの加速度を下げる（best-effort）。"""
+    dt = 1.0 / 30.0
+    raw = np.zeros((30, 2))
+    raw[15, 0] = 2.0
+    raw[16, 0] = -2.0  # 大きなジャーク
+    soft = SafetyLimits(max_joint_speed=1e9, max_joint_accel=50.0, default_joint_range=100.0)
+    hard = SafetyLimits(max_joint_speed=1e9, max_joint_accel=1e12, default_joint_range=100.0)
+    _, rep_soft = clamp_joint_trajectory(raw, dt, soft)
+    _, rep_hard = clamp_joint_trajectory(raw, dt, hard)
+    assert rep_soft["accel_clamp_frames"] > 0
+    assert rep_soft["safe_max_joint_accel_rad_s2"] < rep_hard["safe_max_joint_accel_rad_s2"]
+
+
+def test_clamp_default_range_when_no_limits() -> None:
+    """位置 limit 未指定なら ±default_joint_range で clamp する。"""
+    dt = 1.0 / 30.0
+    raw = np.zeros((5, 2))
+    raw[2, 0] = 100.0
+    limits = SafetyLimits(default_joint_range=1.0, max_joint_speed=1e9, max_joint_accel=1e12)
+    safe, _ = clamp_joint_trajectory(raw, dt, limits)
+    assert float(np.abs(safe).max()) <= 1.0 + 1e-9
+
+
+def test_guard_clamps_joint_angles_in_frame() -> None:
+    """filter_frame が関節角の過大速度をクランプし WARNING を出す。"""
+    limits = SafetyLimits(max_joint_speed=5.0, require_certificate=False,
+                          joint_position_limits=None, default_joint_range=100.0)
+    guard = SafetyGuard(limits)
+    names = [f"j{i}" for i in range(3)]
+    f0 = MotionFrame(index=0, time=0.0, keypoints=np.zeros((NUM_JOINTS, 3)),
+                     base_position=np.array([0.0, 0.0, 0.7]),
+                     joint_names=names, joint_angles=np.zeros(3))
+    f1 = MotionFrame(index=1, time=0.033, keypoints=np.zeros((NUM_JOINTS, 3)),
+                     base_position=np.array([0.0, 0.0, 0.7]),
+                     joint_names=names, joint_angles=np.array([1.0, 0.0, 0.0]))  # 1rad/0.033s≈30rad/s
+    guard.filter_frame(f0, None, dt=0.033)
+    safe, state = guard.filter_frame(f1, f0, dt=0.033)
+    realized_speed = float(np.abs(safe.joint_angles - f0.joint_angles).max() / 0.033)
+    assert realized_speed <= 5.0 + 1e-6
+    assert state.status is SafetyStatus.WARNING
+
+
+def test_guard_passes_safe_joint_motion() -> None:
+    """limit 内の関節運動はクランプされず OK のまま通る。"""
+    limits = SafetyLimits(max_joint_speed=12.0, require_certificate=False, warn_joint_speed=8.0,
+                          default_joint_range=100.0)
+    guard = SafetyGuard(limits)
+    names = [f"j{i}" for i in range(3)]
+    f0 = MotionFrame(index=0, time=0.0, keypoints=np.zeros((NUM_JOINTS, 3)),
+                     base_position=np.array([0.0, 0.0, 0.7]),
+                     joint_names=names, joint_angles=np.zeros(3))
+    f1 = MotionFrame(index=1, time=0.033, keypoints=np.zeros((NUM_JOINTS, 3)),
+                     base_position=np.array([0.0, 0.0, 0.7]),
+                     joint_names=names, joint_angles=np.array([0.05, -0.05, 0.05]))
+    guard.filter_frame(f0, None, dt=0.033)
+    safe, state = guard.filter_frame(f1, f0, dt=0.033)
+    assert np.allclose(safe.joint_angles, f1.joint_angles)
+    assert state.status is SafetyStatus.OK
 
 
 # --- motion server ---

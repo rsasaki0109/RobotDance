@@ -50,6 +50,7 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 | temporal smoothing + 2D overlay | `smooth` / `overlay` | jitter 0.099→0.022 |
 | benchmark（motion × robot leaderboard） | `benchmark` | CSV + leaderboard |
 | ROS2 安全再生（Jazzy, safety guard） | `serve --ros2` / `demo-runtime` | RViz 可視化 |
+| 関節空間 safety guard（位置/速度/加速度クランプ, §5.6） | `demo-joint-safety` | 実機コマンド直前の最終 gate |
 
 > 入力は **合成 / 実動画(MediaPipe) / mocap(AMASS)** の 3 系統、すべて同じ canonical **RD-MIR** に合流し、
 > retarget → 物理検証 → embedding → 安全再生のパイプラインを流れます。
@@ -379,9 +380,9 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 **テキスト → モーション意味検索（contrastive text-motion）**、**モーション → 離散トークン（VQ-VAE）+ 生成・補完（token prior）+ テキスト条件付き生成（text2motion）**、
 **G1/H1 への kinematic retarget（multi-embodiment）+ アクチュエータ空間 IK（実 G1 関節角）**、
 **MuJoCo 物理検証（sim_certificate / PASS・REJECT）+ RL tracking policy baseline（物理上で参照を追従, PPO, base 非駆動, 1 方策で複数運動を汎化）**、
-**motion × robot benchmark + leaderboard**、**ROS2 runtime（safety guard + motion server + /joint_states, Jazzy）**、
+**motion × robot benchmark + leaderboard**、**ROS2 runtime（safety guard: Cartesian + 関節空間 位置/速度/加速度クランプ + motion server + /joint_states, Jazzy）**、
 3D & multi-panel ビューアまで動作
-（`extract`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-text2motion`/`generate-text`/`train-tracking`/`demo-track`/`demo-track-multi`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
+（`extract`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-text2motion`/`generate-text`/`train-tracking`/`demo-track`/`demo-track-multi`/`demo-joint-safety`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
 次は HMR adapter（4DHumans/GVHMR）・高度な RL tracking（AMP/摂動/実機転移）・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
