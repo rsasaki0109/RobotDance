@@ -126,6 +126,34 @@ def _demo_g1(out: Path, stride: int) -> int:
     return 0
 
 
+def _model_card(path: Path, mir_path: Path | None, out: Path, json_out: Path | None) -> int:
+    """RD-MIR / RD-Motion から Model Card（lineage / license / failure modes / safety）を生成（§7）。"""
+    import json
+
+    from robotdance_core.model_card import build_mir_card, build_motion_card, render_markdown
+    from robotdance_core.rd_mir import RdMir
+    from robotdance_core.rd_motion import RdMotion
+
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if "robot_name" in raw or "rd_motion_version" in raw:
+        motion = RdMotion.load(path)
+        mir = RdMir.load(mir_path) if mir_path else None
+        card = build_motion_card(motion, mir=mir)
+    else:
+        card = build_mir_card(RdMir.load(path))
+
+    out.write_text(render_markdown(card), encoding="utf-8")
+    print(f"✓ {card['card_type']} card: {out}")
+    print(f"  id={card['identity'].get('id')} license={card['license']['state']} "
+          f"failure_modes={len(card['failure_modes'])} lineage={len(card['lineage'])} stages")
+    if json_out:
+        json_out.write_text(json.dumps(card, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  machine-readable: {json_out}")
+    if card["card_type"] == "motion" and mir_path is None:
+        print("  ⚠️ license は --mir 指定で source RD-MIR から継承（未指定は unknown）。")
+    return 0
+
+
 def _import_hmr(path: Path, source: str, fps: float | None, out: Path) -> int:
     """HMR（4DHumans/GVHMR）の SMPL 出力（.npz 交換フォーマット）を RD-MIR 化する（§4.1）。"""
     from robotdance_perception.hmr import load_hmr_npz
@@ -962,6 +990,14 @@ def main(argv: list[str] | None = None) -> int:
     p_extract.add_argument("-o", "--out", type=Path, default=Path("video.rdmir.json"))
     p_extract.add_argument("--model", type=Path, default=None, help="pose model (.task) パス")
 
+    p_card = sub.add_parser("model-card",
+                            help="RD-MIR/RD-Motion の Model Card（lineage/license/failure/safety）を生成（§7）")
+    p_card.add_argument("path", type=Path, help="RD-MIR または RD-Motion JSON")
+    p_card.add_argument("--mir", type=Path, default=None, help="motion の source RD-MIR（license 継承用）")
+    p_card.add_argument("-o", "--out", type=Path, default=Path("MODEL_CARD.md"))
+    p_card.add_argument("--json", dest="json_out", type=Path, default=None,
+                        help="機械可読カード JSON の保存先")
+
     p_hmr = sub.add_parser("import-hmr",
                            help="HMR(4DHumans/GVHMR)の SMPL 出力(.npz)を RD-MIR 化（§4.1）")
     p_hmr.add_argument("path", type=Path, help="HMR 出力 .npz（global_orient/body_pose[/transl/fps]）")
@@ -1078,6 +1114,8 @@ def main(argv: list[str] | None = None) -> int:
         return _extract(args.video, args.out, args.model)
     if args.command == "import-hmr":
         return _import_hmr(args.path, args.source, args.fps, args.out)
+    if args.command == "model-card":
+        return _model_card(args.path, args.mir, args.out, args.json_out)
     if args.command == "video-to-robot":
         return _video_to_robot(args.video, args.robot, args.out, args.stride)
     parser.error(f"unknown command: {args.command}")

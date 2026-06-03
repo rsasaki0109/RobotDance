@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Model / Motion Cards（§7）**（`model-card`, `robotdance_core.model_card`）: RD-MIR / RD-Motion から
+  責任ある公開・利用に必要な情報を構造化したカードを生成する — **data lineage**（source → extractor →
+  retarget → sim_certificate → control_mode の連鎖）・**license**（state から再配布/商用の可否を導出、
+  RD-Motion は source RD-MIR から継承）・**failure modes**（使用手法のシグナルから curated registry を
+  引いて既知の v0 限界を列挙）・**safety limits**（sim_certificate の verdict/thresholds、actuator なら
+  joint-space safety guard 必須を明記）・metrics。`build_mir_card` / `build_motion_card` /
+  `render_markdown`（Markdown）+ 機械可読 JSON、collection 用 `license_composition`。純 Python で
+  **CI でも検証**。dataset 全体の license firewall 内訳は既存の Data Bill of Materials（DATA_CARD.md）が担う。
+
 ## [0.10.0] - 2026-06-03
 
 動画入口の高品質化の節目リリース（pre-alpha）。MediaPipe（2D→近似 3D landmark）に加え、
