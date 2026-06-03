@@ -70,22 +70,42 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 
 中核となる内部標準は **RD-MIR (RobotDance Motion Intermediate Representation)** です。詳細は [`specs/`](specs/) を参照。
 
+## Demo 4 — Unsafe motion rejected
+
+> RobotDance は「動画を入れたら即ロボットが踊る」危険ツールではありません。retarget した運動を
+> **MuJoCo 物理で feasibility 検証**し、無理な運動は reject します（設計方針 §6.2 Demo 4 / §5.6）。
+
+![safe vs unsafe](assets/readme/safety_check.gif)
+
+```
+dance    → PASS    （airborne 0%, ZMP 支持内, torque p50 18.7 N·m）
+backflip → REJECT  （airborne 88%, ZMP 支持外 92%, torque ×20.6, 角速度 38 rad/s）
+```
+
+受動 humanoid はバランス制御なしで何でも倒れるため forward sim は判別力を持ちません。代わりに
+**参照運動そのものの物理的実現可能性**を検証します（逆動力学トルク + COM/ZMP バランス + 滞空判定）。
+近似慣性のため実機保証ではありません（詳細: [`robotdance_sim`](robotdance_sim/)）。
+
 ## Quick start
 
-外部モデルや権利付き動画なしで、合成モーション → RD-MIR → 3D スケルトン GIF を end-to-end で試せます。
+外部モデルや権利付き動画なしで、合成モーション → RD-MIR → retarget → 物理検証まで end-to-end に試せます。
 
 ```bash
-pip install -e ".[demo]"
+pip install -e ".[demo,sim]"
 
-# 最短: 合成モーション → G1+H1 retarget → "Same motion, many humanoids" GIF
-robotdance demo-multi -o many_humanoids.gif --robots unitree_g1 unitree_h1
+# "Same motion, many humanoids"（G1 + H1）
+robotdance demo-multi  -o many_humanoids.gif --robots unitree_g1 unitree_h1
 
-# 個別ステップでも実行できる:
-robotdance synth     -o dance.rdmir.json --duration 4 --fps 30          # 合成 RD-MIR
-robotdance validate  mir dance.rdmir.json                               # v0 schema 検証
-robotdance view      dance.rdmir.json -o dance.gif                      # 3D スケルトン GIF
-robotdance retarget  dance.rdmir.json -o h1.rdmotion.json --robot unitree_h1  # 任意ロボットへ
-robotdance view-pair dance.rdmir.json h1.rdmotion.json -o pair.gif      # human | robot
+# 物理検証デモ: safe dance(PASS) vs backflip(REJECT)
+robotdance demo-safety -o safety_check.gif --robot unitree_g1
+
+# 個別ステップ:
+robotdance synth        -o dance.rdmir.json --duration 4 --fps 30          # 合成 RD-MIR
+robotdance validate     mir dance.rdmir.json                              # v0 schema 検証
+robotdance view         dance.rdmir.json -o dance.gif                     # 3D スケルトン GIF
+robotdance retarget     dance.rdmir.json -o h1.rdmotion.json --robot unitree_h1
+robotdance view-pair    dance.rdmir.json h1.rdmotion.json -o pair.gif     # human | robot
+robotdance validate-sim dance.rdmir.json --robot unitree_g1               # MuJoCo 物理検証
 ```
 
 > ここで使う動画は**合成データ**で、pose 推定や物理 sim は**まだ含みません**。
@@ -130,8 +150,8 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 | Robot | 状態 |
 | --- | --- |
-| Unitree G1 | ✅ kinematic retarget（v0 簡略プロキシ, 小型）。実 URDF / 物理 sim は Phase 2 |
-| Unitree H1 | ✅ kinematic retarget（v0 簡略プロキシ, full-size）。実 URDF / 物理 sim は Phase 2 |
+| Unitree G1 | ✅ kinematic retarget + MuJoCo 物理検証（v0 簡略プロキシ, 小型）。実 URDF は Phase 2 |
+| Unitree H1 | ✅ kinematic retarget + MuJoCo 物理検証（v0 簡略プロキシ, full-size）。実 URDF は Phase 2 |
 | R1 / H2 / Figure / Digit / Booster / NEO | future adapter |
 
 ## ロードマップ
@@ -149,10 +169,10 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 ## ステータス
 
-🚧 **Pre-v0.1。** specs v0（RD-MIR/Manifest/Embodiment/Motion）、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
-**G1/H1 への kinematic retarget（multi-embodiment）**、3D & multi-panel ビューア
-（`synth`/`validate`/`view`/`retarget`/`view-pair`/`demo-g1`/`demo-multi`）まで動作。
-次は実動画からの 3D 復元（pose/HMR adapter）と物理検証（sim）。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+🚧 **Pre-v0.1。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
+**G1/H1 への kinematic retarget（multi-embodiment）**、**MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、
+3D & multi-panel ビューアまで動作（`synth`/`validate`/`view`/`retarget`/`view-pair`/`validate-sim`/`demo-g1`/`demo-multi`/`demo-safety`）。
+次は実動画からの 3D 復元（pose/HMR adapter）と実 URDF・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 

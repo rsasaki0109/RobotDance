@@ -92,16 +92,15 @@ def generate_dance(
         local[i_lel] = Rot.from_euler("y", -0.5 * (0.5 + 0.5 * np.sin(ph)))
         local[i_rel] = Rot.from_euler("y", -0.5 * (0.5 + 0.5 * np.sin(ph + np.pi)))
 
-        # 脚: 交互に膝を曲げて足踏み（hip/knee を y 軸回りに）。
-        lift_l = 0.5 + 0.5 * np.sin(ph)
-        lift_r = 0.5 + 0.5 * np.sin(ph + np.pi)
-        local[i_lhip] = Rot.from_euler("y", -0.5 * lift_l)
-        local[i_lknee] = Rot.from_euler("y", 0.9 * lift_l)
-        local[i_rhip] = Rot.from_euler("y", -0.5 * lift_r)
-        local[i_rknee] = Rot.from_euler("y", 0.9 * lift_r)
+        # 脚: 両足を接地したまま軽く膝を曲げる程度（足踏みはせず double support を保つ）。
+        knee = 0.12 + 0.08 * np.cos(ph)
+        local[i_lhip] = Rot.from_euler("y", -0.4 * knee)
+        local[i_lknee] = Rot.from_euler("y", 0.8 * knee)
+        local[i_rhip] = Rot.from_euler("y", -0.4 * knee)
+        local[i_rknee] = Rot.from_euler("y", 0.8 * knee)
 
-        # root: 上下のバウンスと微小な左右移動。
-        root_pos = _REST[0] + np.array([0.0, 0.04 * np.sin(ph), 0.04 * np.abs(np.sin(ph))])
+        # root: 控えめな左右移動（過度な上下バウンスは避ける）。
+        root_pos = _REST[0] + np.array([0.0, 0.03 * np.sin(ph), 0.01 * np.abs(np.sin(ph))])
         keypoints[f] = _fk(local, root_pos)
 
     # 接地: ankle の高さが閾値以下なら接地とみなす。
@@ -125,5 +124,56 @@ def generate_dance(
         contacts=contacts,
         privacy_flags={"synthetic": True, "face_visible": False},
         semantics={"action_label": "dance", "style_tag": "synthetic_demo"},
+        extractor_versions={"generator": "robotdance.synthetic.v0"},
+    )
+
+
+def generate_backflip(
+    *,
+    duration: float = 1.6,
+    fps: float = 30.0,
+    motion_id: str = "rdmir-synth-backflip-0001",
+) -> RdMir:
+    """バックフリップの合成 RD-MIR を生成する（safety validator の REJECT 例）。
+
+    立ち姿を pelvis の lateral 軸（y）回りに一回転させつつ、pelvis を放物線で打ち上げる。
+    滞空中は接地なし → balance/airborne/角速度のいずれでも危険と判定されるべき運動。
+    """
+    n_frames = round(fps * duration)
+    t = np.arange(n_frames) / fps
+    s = t / max(t[-1], 1e-9)  # 0..1
+
+    # rest pose を pelvis 基準に。
+    rest = _REST.copy()
+    pelvis0 = rest[0].copy()
+    rel = rest - pelvis0  # pelvis 基準の相対位置
+
+    keypoints = np.zeros((n_frames, NUM_JOINTS, 3))
+    for f in range(n_frames):
+        angle = -2.0 * np.pi * s[f]  # 後方一回転（x-z 面, y 軸回り）
+        rot = Rot.from_euler("y", angle)
+        # pelvis は放物線で打ち上げ（高さ最大 ~1.4m）。
+        height = 1.4 * 4.0 * s[f] * (1.0 - s[f])
+        pelvis = pelvis0 + np.array([0.0, 0.0, height])
+        keypoints[f] = pelvis + rot.apply(rel)
+
+    # 接地は離陸前と着地後のわずかな区間のみ。
+    ground_phase = (s < 0.06) | (s > 0.94)
+    contacts = {
+        "left_foot": ground_phase.tolist(),
+        "right_foot": ground_phase.tolist(),
+    }
+    return RdMir(
+        motion_id=motion_id,
+        source_ref={"dataset_name": "robotdance-synthetic", "generator": "synthetic.generate_backflip"},
+        license_state="redistributable",
+        fps=fps,
+        duration=duration,
+        skeleton=Skeleton(joint_names=JOINT_NAMES, parents=PARENTS),
+        root_trajectory={"position": keypoints[:, 0, :].tolist()},
+        keypoints_3d=keypoints.tolist(),
+        contacts=contacts,
+        privacy_flags={"synthetic": True, "face_visible": False},
+        semantics={"action_label": "backflip", "style_tag": "synthetic_unsafe_demo"},
         extractor_versions={"generator": "robotdance.synthetic.v0"},
     )

@@ -126,6 +126,52 @@ def _demo_g1(out: Path, stride: int) -> int:
     return 0
 
 
+def _validate_sim(path: Path, robot: str, out: Path | None) -> int:
+    from .rd_mir import RdMir
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_sim.mujoco_backend import certify
+    from robotdance_unitree import get_morphology
+
+    morph = get_morphology(robot)
+    motion = retarget(RdMir.load(path), morph)
+    certify(motion, morph)
+    cert = motion.sim_certificate or {}
+    print(f"{'✅' if cert.get('passed') else '⛔'} {robot}: {cert.get('verdict')}")
+    for k, v in (cert.get("metrics") or {}).items():
+        print(f"    {k} = {v}")
+    for r in cert.get("reasons") or []:
+        print(f"    ⚠️ {r}")
+    print(f"    {cert.get('note')}")
+    if out is not None:
+        motion.save(out)
+        print(f"  → sim_certificate 付き RD-Motion を保存: {out}")
+    return 0 if cert.get("passed") else 1
+
+
+def _demo_safety(out: Path, robot: str, stride: int) -> int:
+    """安全なダンス(PASS) と バックフリップ(REJECT) を side-by-side で示す（§6.2 Demo 4）。"""
+    from .synthetic import generate_backflip, generate_dance
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_sim.mujoco_backend import certify
+    from robotdance_unitree import get_morphology
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    morph = get_morphology(robot)
+    panels, verdicts = [], []
+    for label, mir in [("dance", generate_dance(duration=4.0)), ("backflip", generate_backflip())]:
+        motion = retarget(mir, morph)
+        certify(motion, morph)
+        cert = motion.sim_certificate
+        verdict = cert["verdict"]
+        color = "#2ca02c" if cert["passed"] else "#d62728"
+        panels.append((motion.keypoints_3d_array(), f"{label} → {robot}", "#ff7f0e"))
+        verdicts.append((verdict, color))
+        print(f"  {label:9s} → {verdict}  reasons={cert['reasons']}")
+    render_side_by_side(panels, out, fps=30.0, stride=stride, verdicts=verdicts)
+    print(f"✓ safety デモ GIF を書き出しました: {out}")
+    return 0
+
+
 # multi-embodiment デモで描き分ける色。
 _ROBOT_COLORS = {"unitree_g1": "#ff7f0e", "unitree_h1": "#2ca02c"}
 
@@ -190,6 +236,16 @@ def main(argv: list[str] | None = None) -> int:
     p_multi.add_argument("--robots", nargs="+", default=["unitree_g1", "unitree_h1"])
     p_multi.add_argument("--stride", type=int, default=2)
 
+    p_vsim = sub.add_parser("validate-sim", help="RD-MIR を robot へ retarget し MuJoCo 物理検証")
+    p_vsim.add_argument("path", type=Path, help="RD-MIR JSON")
+    p_vsim.add_argument("--robot", default="unitree_g1")
+    p_vsim.add_argument("-o", "--out", type=Path, default=None, help="certificate 付き .rdmotion 保存先")
+
+    p_safety = sub.add_parser("demo-safety", help="safe dance(PASS) vs backflip(REJECT) を描画")
+    p_safety.add_argument("-o", "--out", type=Path, default=Path("safety_check.gif"))
+    p_safety.add_argument("--robot", default="unitree_g1")
+    p_safety.add_argument("--stride", type=int, default=2)
+
     args = parser.parse_args(argv)
     if args.command == "validate":
         return _validate(args.spec, args.path)
@@ -205,6 +261,10 @@ def main(argv: list[str] | None = None) -> int:
         return _demo_g1(args.out, args.stride)
     if args.command == "demo-multi":
         return _demo_multi(args.out, args.robots, args.stride)
+    if args.command == "validate-sim":
+        return _validate_sim(args.path, args.robot, args.out)
+    if args.command == "demo-safety":
+        return _demo_safety(args.out, args.robot, args.stride)
     parser.error(f"unknown command: {args.command}")
     return 2
 

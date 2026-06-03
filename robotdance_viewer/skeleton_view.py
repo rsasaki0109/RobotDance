@@ -112,12 +112,14 @@ def render_side_by_side(
     elev: float = 12.0,
     azim: float = -70.0,
     dpi: int = 80,
+    verdicts: list[tuple[str, str]] | None = None,
 ) -> Path:
     """複数のスケルトンを横並びの GIF に描画する（human | robot 比較用）。
 
     panels: (keypoints[T, J, 3], label, hex_color) のリスト。全 panel は同じ canonical
     トポロジ（BONES）を共有し、**同一メートルスケール / 共通の縦レンジ**で描くため、
     身長差（G1 が低い）がそのまま見える。
+    verdicts: 各 panel の下に表示する (text, hex_color) のバッジ（PASS/REJECT 等）。None で非表示。
     """
     import imageio.v2 as imageio
 
@@ -141,7 +143,7 @@ def render_side_by_side(
     if len(panels) == 1:
         axes = [axes]
     for f in range(0, n_frames, stride):
-        for ax, pr, (_, label, color) in zip(axes, projected, panels):
+        for i, (ax, pr, (_, label, color)) in enumerate(zip(axes, projected, panels)):
             ax.clear()
             pts = pr[f]
             for child, parent in BONES:
@@ -159,6 +161,13 @@ def render_side_by_side(
             ax.set_aspect("equal")
             ax.set_axis_off()
             ax.set_title(label, fontsize=9)
+            if verdicts is not None:
+                text, vcolor = verdicts[i]
+                ax.text(
+                    0.5, 0.02, text, transform=ax.transAxes, ha="center", va="bottom",
+                    fontsize=11, fontweight="bold", color="white",
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor=vcolor, edgecolor="none"),
+                )
         fig.tight_layout()
         fig.canvas.draw()
         buf = np.asarray(fig.canvas.buffer_rgba())

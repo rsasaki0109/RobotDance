@@ -41,7 +41,11 @@ demo = [
     "imageio>=2.30",
 ]
 perception = []  # TODO(v0.1): pose / HMR adapter 依存
-sim = []         # TODO(v0.2): Isaac Lab / MuJoCo backend
+# MuJoCo 物理ベースの feasibility 検証（sim_certificate）。
+sim = [
+    "mujoco>=3.0",
+    "scipy>=1.10",
+]
 ros2 = []        # ROS2 は colcon / ament 管理のため別ワークスペース想定
 dev = [
     "pytest>=8.0",
@@ -49,6 +53,7 @@ dev = [
     "scipy>=1.10",
     "matplotlib>=3.7",
     "imageio>=2.30",
+    "mujoco>=3.0",
 ]
 
 [project.scripts]
