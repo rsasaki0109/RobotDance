@@ -238,6 +238,27 @@ def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_
     return 0
 
 
+def _import_urdf(urdf: Path, name: str, save: Path | None) -> int:
+    import json
+
+    import jsonschema
+
+    from robotdance_unitree.urdf_import import urdf_to_morphology
+
+    morph = urdf_to_morphology(urdf, name=name)
+    emb = morph.to_rd_embodiment()
+    schema = json.loads(
+        (_SPECS_DIR / "rd-embodiment" / "rd-embodiment.schema.json").read_text(encoding="utf-8"))
+    jsonschema.Draft202012Validator(schema).validate(emb)
+    print(f"✓ URDF → RobotMorphology: {name}")
+    print(f"  nominal_height={morph.nominal_height:.3f} m  joints={len(emb['joint_names'])}")
+    print("  ⚠️ 寸法は実 URDF 由来。torso 連鎖・toe は合成、質量は近似（v0）。")
+    if save is not None:
+        save.write_text(json.dumps(emb, indent=2), encoding="utf-8")
+        print(f"  → RD-Embodiment 保存: {save}")
+    return 0
+
+
 def _train_encoder(out: Path, epochs: int, device: str | None) -> int:
     from robotdance_models.train import train_encoder
 
@@ -481,6 +502,11 @@ def main(argv: list[str] | None = None) -> int:
     p_mmap.add_argument("--checkpoint", type=Path, default=None,
                         help="学習 encoder の .pt（省略時は手作り embedding）")
 
+    p_urdf = sub.add_parser("import-urdf", help="実 URDF から実寸 RobotMorphology を構築する")
+    p_urdf.add_argument("urdf", type=Path, help="URDF ファイル（例: g1_23dof.urdf）")
+    p_urdf.add_argument("--name", default="unitree_g1")
+    p_urdf.add_argument("--save", type=Path, default=None, help="RD-Embodiment JSON 保存先")
+
     p_train = sub.add_parser("train-encoder", help="masked motion modeling encoder を学習する")
     p_train.add_argument("-o", "--out", type=Path, default=Path("motion_encoder.pt"))
     p_train.add_argument("--epochs", type=int, default=40)
@@ -555,6 +581,8 @@ def main(argv: list[str] | None = None) -> int:
         return _benchmark(args.robots, args.motions_dir, not args.no_sim, args.out)
     if args.command == "demo-motion-map":
         return _demo_motion_map(args.out, args.checkpoint)
+    if args.command == "import-urdf":
+        return _import_urdf(args.urdf, args.name, args.save)
     if args.command == "train-encoder":
         return _train_encoder(args.out, args.epochs, args.device)
     if args.command == "build-dataset":

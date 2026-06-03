@@ -10,6 +10,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   AMASS と同じ skeleton-first 経路（SMPL model file 不要）。`dataset://aist/...` で manifest 指定可。
 - **dataset 重複除去**（`build-dataset --dedupe`）: motion embedding で near-duplicate を検出し
   各グループ 1 本だけ残す。除去内訳は Data Bill of Materials に記録。
+- **実 URDF 取り込み**（`import-urdf` / `robotdance_unitree.urdf_import`）: 実機 URDF の zero-config FK で
+  リンク世界位置を求め、canonical 19-joint rest を**実寸**から構築（Unitree G1 23dof で nominal_height≈1.29m、
+  実 bone 長）。retarget/sim が実物寸法で動く。torso 連鎖・toe は合成、質量・アクチュエータ空間 retarget は今後。
 - **学習 motion encoder**（masked motion modeling, `[learn]` extra / torch）: 小型 Transformer を
   マスク再構成で自己教師あり学習（`train-encoder`）。手作りと同じ前処理・`embed` interface で
   `MotionIndex(embed_fn=...)` に差し込める（`demo-motion-map --checkpoint`）。合成 corpus で

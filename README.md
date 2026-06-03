@@ -297,8 +297,8 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 | Robot | 状態 |
 | --- | --- |
-| Unitree G1 | ✅ kinematic retarget + MuJoCo 物理検証（v0 簡略プロキシ, 小型）。実 URDF は Phase 2 |
-| Unitree H1 | ✅ kinematic retarget + MuJoCo 物理検証（v0 簡略プロキシ, full-size）。実 URDF は Phase 2 |
+| Unitree G1 | ✅ kinematic retarget + MuJoCo 物理検証 + **実 URDF 取り込み**（`import-urdf` で実寸 morphology, nominal_height≈1.29m） |
+| Unitree H1 | ✅ kinematic retarget + MuJoCo 物理検証（簡略プロキシ）。実 URDF 取り込みは G1 と同経路 |
 | R1 / H2 / Figure / Digit / Booster / NEO | future adapter |
 
 ## ロードマップ
