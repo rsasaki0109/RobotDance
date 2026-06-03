@@ -164,6 +164,41 @@ def _video_to_robot(video: Path, robot: str, out: Path, stride: int) -> int:
     return 0
 
 
+def _demo_motion_map(out: Path) -> int:
+    """多様な合成モーションを埋め込み、検索・重複・2D マップを示す（§6.2 Demo 3）。"""
+    from .synthetic import generate_backflip, generate_dance
+    from robotdance_motion.embeddings import MotionIndex, embed
+    from robotdance_viewer.motion_map import render_motion_map
+
+    specs = {
+        "dance_normal": generate_dance(beats_per_second=1.0),
+        "dance_fast": generate_dance(beats_per_second=1.6),
+        "dance_slow": generate_dance(beats_per_second=0.7),
+        "dance_dup": generate_dance(beats_per_second=1.0),  # dance_normal とほぼ同一
+        "idle_a": generate_dance(beats_per_second=0.5, arm_amp=0.15, sway_amp=0.04),
+        "idle_b": generate_dance(beats_per_second=0.6, arm_amp=0.20, sway_amp=0.05),
+        "backflip_a": generate_backflip(duration=1.6),
+        "backflip_b": generate_backflip(duration=1.4),
+    }
+    index = MotionIndex()
+    for mid, mir in specs.items():
+        mir.motion_id = mid
+        index.add_mir(mir)
+
+    labels = list(index.ids)
+    groups = [lab.split("_")[0] for lab in labels]  # dance / idle / backflip
+    render_motion_map(index.project_2d(), labels, out, groups=groups)
+
+    print(f"✓ Motion Map: {out}")
+    print("  retrieval（query=dance_fast）:")
+    for mid, sim in index.query(embed(specs["dance_fast"]), k=3):
+        print(f"    {mid:14s} cos={sim:.3f}")
+    print("  near-duplicates (>=0.98):")
+    for a, b, s in index.duplicates(0.98):
+        print(f"    {a} ~ {b}  cos={s:.4f}")
+    return 0
+
+
 def _build_dataset(manifest_file: Path, data_root: Path, out_dir: Path) -> int:
     from robotdance_data.dataset import build_from_file
 
@@ -330,6 +365,9 @@ def main(argv: list[str] | None = None) -> int:
     p_multi.add_argument("--robots", nargs="+", default=["unitree_g1", "unitree_h1"])
     p_multi.add_argument("--stride", type=int, default=2)
 
+    p_mmap = sub.add_parser("demo-motion-map", help="合成モーションを埋め込み Motion Map を描く")
+    p_mmap.add_argument("-o", "--out", type=Path, default=Path("motion_map.png"))
+
     p_build = sub.add_parser("build-dataset", help="RD-Manifest から RD-MIR を構築（license firewall）")
     p_build.add_argument("manifest", type=Path, help="manifest JSON（配列 or 単体）")
     p_build.add_argument("--data-root", type=Path, default=Path("."), help="ローカル source の基準ディレクトリ")
@@ -390,6 +428,8 @@ def main(argv: list[str] | None = None) -> int:
         return _validate_sim(args.path, args.robot, args.out)
     if args.command == "demo-safety":
         return _demo_safety(args.out, args.robot, args.stride)
+    if args.command == "demo-motion-map":
+        return _demo_motion_map(args.out)
     if args.command == "build-dataset":
         return _build_dataset(args.manifest, args.data_root, args.out)
     if args.command == "smooth":

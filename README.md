@@ -104,6 +104,27 @@ robotdance overlay my_clip.mp4 clip.rdmir.json -o overlay.gif
 > 検証は landmark→canonical マッピングの単体テストと、公有 `astronaut` 実写での検出テストで行っています
 > （[`robotdance_perception`](robotdance_perception/) / [`robotdance_motion`](robotdance_motion/)）。
 
+## Motion Map — 類似検索・重複除去・運動の地図（Demo 3）
+
+RD-MIR を **motion embedding** に符号化し、類似動作検索・near-duplicate 検出・2D マップを実現します。
+
+<img src="assets/readme/motion_map.png" width="460">
+
+<sub>多様な合成モーションを埋め込み PCA で 2D 射影。dance / idle / backflip が明確にクラスタ化。
+同一振付は重複として検出される。</sub>
+
+```bash
+robotdance demo-motion-map -o motion_map.png
+```
+```
+retrieval（query=dance_fast）:  dance_slow 0.90, dance_normal 0.82, backflip 低い
+near-duplicates (>=0.98):       dance_normal ~ dance_dup (1.00), backflip_a ~ backflip_b (0.997)
+```
+
+> ⚠️ v0 embedding は**学習済み encoder ではなく決定的な手作り特徴量**（位置/向き/スケール不変）。
+> 学習 encoder（masked modeling / contrastive）は Phase 3 でこの interface を差し替えます
+> （[`robotdance_motion`](robotdance_motion/)）。
+
 ## Dataset factory — manifest 駆動 + license firewall
 
 RobotDance は「運動データの OS」を目指します。**AMASS 等の mocap を skeleton-first で RD-MIR 化**し、
@@ -225,10 +246,11 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 🚧 **Pre-v0.1。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
 **local 動画 → RD-MIR（MediaPipe Pose）+ smoothing + 2D overlay**、
 **AMASS ローダ + RD-Manifest license firewall（Data Bill of Materials）**、
+**motion embeddings + 類似検索 + Motion Map + 重複除去**、
 **G1/H1 への kinematic retarget（multi-embodiment）**、**MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、
 3D & multi-panel ビューアまで動作
-（`extract`/`video-to-robot`/`build-dataset`/`overlay`/`smooth`/`retarget`/`validate-sim`/`demo-*` 他）。
-次は HMR adapter（4DHumans/GVHMR）・実 URDF・Isaac Lab backend・motion embeddings。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+（`extract`/`video-to-robot`/`build-dataset`/`demo-motion-map`/`overlay`/`smooth`/`retarget`/`validate-sim`/`demo-*` 他）。
+次は 学習 motion encoder・HMR adapter（4DHumans/GVHMR）・実 URDF・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 

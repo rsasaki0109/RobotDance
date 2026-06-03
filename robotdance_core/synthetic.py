@@ -63,9 +63,14 @@ def generate_dance(
     duration: float = 4.0,
     fps: float = 30.0,
     beats_per_second: float = 1.0,
+    arm_amp: float = 1.6,
+    sway_amp: float = 0.18,
     motion_id: str = "rdmir-synth-dance-0001",
 ) -> RdMir:
-    """ダンス風の合成 RD-MIR を生成する。"""
+    """ダンス風の合成 RD-MIR を生成する。
+
+    arm_amp / sway_amp を下げると低エネルギーな idle 風になる（embedding デモの variant 用）。
+    """
     n_frames = round(fps * duration)
     t = np.arange(n_frames) / fps
     phase = 2.0 * np.pi * beats_per_second * t
@@ -82,13 +87,13 @@ def generate_dance(
         local = [Rot.identity() for _ in range(NUM_JOINTS)]
 
         # 体幹: 左右の sway（forward 軸 x 回り）と軽い yaw（z 回り）。
-        sway = 0.18 * np.sin(ph)
+        sway = sway_amp * np.sin(ph)
         local[i_spine] = Rot.from_euler("x", sway)
         local[i_chest] = Rot.from_euler("xz", [sway, 0.10 * np.sin(ph)])
 
         # 腕: 左右交互に横〜頭上へ。肩を x 軸回りに回すと下向きの腕が上がる。
-        local[i_lsh] = Rot.from_euler("x", 1.6 * (0.5 + 0.5 * np.sin(ph)))
-        local[i_rsh] = Rot.from_euler("x", -1.6 * (0.5 + 0.5 * np.sin(ph + np.pi)))
+        local[i_lsh] = Rot.from_euler("x", arm_amp * (0.5 + 0.5 * np.sin(ph)))
+        local[i_rsh] = Rot.from_euler("x", -arm_amp * (0.5 + 0.5 * np.sin(ph + np.pi)))
         local[i_lel] = Rot.from_euler("y", -0.5 * (0.5 + 0.5 * np.sin(ph)))
         local[i_rel] = Rot.from_euler("y", -0.5 * (0.5 + 0.5 * np.sin(ph + np.pi)))
 
