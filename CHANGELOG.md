@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-03
+
+制御スタックの節目リリース（pre-alpha）。学習スタック（検索・トークン化・生成）に続き、
+**生成/retarget したモーションを物理シミュレーション上で倒れずに追従する** RL tracking policy の
+ベースラインを追加。設計書 §4.5（Sim-to-Real Policy Stack）の起点で、「物理的に妥当か」
+（sim_certificate）の判定の先にある「**実際にバランスを取って動かせるか**」を扱う最初の足場。
+
 ### Added
 - **RL tracking policy baseline**（`train-tracking` / `demo-track`,
   `robotdance_sim.tracking_env` + `robotdance_models.tracking_policy`, torch/mujoco）:
@@ -18,6 +25,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   pose RMSE ~0.37 を達成。**v0 は baseline 足場**: 短い feasible クリップでは関節 PD だけで概ねバランス
   するため、残差 PPO は **PD を壊さず追従する**ことを学ぶ（PD 超えの tracking 精度・多様 motion 汎化・
   摂動頑健性・AMP/敵対報酬・実機転移は今後）。近似質量ゆえ実機保証ではない。
+
+[0.7.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.7.0
 
 ## [0.6.0] - 2026-06-03
 
