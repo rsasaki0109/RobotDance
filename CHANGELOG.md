@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **HMR adapter（§4.1, 4DHumans / GVHMR → RD-MIR）**（`import-hmr`, `robotdance_perception.hmr`）:
+  HMR モデルが画像から回帰した **per-frame SMPL パラメータ**（global_orient / body_pose / transl）を、
+  既存の **skeleton-first SMPL FK**（`robotdance_data.smpl`）で canonical 19-joint RD-MIR に変換する。
+  MediaPipe（2D→近似 3D landmark）よりオクルージョン・奥行き・**world-grounded な global trajectory**
+  に強い動画入口を追加。共通 core `hmr_smpl_to_mir(...)` + 出力構造別 entry point
+  `from_gvhmr(dict)`（axis-angle・world）/ `from_4dhumans(dict)`（rotation-matrix・23 body joint）/
+  汎用 `load_hmr_npz(path)`。axis-angle と rotation-matrix は形状から自動判別（一致を検証）。
+  **モデル weight / SMPL body model file は同梱・実行しない**（license-safe, in-the-wild 由来は
+  `license_state="unknown"`）。numpy/scipy のみで **CI でも検証**。v0 は skeleton-first（近似 rest
+  offset・betas/shape 未使用）で、特定モデル版 pin ではなく文書化された出力構造に対する検証。
+  native `.pkl`/`.pt` 直接ロード・multi-person・betas 反映は今後。
+
 ## [0.9.0] - 2026-06-03
 
 実機安全の節目リリース（pre-alpha）。Safety Guard に **actuator（関節）空間の limit enforcement**

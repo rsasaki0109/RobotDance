@@ -38,6 +38,7 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 | --- | --- | --- |
 | 実動画 → 3D motion（MediaPipe） | `extract` / `video-to-robot` | bring your own video |
 | mocap → motion（AMASS, skeleton-first） | `build-dataset` | + license firewall / Data BOM |
+| HMR 動画→3D（4DHumans/GVHMR SMPL→RD-MIR, §4.1） | `import-hmr` | skeleton-first・world trajectory |
 | G1 / H1 への retarget（multi-embodiment） | `retarget` / `demo-multi` | many humanoids ↑ |
 | MuJoCo 物理検証（安全な運動だけ通す） | `validate-sim` / `demo-safety` | Demo 4: unsafe rejected |
 | motion embeddings + 類似検索 + Motion Map | `demo-motion-map` | Demo 3 |
@@ -374,7 +375,7 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 ## ステータス
 
 🏁 **v0.9.0（pre-alpha, [CHANGELOG](CHANGELOG.md)）。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
-**local 動画 → RD-MIR（MediaPipe Pose）+ smoothing + 2D overlay**、
+**local 動画 → RD-MIR（MediaPipe Pose / HMR 4DHumans・GVHMR SMPL adapter）+ smoothing + 2D overlay**、
 **AMASS ローダ + RD-Manifest license firewall（Data Bill of Materials）**、
 **motion embeddings + 類似検索 + Motion Map + 重複除去（+ 学習 encoder option）**、
 **テキスト → モーション意味検索（contrastive text-motion）**、**モーション → 離散トークン（VQ-VAE）+ 生成・補完（token prior）+ テキスト条件付き生成（text2motion）**、
@@ -382,8 +383,8 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 **MuJoCo 物理検証（sim_certificate / PASS・REJECT）+ RL tracking policy baseline（物理上で参照を追従, PPO, base 非駆動, 1 方策で複数運動を汎化）**、
 **motion × robot benchmark + leaderboard**、**ROS2 runtime（safety guard: Cartesian + 関節空間 位置/速度/加速度クランプ + motion server + /joint_states, Jazzy）**、
 3D & multi-panel ビューアまで動作
-（`extract`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-text2motion`/`generate-text`/`train-tracking`/`demo-track`/`demo-track-multi`/`demo-joint-safety`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
-次は HMR adapter（4DHumans/GVHMR）・高度な RL tracking（AMP/摂動/実機転移）・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+（`extract`/`import-hmr`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-text2motion`/`generate-text`/`train-tracking`/`demo-track`/`demo-track-multi`/`demo-joint-safety`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
+次は model cards（data lineage / license / safety limits）・トルク limit（safety guard）・高度な RL tracking（AMP/実機転移）・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 
