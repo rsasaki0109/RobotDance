@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robotdance.dev/specs/rd-motion/v0/rd-motion.schema.json",
+  "title": "RD-Motion",
+  "description": "robot-specific な実行可能モーション artifact (.rdmotion, v0 draft)。RD-MIR を特定の RD-Embodiment へ retarget した結果。v0 は kinematic retarget の link 位置を保持し、sim_certificate は Phase 2 で埋める。",
+  "type": "object",
+  "required": [
+    "rd_motion_version",
+    "robot_name",
+    "fps",
+    "duration",
+    "source_motion_id",
+    "skeleton",
+    "control_mode"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "rd_motion_version": { "type": "string", "const": "0" },
+    "robot_name": { "type": "string", "description": "例: unitree_g1" },
+    "fps": { "type": "number", "exclusiveMinimum": 0 },
+    "duration": { "type": "number", "exclusiveMinimum": 0 },
+    "source_motion_id": {
+      "type": "string",
+      "description": "元 RD-MIR の motion_id（provenance）"
+    },
+    "skeleton": {
+      "type": "object",
+      "required": ["joint_names"],
+      "properties": {
+        "joint_names": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "parents": { "type": "array", "items": { "type": "integer", "minimum": -1 } }
+      },
+      "additionalProperties": false
+    },
+    "keypoints_3d": {
+      "description": "robot link 位置 [T][J][3]。URDF なしで描画・評価できるようにする。",
+      "type": ["array", "null"]
+    },
+    "joint_rotations": {
+      "type": ["object", "null"],
+      "description": "optional。robot joint 回転（actuator 角への写像は Phase 2）"
+    },
+    "base_trajectory": {
+      "type": ["object", "null"],
+      "description": "base/root の position・orientation 軌道"
+    },
+    "contact_schedule": {
+      "type": "object",
+      "description": "left/right foot 等の接地スケジュール [T]",
+      "additionalProperties": { "type": "array" }
+    },
+    "control_mode": {
+      "type": "string",
+      "enum": ["position", "velocity", "torque", "policy", "kinematic_preview"]
+    },
+    "retarget_metrics": {
+      "type": "object",
+      "description": "height_scale, foot_sliding, contact_preservation, bone_length_error 等",
+      "additionalProperties": true
+    },
+    "safety_envelope": {
+      "type": ["object", "null"],
+      "description": "allowed motion envelope（joint/velocity/torque 制約）"
+    },
+    "sim_certificate": {
+      "type": ["object", "null"],
+      "description": "sim tracking の pass/fail と metrics。v0 kinematic では null。"
+    },
+    "source_provenance": {
+      "type": "object",
+      "description": "元 RD-MIR / manifest / embodiment への参照",
+      "additionalProperties": true
+    }
+  }
+}

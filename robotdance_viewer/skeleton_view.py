@@ -101,3 +101,70 @@ def render_gif(
     fps = max(1, round(mir.fps / stride))
     imageio.mimsave(out_path, frames, duration=1.0 / fps, loop=0)
     return out_path
+
+
+def render_side_by_side(
+    panels: list[tuple[np.ndarray, str, str]],
+    out_path: str | Path,
+    *,
+    fps: float = 30.0,
+    stride: int = 2,
+    elev: float = 12.0,
+    azim: float = -70.0,
+    dpi: int = 80,
+) -> Path:
+    """複数のスケルトンを横並びの GIF に描画する（human | robot 比較用）。
+
+    panels: (keypoints[T, J, 3], label, hex_color) のリスト。全 panel は同じ canonical
+    トポロジ（BONES）を共有し、**同一メートルスケール / 共通の縦レンジ**で描くため、
+    身長差（G1 が低い）がそのまま見える。
+    """
+    import imageio.v2 as imageio
+
+    view = _view_matrix(elev, azim)
+    n_frames = min(p[0].shape[0] for p in panels)
+
+    # 全 panel を投影。縦（screen-y）は共通レンジ、横は panel ごとに中心化（同一スケール）。
+    projected = [
+        np.stack([_project(kp[f], view) for f in range(n_frames)]) for kp, _, _ in panels
+    ]
+    all_pts = np.concatenate([pr.reshape(-1, 2) for pr in projected], axis=0)
+    y_min, y_max = all_pts[:, 1].min(), all_pts[:, 1].max()
+    y_center = (y_min + y_max) / 2.0
+    half = max(y_max - y_min, 1.0) / 2.0 + 0.1  # 共通の半幅（縦も横も同じスケール）
+
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    frames: list[np.ndarray] = []
+    fig, axes = plt.subplots(1, len(panels), figsize=(3.2 * len(panels), 5), dpi=dpi)
+    if len(panels) == 1:
+        axes = [axes]
+    for f in range(0, n_frames, stride):
+        for ax, pr, (_, label, color) in zip(axes, projected, panels):
+            ax.clear()
+            pts = pr[f]
+            for child, parent in BONES:
+                ax.plot(
+                    [pts[child, 0], pts[parent, 0]],
+                    [pts[child, 1], pts[parent, 1]],
+                    color=color,
+                    linewidth=2.5,
+                    solid_capstyle="round",
+                )
+            ax.scatter(pts[:, 0], pts[:, 1], color="#333333", s=12, zorder=3)
+            x_center = pts[:, 0].mean()
+            ax.set_xlim(x_center - half, x_center + half)
+            ax.set_ylim(y_center - half, y_center + half)
+            ax.set_aspect("equal")
+            ax.set_axis_off()
+            ax.set_title(label, fontsize=9)
+        fig.tight_layout()
+        fig.canvas.draw()
+        buf = np.asarray(fig.canvas.buffer_rgba())
+        frames.append(buf[..., :3].copy())
+    plt.close(fig)
+
+    out_fps = max(1, round(fps / stride))
+    imageio.mimsave(out_path, frames, duration=1.0 / out_fps, loop=0)
+    return out_path

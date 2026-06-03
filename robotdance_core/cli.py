@@ -66,6 +66,65 @@ def _view(path: Path, out: Path, stride: int) -> int:
     return 0
 
 
+def _retarget(path: Path, out: Path) -> int:
+    from .rd_mir import RdMir
+    from robotdance_retarget.kinematic import retarget_to_g1
+
+    mir = RdMir.load(path)
+    motion = retarget_to_g1(mir)
+    motion.save(out)
+    m = motion.retarget_metrics or {}
+    print(f"✓ G1 RD-Motion を書き出しました: {out}")
+    print(f"  height_scale={m.get('height_scale')} "
+          f"bone_direction_cosine={m.get('bone_direction_cosine')} "
+          f"foot_sliding={m.get('foot_sliding_m_per_frame')}")
+    print("  ⚠️ kinematic preview のみ — 物理 sim 未検証（Phase 2）")
+    return 0
+
+
+def _view_pair(human_path: Path, robot_path: Path, out: Path, stride: int) -> int:
+    from .rd_mir import RdMir
+    from .rd_motion import RdMotion
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    mir = RdMir.load(human_path)
+    motion = RdMotion.load(robot_path)
+    render_side_by_side(
+        [
+            (mir.keypoints_3d_array(), "Human (RD-MIR)", "#1f77b4"),
+            (motion.keypoints_3d_array(), f"{motion.robot_name} (RD-Motion)", "#ff7f0e"),
+        ],
+        out,
+        fps=mir.fps,
+        stride=stride,
+    )
+    print(f"✓ side-by-side GIF を書き出しました: {out}")
+    return 0
+
+
+def _demo_g1(out: Path, stride: int) -> int:
+    """synth → retarget → side-by-side を一括実行する便利コマンド。"""
+    from .synthetic import generate_dance
+    from robotdance_retarget.kinematic import retarget_to_g1
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    mir = generate_dance()
+    motion = retarget_to_g1(mir)
+    render_side_by_side(
+        [
+            (mir.keypoints_3d_array(), "Human (RD-MIR)", "#1f77b4"),
+            (motion.keypoints_3d_array(), f"{motion.robot_name} (RD-Motion)", "#ff7f0e"),
+        ],
+        out,
+        fps=mir.fps,
+        stride=stride,
+    )
+    m = motion.retarget_metrics or {}
+    print(f"✓ G1 side-by-side デモ GIF を書き出しました: {out}")
+    print(f"  height_scale={m.get('height_scale')} foot_sliding={m.get('foot_sliding_m_per_frame')}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="robotdance", description="RobotDance core CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -84,6 +143,20 @@ def main(argv: list[str] | None = None) -> int:
     p_view.add_argument("-o", "--out", type=Path, default=Path("skeleton.gif"))
     p_view.add_argument("--stride", type=int, default=2, help="何フレームおきに描画するか")
 
+    p_ret = sub.add_parser("retarget", help="RD-MIR を Unitree G1 へ kinematic retarget する")
+    p_ret.add_argument("path", type=Path, help="RD-MIR JSON")
+    p_ret.add_argument("-o", "--out", type=Path, default=Path("g1.rdmotion.json"))
+
+    p_pair = sub.add_parser("view-pair", help="human RD-MIR と robot RD-Motion を side-by-side 描画")
+    p_pair.add_argument("human", type=Path, help="RD-MIR JSON")
+    p_pair.add_argument("robot", type=Path, help="RD-Motion JSON")
+    p_pair.add_argument("-o", "--out", type=Path, default=Path("side_by_side.gif"))
+    p_pair.add_argument("--stride", type=int, default=2)
+
+    p_demo = sub.add_parser("demo-g1", help="synth → retarget → side-by-side を一括実行")
+    p_demo.add_argument("-o", "--out", type=Path, default=Path("g1_side_by_side.gif"))
+    p_demo.add_argument("--stride", type=int, default=2)
+
     args = parser.parse_args(argv)
     if args.command == "validate":
         return _validate(args.spec, args.path)
@@ -91,6 +164,12 @@ def main(argv: list[str] | None = None) -> int:
         return _synth(args.out, args.duration, args.fps)
     if args.command == "view":
         return _view(args.path, args.out, args.stride)
+    if args.command == "retarget":
+        return _retarget(args.path, args.out)
+    if args.command == "view-pair":
+        return _view_pair(args.human, args.robot, args.out, args.stride)
+    if args.command == "demo-g1":
+        return _demo_g1(args.out, args.stride)
     parser.error(f"unknown command: {args.command}")
     return 2
 

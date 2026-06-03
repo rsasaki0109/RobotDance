@@ -1,11 +1,12 @@
 # RD-Motion (`.rdmotion`)
 
-> **status:** v0 (draft, スキーマは Phase 2 で確定)
+> **status:** v0 (draft) · スキーマ [`rd-motion.schema.json`](rd-motion.schema.json) あり
 
 robot-specific な実行可能モーション artifact。[RD-MIR](../rd-mir/) を特定の
 [RD-Embodiment](../rd-embodiment/) へ retarget した結果で、sim / runtime で再生・評価できます。
 
-予定フィールド（Phase 2 で `rd-motion.schema.json` を確定）:
+v0 では kinematic retarget の link 位置（`keypoints_3d`）と接地スケジュールを保持し、
+`sim_certificate` は Phase 2（物理 sim）で埋めます。主なフィールド:
 
 | フィールド | 内容 |
 | --- | --- |

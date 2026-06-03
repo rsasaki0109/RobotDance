@@ -6,9 +6,9 @@
 
 *RobotDance は、権利管理された人間動画を、ヒューマノイドロボットの運動データ・運動埋め込み・学習 policy・実行可能モーションへ変換する OSS モーションコンパイラです。*
 
-![RobotDance synthetic dance demo](assets/readme/synthetic_dance.gif)
+![RobotDance human-to-G1 retarget demo](assets/readme/g1_side_by_side.gif)
 
-<sub>↑ 合成モーション → RD-MIR → 3D スケルトン再生（pose モデル不要の動作確認用。原動画 / G1 sim を並べる side-by-side は v0.1 で追加）</sub>
+<sub>↑ 合成モーション → RD-MIR → **Unitree G1 への kinematic retarget** → side-by-side（左: human / 右: G1）。pose モデル・物理 sim 不要の運動学プレビュー。実 URDF / 物理検証は Phase 2。</sub>
 
 </div>
 
@@ -76,17 +76,19 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 ```bash
 pip install -e ".[demo]"
 
-# 1. 合成ダンスモーションを生成（RD-MIR を書き出す）
-robotdance synth -o dance.rdmir.json --duration 4 --fps 30
+# 最短: 合成モーション → G1 retarget → side-by-side GIF を一括生成
+robotdance demo-g1 -o g1_side_by_side.gif
 
-# 2. RD-MIR を v0 schema で検証
-robotdance validate mir dance.rdmir.json
-
-# 3. 3D スケルトンを GIF に描画
-robotdance view dance.rdmir.json -o dance.gif
+# 個別ステップでも実行できる:
+robotdance synth     -o dance.rdmir.json --duration 4 --fps 30   # 合成 RD-MIR
+robotdance validate  mir dance.rdmir.json                        # v0 schema 検証
+robotdance view      dance.rdmir.json -o dance.gif               # 3D スケルトン GIF
+robotdance retarget  dance.rdmir.json -o g1.rdmotion.json        # G1 kinematic retarget
+robotdance view-pair dance.rdmir.json g1.rdmotion.json -o pair.gif  # human | G1
 ```
 
-> これは pose 推定・retarget・sim を**まだ含まない**動作確認用の経路です。実動画からの 3D 復元（`local video → RD-MIR`）は v0.1 で追加します。
+> ここで使う動画は**合成データ**で、pose 推定や物理 sim は**まだ含みません**。
+> 実動画からの 3D 復元（`local video → RD-MIR`）と G1 の物理検証（sim）は v0.1〜Phase 2 で追加します。
 
 ## リポジトリ構成
 
@@ -127,8 +129,8 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 | Robot | 状態 |
 | --- | --- |
-| Unitree G1 | 最優先（README demo, sim retarget） |
-| Unitree H1 | full-size humanoid benchmark |
+| Unitree G1 | ✅ kinematic retarget（v0 簡略プロキシ）+ side-by-side demo。実 URDF / 物理 sim は Phase 2 |
+| Unitree H1 | full-size humanoid benchmark（今後） |
 | R1 / H2 / Figure / Digit / Booster / NEO | future adapter |
 
 ## ロードマップ
@@ -146,8 +148,9 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 ## ステータス
 
-🚧 **Pre-v0.1。** specs v0、RD-MIR の Python データモデル、合成モーション生成、3D スケルトンビューア（`synth` / `validate` / `view`）まで動作。
-次は実動画からの 3D 復元（pose/HMR adapter）と G1 retarget。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+🚧 **Pre-v0.1。** specs v0（RD-MIR/Manifest/Embodiment/Motion）、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
+**G1 kinematic retarget**、3D スケルトン & side-by-side ビューア（`synth`/`validate`/`view`/`retarget`/`view-pair`/`demo-g1`）まで動作。
+次は実動画からの 3D 復元（pose/HMR adapter）と G1 の物理検証（sim）。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 
