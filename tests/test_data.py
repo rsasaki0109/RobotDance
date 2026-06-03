@@ -30,6 +30,20 @@ def _write_fake_amass(path: Path, *, frames: int = 120, fps: float = 120.0) -> P
     return path
 
 
+def _write_fake_aist(path: Path, *, frames: int = 120, phase: float = 0.0) -> Path:
+    """本物の AIST++ pkl 形式を模した合成データ（SMPL poses[72] + trans + scaling）。"""
+    import pickle
+
+    poses = np.zeros((frames, 72))
+    t = np.linspace(0, 4 * np.pi, frames) + phase
+    poses[:, 16 * 3 + 2] = 0.7 * np.sin(t)
+    poses[:, 17 * 3 + 2] = -0.7 * np.sin(t)
+    with path.open("wb") as f:
+        pickle.dump({"smpl_poses": poses, "smpl_trans": np.zeros((frames, 3)),
+                     "smpl_scaling": np.array([100.0])}, f)
+    return path
+
+
 # --- SMPL FK / canonical mapping ---
 
 def test_smpl_rest_pose_orientation() -> None:
@@ -60,6 +74,20 @@ def test_amass_flows_into_retarget(tmp_path: Path) -> None:
     mir = load_amass_npz(npz)
     motion = retarget(mir, get_morphology("unitree_g1"))
     assert motion.keypoints_3d_array().shape[1] == NUM_JOINTS
+
+
+# --- AIST++ loader ---
+
+def test_aist_loader_downsamples_and_validates(tmp_path: Path) -> None:
+    from robotdance_data.aist import load_aist_pkl
+
+    pkl = _write_fake_aist(tmp_path / "gBR_sBM.pkl", frames=120)
+    mir = load_aist_pkl(pkl, src_fps=60.0, target_fps=30.0)
+    assert abs(mir.fps - 30.0) < 1.0           # 60fps → ~30fps
+    assert mir.keypoints_3d_array().shape[1] == NUM_JOINTS
+    assert mir.semantics["source_dataset"] == "aist++"
+    schema = json.loads((_ROOT / "specs" / "rd-mir" / "rd-mir.schema.json").read_text("utf-8"))
+    jsonschema.Draft202012Validator(schema).validate(mir.to_dict())
 
 
 # --- license firewall ---
@@ -113,3 +141,28 @@ def test_build_dataset_respects_firewall(tmp_path: Path) -> None:
     bom = {r["clip_id"]: r for r in report["bill_of_materials"]}
     assert bom["ok_clip"]["exported"] is True
     assert bom["blocked_clip"]["exported"] is False
+
+
+def test_build_dataset_dedupe(tmp_path: Path) -> None:
+    """同一振付の clip を motion embedding で 1 本に集約する。"""
+    _write_fake_aist(tmp_path / "orig.pkl", phase=0.0)
+    _write_fake_aist(tmp_path / "dup.pkl", phase=0.0)       # orig と同一
+    _write_fake_aist(tmp_path / "diff.pkl", phase=1.7)      # 別振付
+
+    def m(clip: str) -> dict:
+        return {
+            "manifest_version": "0", "clip_id": clip, "source_type": "dataset",
+            "source_uri": f"dataset://aist/{clip}.pkl", "license_declared": "creativeCommon",
+            "derived_motion_allowed": True, "training_allowed": True,
+            "rebuild_method": "manual_download", "status": "active",
+        }
+
+    out = tmp_path / "build"
+    report = ds.build_dataset([m("orig"), m("dup"), m("diff")],
+                              data_root=tmp_path, out_dir=out, dedupe=True)
+    assert report["exported"] == 2          # orig + diff（dup は除去）
+    bom = {r["clip_id"]: r for r in report["bill_of_materials"]}
+    assert bom["dup"]["exported"] is False
+    assert "near-duplicate" in bom["dup"]["reason"]
+    assert not (out / "dup.rdmir.json").exists()
+    assert (out / "diff.rdmir.json").exists()

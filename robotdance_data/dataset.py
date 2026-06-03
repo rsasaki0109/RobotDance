@@ -14,11 +14,14 @@ from typing import Any, Callable
 from robotdance_core.rd_mir import RdMir
 
 from . import manifest as mf
+from .aist import load_aist_pkl
 from .amass import load_amass_npz
 
 # dataset 名 → adapter（local file path, license_state → RdMir）。新データセットはここに追加。
 ADAPTERS: dict[str, Callable[..., RdMir]] = {
     "amass": load_amass_npz,
+    "aist": load_aist_pkl,
+    "aist++": load_aist_pkl,
 }
 
 
@@ -55,14 +58,20 @@ def build_dataset(
     *,
     data_root: str | Path = ".",
     out_dir: str | Path = "build",
+    dedupe: bool = False,
+    dedupe_threshold: float = 0.98,
 ) -> dict[str, Any]:
-    """manifest 群から RD-MIR を構築し、Data Bill of Materials を返す。"""
+    """manifest 群から RD-MIR を構築し、Data Bill of Materials を返す。
+
+    dedupe=True なら motion embedding で near-duplicate を検出し、各グループから 1 本だけ残す。
+    """
     data_root = Path(data_root)
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     bom: list[dict[str, Any]] = []
     exported = 0
+    exported_mirs: list[tuple[dict[str, Any], RdMir, Path]] = []
     for entry in manifests:
         clip_id = entry.get("clip_id", "?")
         decision = mf.evaluate(entry)
@@ -96,8 +105,13 @@ def build_dataset(
         mir.save(out_path)
         row["exported"] = True
         row["output"] = str(out_path)
+        row["duplicate_group"] = None
         bom.append(row)
+        exported_mirs.append((row, mir, out_path))
         exported += 1
+
+    if dedupe and len(exported_mirs) > 1:
+        exported -= _dedupe_exported(exported_mirs, dedupe_threshold)
 
     report = {
         "total": len(manifests),
@@ -110,8 +124,56 @@ def build_dataset(
     return report
 
 
+def _dedupe_exported(
+    exported: list[tuple[dict[str, Any], RdMir, Path]], threshold: float
+) -> int:
+    """motion embedding で near-duplicate を検出し、各グループ 1 本だけ残す。除去数を返す。"""
+    from robotdance_motion.embeddings import MotionIndex
+
+    index = MotionIndex()
+    for _, mir, _ in exported:
+        index.add_mir(mir)
+    ids = [m.motion_id for _, m, _ in exported]
+    parent = {i: i for i in ids}
+
+    def find(x: str) -> str:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for a, b, _ in index.duplicates(threshold):
+        parent[find(a)] = find(b)
+
+    by_id = {m.motion_id: (row, m, path) for row, m, path in exported}
+    groups: dict[str, list[str]] = {}
+    for i in ids:
+        groups.setdefault(find(i), []).append(i)
+
+    removed = 0
+    for gid, members in groups.items():
+        if len(members) < 2:
+            continue
+        # 最もフレーム数が多い clip を代表として残す。
+        keep = max(members, key=lambda mid: by_id[mid][1].num_frames)
+        for mid in members:
+            row, _, path = by_id[mid]
+            row["duplicate_group"] = keep
+            if mid != keep:
+                row["exported"] = False
+                row["reason"] = f"near-duplicate of {keep}（dedupe）"
+                row["output"] = None
+                path.unlink(missing_ok=True)
+                removed += 1
+    return removed
+
+
 def build_from_file(
-    manifest_file: str | Path, *, data_root: str | Path = ".", out_dir: str | Path = "build"
+    manifest_file: str | Path,
+    *,
+    data_root: str | Path = ".",
+    out_dir: str | Path = "build",
+    dedupe: bool = False,
 ) -> dict[str, Any]:
     """JSON 配列の manifest ファイルから build する（各要素を schema 検証）。"""
     import jsonschema
@@ -123,7 +185,7 @@ def build_from_file(
     validator = jsonschema.Draft202012Validator(schema)
     for e in entries:
         validator.validate(e)
-    return build_dataset(entries, data_root=data_root, out_dir=out_dir)
+    return build_dataset(entries, data_root=data_root, out_dir=out_dir, dedupe=dedupe)
 
 
 def _render_data_card(report: dict[str, Any]) -> str:

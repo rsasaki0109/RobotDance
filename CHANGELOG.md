@@ -3,6 +3,14 @@
 All notable changes to RobotDance are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **AIST++ dataset adapter**（`load_aist_pkl`）: ダンス mocap（SMPL .pkl, 60fps）→ canonical RD-MIR。
+  AMASS と同じ skeleton-first 経路（SMPL model file 不要）。`dataset://aist/...` で manifest 指定可。
+- **dataset 重複除去**（`build-dataset --dedupe`）: motion embedding で near-duplicate を検出し
+  各グループ 1 本だけ残す。除去内訳は Data Bill of Materials に記録。
+
 ## [0.1.0] - 2026-06-03
 
 最初の公開リリース（pre-alpha）。空リポジトリから、人間動画/mocap をヒューマノイド運動資産へ

@@ -273,10 +273,10 @@ def _demo_motion_map(out: Path) -> int:
     return 0
 
 
-def _build_dataset(manifest_file: Path, data_root: Path, out_dir: Path) -> int:
+def _build_dataset(manifest_file: Path, data_root: Path, out_dir: Path, dedupe: bool) -> int:
     from robotdance_data.dataset import build_from_file
 
-    report = build_from_file(manifest_file, data_root=data_root, out_dir=out_dir)
+    report = build_from_file(manifest_file, data_root=data_root, out_dir=out_dir, dedupe=dedupe)
     print(f"✓ dataset build: exported {report['exported']} / withheld {report['withheld']} "
           f"(total {report['total']})")
     print(f"  Data Bill of Materials: {out_dir / 'DATA_CARD.md'}")
@@ -459,6 +459,7 @@ def main(argv: list[str] | None = None) -> int:
     p_build = sub.add_parser("build-dataset", help="RD-Manifest から RD-MIR を構築（license firewall）")
     p_build.add_argument("manifest", type=Path, help="manifest JSON（配列 or 単体）")
     p_build.add_argument("--data-root", type=Path, default=Path("."), help="ローカル source の基準ディレクトリ")
+    p_build.add_argument("--dedupe", action="store_true", help="motion embedding で near-duplicate を除去")
     p_build.add_argument("-o", "--out", type=Path, default=Path("build"))
 
     p_smooth = sub.add_parser("smooth", help="RD-MIR を Savitzky-Golay で平滑化する")
@@ -525,7 +526,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo-motion-map":
         return _demo_motion_map(args.out)
     if args.command == "build-dataset":
-        return _build_dataset(args.manifest, args.data_root, args.out)
+        return _build_dataset(args.manifest, args.data_root, args.out, args.dedupe)
     if args.command == "smooth":
         return _smooth(args.path, args.out, args.window)
     if args.command == "demo-smoothing":

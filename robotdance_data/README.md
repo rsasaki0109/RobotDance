@@ -7,14 +7,19 @@ manifests, source adapters, dataset builder, dedupe, license firewall — URL/ma
 | module | 役割 |
 | --- | --- |
 | `smpl.py` | SMPL/SMPL-H body skeleton の FK（**SMPL model file 不要**の skeleton-first）+ canonical 19 へのマップ |
-| `amass.py` | `load_amass_npz(path) -> RdMir`。AMASS の SMPL pose を canonical RD-MIR 化（fps ダウンサンプル付き） |
+| `amass.py` | `load_amass_npz(path) -> RdMir`。AMASS の SMPL pose を canonical RD-MIR 化 |
+| `aist.py` | `load_aist_pkl(path) -> RdMir`。AIST++（ダンス, 60fps）の SMPL pose を canonical RD-MIR 化 |
 | `manifest.py` | RD-Manifest 読込・schema 検証 + **license firewall**（`evaluate(manifest) -> FirewallDecision`） |
-| `dataset.py` | manifest 駆動ビルダー。firewall を通し公開可のみ書き出し、**Data Bill of Materials** を出力 |
+| `dataset.py` | manifest 駆動ビルダー。firewall + **motion embedding 重複除去** を通し、**Data Bill of Materials** を出力 |
 
 ```bash
-robotdance build-dataset manifests.json --data-root /path/to/amass -o build/
+robotdance build-dataset manifests.json --data-root /path/to/data --dedupe -o build/
 # → build/<clip>.rdmir.json と build/DATA_CARD.md（Data Bill of Materials）
 ```
+
+source_uri は `dataset://<name>/<相対パス>` 形式（`<name>` = `amass` / `aist`）で dataset とローカル位置を指定。
+`--dedupe` は motion embedding の near-duplicate を検出し、各グループ 1 本だけ残す（残りは BOM に
+`near-duplicate of <id>` として記録）。
 
 ## ライセンスファイアウォール
 

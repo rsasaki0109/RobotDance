@@ -199,8 +199,9 @@ robotdance build-dataset manifests.json --data-root /path/to/amass -o build/
 ```
 
 - **skeleton-first**: SMPL pose を FK して canonical 19-joint へ。**SMPL body model file は不要 / 同梱しない**（license friction 回避）。
-- AMASS の RD-MIR はそのまま retarget・物理検証パイプラインに流れる。
-- 実 AMASS は登録制のため同梱しません（[`robotdance_data`](robotdance_data/)）。
+- 対応データセット: **AMASS**（mocap）/ **AIST++**（ダンス, 60fps）。同じ canonical RD-MIR に変換され retarget・物理検証へ流れる。
+- `--dedupe` で **motion embedding による near-duplicate 除去**（同じ振付を 1 本に集約）。
+- 実データは登録制のため同梱しません（[`robotdance_data`](robotdance_data/)）。
 
 ## Demo 4 — Unsafe motion rejected
 
