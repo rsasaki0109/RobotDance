@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Text-conditioned motion generation**（`train-text2motion` / `generate-text`,
+  `robotdance_models.text2motion`, torch）: token prior を**テキスト特徴で条件付け**し、
+  **caption → モーション**を生成する（"a person doing a backflip" → バックフリップ）。
+  `text.py`（テキスト特徴）+ `tokenizer.py`（VQ-VAE）+ `prior.py`（生成）を 1 本に繋ぐ集大成。
+  caption の特徴を系列先頭の conditioning トークンとして与え、causal Transformer が沿うトークン列を
+  生成。合成 corpus で next-token 精度 ~94%、生成は caption の action 群に応じて変化
+  （backflip→energy ~0.26 / standing still→~0.02）。生成物は schema 適合の RD-MIR で、
+  retarget → sim_certificate の安全パイプラインに流せる。v0 は語彙・新規 caption 汎化が限定的。
+
 ## [0.5.0] - 2026-06-03
 
 Motion generation の節目リリース（pre-alpha）。離散トークン化（VQ-VAE）と生成 prior が揃い、

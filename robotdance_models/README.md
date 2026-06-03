@@ -19,6 +19,9 @@ tokenizer, encoder, diffusion/autoregressive model, policy training — Motion E
 - `prior.py` — **Motion token prior**（GPT 風 causal Transformer）。VQ-VAE トークン列上で next-token
   予測を学習し、`MotionGenerator.generate()` で**新規モーション生成**、`complete()` で**補完**を行う。
   tokenizer（符号化⇄復号）と prior（並びの確率モデル）が揃って初めて生成が動く。
+- `text2motion.py` — **Text-conditioned 生成**。token prior を**テキスト特徴で条件付け**し、
+  `TextToMotion.generate(caption)` で **caption → モーション**を生成する（"a backflip" → バックフリップ）。
+  `text.py`（テキスト特徴）+ `tokenizer.py`（VQ-VAE）+ `prior.py`（生成）を 1 本に繋ぐ集大成。
 
 ```bash
 pip install -e ".[learn]"          # torch を入れる
@@ -36,6 +39,10 @@ robotdance demo-tokenizer --checkpoint motion_tokenizer.pt -o tokenizer_recon.gi
 # トークン生成 prior でモーション生成・補完
 robotdance train-prior --tokenizer motion_tokenizer.pt -o motion_prior.pt --epochs 300
 robotdance demo-generate --checkpoint motion_prior.pt -o generated.gif
+
+# テキストからモーションを生成（text → motion）
+robotdance train-text2motion --tokenizer motion_tokenizer.pt -o text2motion.pt --epochs 400
+robotdance generate-text "a person doing a backflip" --gif backflip.gif
 ```
 
 ```python
@@ -58,9 +65,11 @@ model.search("flipping backwards in the air", suite)   # → backflip が top-1
 > - **motion VQ-VAE**: 合成 corpus で再構成 MSE が下がり（例: 0.055→0.0007）・codebook が健全に使われる
 >   （collapse 回避）ことを示す。本モジュールは符号化⇄復号のみ。
 > - **motion token prior**: VQ-VAE トークン列で next-token 精度 ~92% に達し、生成（滑らかな新規モーション,
->   jitter ~0.03）・補完（prefix を保持して継続）が動くことを示す。小さな合成 corpus のため**多様性・
->   新規性は限定的**で、テキスト条件付け（caption → トークン列）は今後。**生成物は物理的に妥当とは
->   限らない** — retarget → sim_certificate（MuJoCo）の安全パイプラインを必ず通す。
+>   jitter ~0.03）・補完（prefix を保持して継続）が動くことを示す。
+> - **text-conditioned 生成**: caption の **action 群**（dance / idle / backflip）に応じて生成が変わる
+>   （"a backflip" → energy ~0.26 vs "standing still" → ~0.02 の高/低エネルギー）。小さな合成 corpus の
+>   ため語彙・多様性・新規 caption 汎化は限定的。**生成物は物理的に妥当とは限らない** —
+>   retarget → sim_certificate（MuJoCo）の安全パイプラインを必ず通す。
 >
 > weights は repo に同梱しない（`robotdance-*` weight family の方針）。motion foundation model・
 > RL tracking・contrastive **video**-text-motion は今後。

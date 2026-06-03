@@ -44,6 +44,7 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 | テキスト → モーション意味検索（contrastive） | `train-text-motion` / `search-text` | group top-1 100% |
 | モーション → 離散トークン（VQ-VAE） | `train-tokenizer` / `demo-tokenizer` | 4× 圧縮・再構成 RMSE ~0.03 |
 | モーション生成・補完（token prior） | `train-prior` / `demo-generate` | next-token 92%・滑らか生成 |
+| テキスト → モーション生成（text2motion） | `train-text2motion` / `generate-text` | "a backflip" → バックフリップ |
 | temporal smoothing + 2D overlay | `smooth` / `overlay` | jitter 0.099→0.022 |
 | benchmark（motion × robot leaderboard） | `benchmark` | CSV + leaderboard |
 | ROS2 安全再生（Jazzy, safety guard） | `serve --ros2` / `demo-runtime` | RViz 可視化 |
@@ -222,6 +223,31 @@ robotdance search-text "a person doing a backflip" --checkpoint text_motion.pt
 汎化します。v0 は**事前学習言語モデルなし**・小さな合成 corpus（実キャプション規模・CLIP/sentence-transformers
 への差し替えは今後）。
 
+### テキストからモーションを生成する（text → motion）
+
+**テキスト特徴（v0.4）+ VQ-VAE トークナイザ + 生成 prior（v0.5）を 1 本に繋ぐ集大成**。
+token prior をテキスト特徴で条件付けすると、**caption からモーションを生成**できます:
+
+```bash
+robotdance train-tokenizer -o motion_tokenizer.pt --epochs 150
+robotdance train-text2motion --tokenizer motion_tokenizer.pt -o text2motion.pt --epochs 400
+robotdance generate-text "a person doing a backflip" -o backflip.rdmir.json --gif backflip.gif
+```
+```
+🎬 "a person doing a backflip" → 生成モーション   energy=0.261   # 高エネルギー
+🎬 "standing still"            → 生成モーション   energy=0.020   # 低エネルギー（idle）
+```
+
+caption の action 群（dance / idle / backflip）に応じて生成が変わります。生成物は schema 適合の
+RD-MIR なので、そのまま **retarget → MuJoCo 物理検証 → ROS2 安全再生**のパイプラインに流せます。
+
+```
+text → [hash n-gram] → 条件付き token prior → 離散トークン列 → [VQ-VAE decode] → RD-MIR → G1
+```
+
+> ⚠️ v0 は小さな合成 corpus・語彙限定。**生成物は物理的に妥当とは限らない** —
+> `validate-sim` の sim_certificate（MuJoCo）で必ず検証してから実機検討へ。
+
 ## Dataset factory — manifest 駆動 + license firewall
 
 RobotDance は「運動データの OS」を目指します。**AMASS 等の mocap を skeleton-first で RD-MIR 化**し、
@@ -348,12 +374,12 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 **local 動画 → RD-MIR（MediaPipe Pose）+ smoothing + 2D overlay**、
 **AMASS ローダ + RD-Manifest license firewall（Data Bill of Materials）**、
 **motion embeddings + 類似検索 + Motion Map + 重複除去（+ 学習 encoder option）**、
-**テキスト → モーション意味検索（contrastive text-motion）**、**モーション → 離散トークン（VQ-VAE）+ 生成・補完（token prior）**、
+**テキスト → モーション意味検索（contrastive text-motion）**、**モーション → 離散トークン（VQ-VAE）+ 生成・補完（token prior）+ テキスト条件付き生成（text2motion）**、
 **G1/H1 への kinematic retarget（multi-embodiment）+ アクチュエータ空間 IK（実 G1 関節角）**、
 **MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、
 **motion × robot benchmark + leaderboard**、**ROS2 runtime（safety guard + motion server + /joint_states, Jazzy）**、
 3D & multi-panel ビューアまで動作
-（`extract`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
+（`extract`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-text2motion`/`generate-text`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
 次は HMR adapter（4DHumans/GVHMR）・motion tokenizer/VQ-VAE・RL tracking baseline・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License

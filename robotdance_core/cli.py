@@ -352,6 +352,39 @@ def _demo_tokenizer(out: Path, checkpoint: Path | None, epochs: int, stride: int
     return 0
 
 
+def _train_text2motion(tokenizer: Path, out: Path, epochs: int, device: str | None) -> int:
+    from robotdance_models.text2motion import train_text2motion
+
+    res = train_text2motion(tokenizer_ckpt=tokenizer, out_path=out, epochs=epochs, device=device)
+    h = res["loss_history"]
+    print(f"✓ text-conditioned 生成 prior 学習完了: {out}")
+    print(f"  sequences={res['sequences']} vocab={res['vocab']} device={res['device']} epochs={epochs}")
+    print(f"  next-token loss: {h[0]:.4f} → {h[-1]:.4f}  /  精度: {100 * res['next_token_acc']:.0f}%")
+    return 0
+
+
+def _generate_text(caption: str, checkpoint: Path, out: Path, gif: Path | None,
+                   temperature: float, seed: int, stride: int) -> int:
+    """caption からモーションを生成し RD-MIR を保存する（§4.2 text→motion 生成）。"""
+    from robotdance_models.text2motion import TextToMotion
+
+    g = TextToMotion(checkpoint)
+    mir = g.generate(caption, temperature=temperature, seed=seed)
+    mir.save(out)
+    kp = mir.keypoints_3d_array()
+    energy = float(kp.std(axis=0).mean())
+    print(f'🎬 "{caption}" → 生成モーション')
+    print(f"  RD-MIR: {out}  frames={mir.num_frames}  運動量(energy)={energy:.3f}")
+    if gif is not None:
+        from robotdance_viewer.skeleton_view import render_side_by_side
+
+        render_side_by_side([(kp, caption, "#9467bd")], gif, stride=stride,
+                            verdicts=[("text → motion", "#9467bd")])
+        print(f"  GIF: {gif}")
+    print("  ⚠️ 生成物は物理的に妥当とは限らない — retarget → sim_certificate（validate-sim）で必ず検証する。")
+    return 0
+
+
 def _train_prior(tokenizer: Path, out: Path, epochs: int, device: str | None) -> int:
     from robotdance_models.prior import train_prior
 
@@ -709,6 +742,23 @@ def main(argv: list[str] | None = None) -> int:
     p_dgen.add_argument("--temperature", type=float, default=1.0)
     p_dgen.add_argument("--stride", type=int, default=2)
 
+    p_t2m = sub.add_parser("train-text2motion", help="テキスト条件付き生成 prior を学習する")
+    p_t2m.add_argument("--tokenizer", type=Path, default=Path("motion_tokenizer.pt"),
+                       help="train-tokenizer の .pt")
+    p_t2m.add_argument("-o", "--out", type=Path, default=Path("text2motion.pt"))
+    p_t2m.add_argument("--epochs", type=int, default=400)
+    p_t2m.add_argument("--device", default=None, help="cpu / cuda（既定: 自動）")
+
+    p_gt = sub.add_parser("generate-text", help="テキストからモーションを生成する")
+    p_gt.add_argument("caption", help='生成したい動作の説明（例: "a person doing a backflip"）')
+    p_gt.add_argument("--checkpoint", type=Path, default=Path("text2motion.pt"),
+                      help="train-text2motion の .pt")
+    p_gt.add_argument("-o", "--out", type=Path, default=Path("generated.rdmir.json"))
+    p_gt.add_argument("--gif", type=Path, default=None, help="生成モーションの GIF 出力先")
+    p_gt.add_argument("--temperature", type=float, default=0.8)
+    p_gt.add_argument("--seed", type=int, default=0)
+    p_gt.add_argument("--stride", type=int, default=2)
+
     p_build = sub.add_parser("build-dataset", help="RD-Manifest から RD-MIR を構築（license firewall）")
     p_build.add_argument("manifest", type=Path, help="manifest JSON（配列 or 単体）")
     p_build.add_argument("--data-root", type=Path, default=Path("."), help="ローカル source の基準ディレクトリ")
@@ -796,6 +846,11 @@ def main(argv: list[str] | None = None) -> int:
         return _train_prior(args.tokenizer, args.out, args.epochs, args.device)
     if args.command == "demo-generate":
         return _demo_generate(args.out, args.checkpoint, args.epochs, args.temperature, args.stride)
+    if args.command == "train-text2motion":
+        return _train_text2motion(args.tokenizer, args.out, args.epochs, args.device)
+    if args.command == "generate-text":
+        return _generate_text(args.caption, args.checkpoint, args.out, args.gif,
+                              args.temperature, args.seed, args.stride)
     if args.command == "build-dataset":
         return _build_dataset(args.manifest, args.data_root, args.out, args.dedupe)
     if args.command == "smooth":
