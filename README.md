@@ -81,14 +81,28 @@ pip install -e ".[demo,sim,perception]"
 # 動画 → RD-MIR → retarget → 物理検証 → human|robot side-by-side
 robotdance video-to-robot my_clip.mp4 --robot unitree_g1 -o shorts_to_humanoid.gif
 
-# 抽出だけ
+# 抽出（Savitzky-Golay 平滑化込み）/ 原動画への骨格オーバーレイ
 robotdance extract my_clip.mp4 -o clip.rdmir.json
+robotdance overlay my_clip.mp4 clip.rdmir.json -o overlay.gif
 ```
 
-> ⚠️ **動画は同梱しません。** 入力動画の権利はユーザー責任で、アダプタは動画を再配布せず、
+**実ピクセルでの検出（公有データで検証）** — 抽出した 2D 骨格を原フレームに重ねて目視確認できます:
+
+<img src="assets/readme/pose_overlay_astronaut.png" width="280">
+
+<sub>骨格 overlay（黄=bone, 赤=joint）。画像は scikit-image の `astronaut`（NASA 撮影, public domain = Tier A）。
+上半身は高 confidence、ポートレートなので下半身は外挿。実動画では全身が取れる。</sub>
+
+**temporal smoothing** — monocular pose は jittery なので Savitzky-Golay で平滑化（`extract` は既定で適用）:
+
+![smoothing](assets/readme/smoothing.gif)
+
+<sub>左: raw（赤, jittery）/ 右: smoothed（緑）。jitter（フレーム間加速度）0.099 → 0.022。</sub>
+
+> ⚠️ **実動画は同梱しません。** 入力動画の権利はユーザー責任で、アダプタは動画を再配布せず、
 > 抽出 RD-MIR の `license_state` は `"unknown"`（source 未確認 → 派生 motion を公開しない）。
-> パイプラインの検証は、landmark→canonical マッピングの単体テストと、scikit-image の
-> `astronaut`（NASA, public domain）実写での検出テストで行っています（[`robotdance_perception`](robotdance_perception/)）。
+> 検証は landmark→canonical マッピングの単体テストと、公有 `astronaut` 実写での検出テストで行っています
+> （[`robotdance_perception`](robotdance_perception/) / [`robotdance_motion`](robotdance_motion/)）。
 
 ## Demo 4 — Unsafe motion rejected
 
@@ -190,10 +204,11 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 ## ステータス
 
 🚧 **Pre-v0.1。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
-**local 動画 → RD-MIR（MediaPipe Pose）**、**G1/H1 への kinematic retarget（multi-embodiment）**、
-**MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、3D & multi-panel ビューアまで動作
-（`extract`/`video-to-robot`/`synth`/`validate`/`view`/`retarget`/`view-pair`/`validate-sim`/`demo-g1`/`demo-multi`/`demo-safety`）。
-次は HMR adapter・temporal smoothing と実 URDF・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+**local 動画 → RD-MIR（MediaPipe Pose）+ temporal smoothing + 2D overlay**、
+**G1/H1 への kinematic retarget（multi-embodiment）**、**MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、
+3D & multi-panel ビューアまで動作
+（`extract`/`video-to-robot`/`overlay`/`smooth`/`synth`/`validate`/`view`/`retarget`/`view-pair`/`validate-sim`/`demo-*`）。
+次は HMR adapter（4DHumans/GVHMR）と実 URDF・Isaac Lab backend、dataset ローダ。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 

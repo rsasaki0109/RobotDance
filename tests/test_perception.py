@@ -12,6 +12,7 @@ import pytest
 from robotdance_core.skeleton import NUM_JOINTS, index_of
 from robotdance_perception.mediapipe_adapter import (
     _MP,
+    mp_image_landmarks_to_canonical_2d,
     mp_world_landmarks_to_canonical,
 )
 
@@ -68,6 +69,39 @@ def test_mapping_forward_axis() -> None:
 def test_invalid_shape_raises() -> None:
     with pytest.raises(ValueError):
         mp_world_landmarks_to_canonical(np.zeros((10, 3)))
+
+
+def test_2d_mapping_composes_19_joints() -> None:
+    """image landmarks（正規化 x,y,vis）→ canonical 2D。pelvis は両 hip の中点。"""
+    img = np.zeros((33, 3))
+    img[_MP["l_hip"]] = [0.4, 0.6, 0.9]
+    img[_MP["r_hip"]] = [0.6, 0.6, 0.9]
+    c = mp_image_landmarks_to_canonical_2d(img)
+    assert c.shape == (NUM_JOINTS, 3)
+    np.testing.assert_allclose(c[index_of("pelvis")][:2], [0.5, 0.6])
+
+
+def test_overlay_smoke(tmp_path) -> None:
+    """合成動画 + 合成 keypoints_2d で overlay 描画が走る（cv2 必要）。"""
+    cv2 = pytest.importorskip("cv2")
+    pytest.importorskip("imageio")
+    from robotdance_core.rd_mir import RdMir, Skeleton
+    from robotdance_core.skeleton import JOINT_NAMES, PARENTS
+    from robotdance_viewer.overlay import render_overlay
+
+    vid = tmp_path / "v.mp4"
+    vw = cv2.VideoWriter(str(vid), cv2.VideoWriter_fourcc(*"mp4v"), 10, (160, 120))
+    for _ in range(6):
+        vw.write(np.full((120, 160, 3), 200, np.uint8))
+    vw.release()
+
+    kp2d = [[[0.5, 0.5, 0.9]] * NUM_JOINTS for _ in range(6)]
+    mir = RdMir(
+        motion_id="t", source_ref={}, license_state="redistributable", fps=10.0, duration=0.6,
+        skeleton=Skeleton(joint_names=list(JOINT_NAMES), parents=list(PARENTS)), keypoints_2d=kp2d,
+    )
+    out = render_overlay(vid, mir, tmp_path / "ov.gif", stride=1)
+    assert out.exists() and out.stat().st_size > 0
 
 
 def test_real_pixels_astronaut(tmp_path) -> None:

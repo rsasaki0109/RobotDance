@@ -164,6 +164,49 @@ def _video_to_robot(video: Path, robot: str, out: Path, stride: int) -> int:
     return 0
 
 
+def _smooth(path: Path, out: Path, window: int) -> int:
+    from .rd_mir import RdMir
+    from robotdance_motion.smoothing import smooth_rdmir
+
+    mir = smooth_rdmir(RdMir.load(path), window=window)
+    mir.save(out)
+    qm = mir.quality_metrics or {}
+    print(f"✓ 平滑化 RD-MIR: {out}")
+    print(f"  jitter {qm.get('jitter_before')} → {qm.get('jitter_after')} ({qm.get('smoothing')})")
+    return 0
+
+
+def _demo_smoothing(out: Path, stride: int) -> int:
+    """jittery な抽出を想定し、raw(noisy) vs smoothed を side-by-side で示す。"""
+    from .synthetic import generate_dance
+    from robotdance_motion.smoothing import add_jitter, jitter, smooth_rdmir
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    noisy = add_jitter(generate_dance(duration=4.0), sigma=0.025)
+    smoothed = smooth_rdmir(noisy)
+    j_raw = jitter(noisy.keypoints_3d_array())
+    j_smooth = jitter(smoothed.keypoints_3d_array())
+    render_side_by_side(
+        [
+            (noisy.keypoints_3d_array(), "raw (jittery)", "#d62728"),
+            (smoothed.keypoints_3d_array(), "smoothed (Savitzky-Golay)", "#2ca02c"),
+        ],
+        out, fps=noisy.fps, stride=stride,
+        verdicts=[(f"jitter {j_raw:.3f}", "#d62728"), (f"jitter {j_smooth:.3f}", "#2ca02c")],
+    )
+    print(f"✓ smoothing デモ GIF: {out}  jitter {j_raw:.4f} → {j_smooth:.4f}")
+    return 0
+
+
+def _overlay(video: Path, mir_path: Path, out: Path, stride: int) -> int:
+    from .rd_mir import RdMir
+    from robotdance_viewer.overlay import render_overlay
+
+    render_overlay(video, RdMir.load(mir_path), out, stride=stride)
+    print(f"✓ overlay GIF（原動画 + 骨格）: {out}")
+    return 0
+
+
 def _validate_sim(path: Path, robot: str, out: Path | None) -> int:
     from .rd_mir import RdMir
     from robotdance_retarget.kinematic import retarget
@@ -274,6 +317,21 @@ def main(argv: list[str] | None = None) -> int:
     p_multi.add_argument("--robots", nargs="+", default=["unitree_g1", "unitree_h1"])
     p_multi.add_argument("--stride", type=int, default=2)
 
+    p_smooth = sub.add_parser("smooth", help="RD-MIR を Savitzky-Golay で平滑化する")
+    p_smooth.add_argument("path", type=Path, help="RD-MIR JSON")
+    p_smooth.add_argument("-o", "--out", type=Path, default=Path("smoothed.rdmir.json"))
+    p_smooth.add_argument("--window", type=int, default=7)
+
+    p_dsmooth = sub.add_parser("demo-smoothing", help="raw(noisy) vs smoothed を side-by-side")
+    p_dsmooth.add_argument("-o", "--out", type=Path, default=Path("smoothing.gif"))
+    p_dsmooth.add_argument("--stride", type=int, default=2)
+
+    p_overlay = sub.add_parser("overlay", help="原動画に RD-MIR の 2D 骨格を重ねて GIF 化")
+    p_overlay.add_argument("video", type=Path, help="原動画")
+    p_overlay.add_argument("mir", type=Path, help="extract で得た RD-MIR JSON")
+    p_overlay.add_argument("-o", "--out", type=Path, default=Path("overlay.gif"))
+    p_overlay.add_argument("--stride", type=int, default=2)
+
     p_extract = sub.add_parser("extract", help="local 動画から MediaPipe で RD-MIR を抽出")
     p_extract.add_argument("video", type=Path, help="入力動画（ローカルファイル）")
     p_extract.add_argument("-o", "--out", type=Path, default=Path("video.rdmir.json"))
@@ -314,6 +372,12 @@ def main(argv: list[str] | None = None) -> int:
         return _validate_sim(args.path, args.robot, args.out)
     if args.command == "demo-safety":
         return _demo_safety(args.out, args.robot, args.stride)
+    if args.command == "smooth":
+        return _smooth(args.path, args.out, args.window)
+    if args.command == "demo-smoothing":
+        return _demo_smoothing(args.out, args.stride)
+    if args.command == "overlay":
+        return _overlay(args.video, args.mir, args.out, args.stride)
     if args.command == "extract":
         return _extract(args.video, args.out, args.model)
     if args.command == "video-to-robot":

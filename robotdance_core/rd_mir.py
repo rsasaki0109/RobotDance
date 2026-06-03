@@ -49,8 +49,10 @@ class RdMir(BaseModel):
     # 以下は optional。未設定なら出力 JSON から除外され、additionalProperties:false の schema に適合する。
     root_trajectory: Optional[dict[str, Any]] = None
     keypoints_3d: Optional[list[list[list[float]]]] = None
+    keypoints_2d: Optional[list[list[list[float]]]] = None
     contacts: Optional[dict[str, list[Any]]] = None
     confidence: Optional[dict[str, Any]] = None
+    camera: Optional[dict[str, Any]] = None
     quality_metrics: Optional[dict[str, Any]] = None
     semantics: Optional[dict[str, Any]] = None
     privacy_flags: Optional[dict[str, bool]] = None

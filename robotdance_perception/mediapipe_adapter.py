@@ -44,44 +44,53 @@ def _to_canonical_frame(v: np.ndarray) -> np.ndarray:
     return np.stack([-z, x, -y], axis=-1)
 
 
-def mp_world_landmarks_to_canonical(world: np.ndarray) -> np.ndarray:
-    """MediaPipe world landmarks [33, 3] → canonical 19-joint keypoints [19, 3]。
+def _compose_canonical(pts: np.ndarray) -> np.ndarray:
+    """MediaPipe の 33 点 [33, K] から canonical 19-joint [19, K] を合成する。
 
     direct な landmark は対応点を、pelvis/spine/chest/neck/head は補間で求める。
+    座標系に依存しないため world(3D) でも image(2D) でも使える。
     """
-    if world.shape != (33, 3):
-        raise ValueError(f"world landmarks は [33,3] が必要: {world.shape}")
-    c = _to_canonical_frame(world)  # [33,3] canonical 座標
-    g = lambda k: c[_MP[k]]  # noqa: E731
-
+    g = lambda k: pts[_MP[k]]  # noqa: E731
     pelvis = 0.5 * (g("l_hip") + g("r_hip"))
-    shoulder_c = 0.5 * (g("l_shoulder") + g("r_shoulder"))
+    chest = 0.5 * (g("l_shoulder") + g("r_shoulder"))
     head = 0.5 * (g("l_ear") + g("r_ear"))
-    chest = shoulder_c
     spine = pelvis + 0.5 * (chest - pelvis)
     neck = chest + 0.4 * (head - chest)
 
-    out = np.zeros((NUM_JOINTS, 3))
+    out = np.zeros((NUM_JOINTS, pts.shape[1]))
     out[index_of("pelvis")] = pelvis
     out[index_of("spine")] = spine
     out[index_of("chest")] = chest
     out[index_of("neck")] = neck
     out[index_of("head")] = head
-    out[index_of("left_shoulder")] = g("l_shoulder")
-    out[index_of("right_shoulder")] = g("r_shoulder")
-    out[index_of("left_elbow")] = g("l_elbow")
-    out[index_of("right_elbow")] = g("r_elbow")
-    out[index_of("left_wrist")] = g("l_wrist")
-    out[index_of("right_wrist")] = g("r_wrist")
-    out[index_of("left_hip")] = g("l_hip")
-    out[index_of("right_hip")] = g("r_hip")
-    out[index_of("left_knee")] = g("l_knee")
-    out[index_of("right_knee")] = g("r_knee")
-    out[index_of("left_ankle")] = g("l_ankle")
-    out[index_of("right_ankle")] = g("r_ankle")
-    out[index_of("left_foot")] = g("l_foot")
-    out[index_of("right_foot")] = g("r_foot")
+    for jn, mk in [
+        ("left_shoulder", "l_shoulder"), ("right_shoulder", "r_shoulder"),
+        ("left_elbow", "l_elbow"), ("right_elbow", "r_elbow"),
+        ("left_wrist", "l_wrist"), ("right_wrist", "r_wrist"),
+        ("left_hip", "l_hip"), ("right_hip", "r_hip"),
+        ("left_knee", "l_knee"), ("right_knee", "r_knee"),
+        ("left_ankle", "l_ankle"), ("right_ankle", "r_ankle"),
+        ("left_foot", "l_foot"), ("right_foot", "r_foot"),
+    ]:
+        out[index_of(jn)] = g(mk)
     return out
+
+
+def mp_world_landmarks_to_canonical(world: np.ndarray) -> np.ndarray:
+    """MediaPipe world landmarks [33, 3] → canonical 19-joint keypoints [19, 3]。"""
+    if world.shape != (33, 3):
+        raise ValueError(f"world landmarks は [33,3] が必要: {world.shape}")
+    return _compose_canonical(_to_canonical_frame(world))
+
+
+def mp_image_landmarks_to_canonical_2d(image_xy_vis: np.ndarray) -> np.ndarray:
+    """MediaPipe image landmarks [33, 3]（正規化 x,y,visibility）→ canonical [19, 3]。
+
+    overlay 描画用。x,y は画像正規化座標（0..1）、3列目は visibility。
+    """
+    if image_xy_vis.shape != (33, 3):
+        raise ValueError(f"image landmarks は [33,3] が必要: {image_xy_vis.shape}")
+    return _compose_canonical(image_xy_vis)
 
 
 def _joint_visibility(vis33: np.ndarray) -> np.ndarray:
@@ -130,10 +139,13 @@ def extract_motion(
     model_path: Optional[str | Path] = None,
     motion_id: Optional[str] = None,
     ground_align: bool = True,
+    smooth: bool = True,
 ) -> RdMir:
     """local 動画から canonical RD-MIR を抽出する。
 
     入力動画は再配布しない。license_state は "unknown"（source 未確認）。
+    smooth=True なら Savitzky-Golay で平滑化し jitter_before/after を記録する。
+    keypoints_2d（画像正規化座標）も格納し、overlay 描画に使える。
     """
     import cv2
     import mediapipe as mp
@@ -145,6 +157,8 @@ def extract_motion(
     if not cap.isOpened():
         raise FileNotFoundError(f"動画を開けません: {path}")
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)) or 0
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)) or 0
 
     options = vision.PoseLandmarkerOptions(
         base_options=BaseOptions(model_asset_path=str(model)),
@@ -155,6 +169,7 @@ def extract_motion(
 
     kps_frames: list[np.ndarray] = []
     conf_frames: list[np.ndarray] = []
+    kp2d_frames: list[np.ndarray] = []
     idx = 0
     while True:
         ok, frame = cap.read()
@@ -167,10 +182,13 @@ def extract_motion(
         )
         if res.pose_world_landmarks:
             wl = res.pose_world_landmarks[0]
+            nl = res.pose_landmarks[0]
             world = np.array([[p.x, p.y, p.z] for p in wl])
-            vis = np.array([p.visibility for p in res.pose_landmarks[0]])
+            vis = np.array([p.visibility for p in nl])
+            image = np.array([[p.x, p.y, p.visibility] for p in nl])
             kps_frames.append(mp_world_landmarks_to_canonical(world))
             conf_frames.append(_joint_visibility(vis))
+            kp2d_frames.append(mp_image_landmarks_to_canonical_2d(image))
         idx += 1
     cap.release()
 
@@ -179,10 +197,20 @@ def extract_motion(
 
     kps = np.stack(kps_frames)  # [T, 19, 3]
     conf = np.stack(conf_frames)
+    kp2d = np.stack(kp2d_frames)  # [T, 19, 3]（正規化 x,y,vis）
 
     if ground_align:
         # 足の最下点を地面(z=0)付近へ。全フレーム共通オフセット。
         kps[:, :, 2] -= kps[:, [index_of("left_ankle"), index_of("right_ankle")], 2].min()
+
+    quality: dict[str, object] = {"mean_confidence": round(float(conf.mean()), 3)}
+    if smooth:
+        from robotdance_motion.smoothing import jitter, savgol_smooth
+
+        quality["jitter_before"] = round(jitter(kps), 5)
+        kps = savgol_smooth(kps)
+        quality["jitter_after"] = round(jitter(kps), 5)
+        quality["smoothing"] = "savgol(window=7,polyorder=2)"
 
     n = kps.shape[0]
     duration = n / fps
@@ -194,13 +222,16 @@ def extract_motion(
         license_state="unknown",  # source 動画の権利は未確認 → 派生 motion を公開しない
         fps=float(fps),
         duration=float(duration),
+        world_frame={"up_axis": "z", "forward_axis": "x", "handedness": "right"},
         skeleton=Skeleton(joint_names=list(JOINT_NAMES), parents=list(PARENTS)),
         root_trajectory={"position": kps[:, index_of("pelvis"), :].tolist()},
         keypoints_3d=kps.tolist(),
+        keypoints_2d=kp2d.tolist(),
         contacts=contacts,
         confidence={"joint": conf.tolist()},
+        camera={"image_width": width, "image_height": height},
         privacy_flags={"face_visible": True, "synthetic": False},
-        quality_metrics={"mean_confidence": round(float(conf.mean()), 3)},
+        quality_metrics=quality,
         extractor_versions={"pose": "mediapipe_pose_landmarker_full", "adapter": "robotdance.v0"},
         semantics={"action_label": "unknown"},
     )
