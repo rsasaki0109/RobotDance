@@ -126,6 +126,44 @@ def _demo_g1(out: Path, stride: int) -> int:
     return 0
 
 
+def _extract(video: Path, out: Path, model: Path | None) -> int:
+    from robotdance_perception.mediapipe_adapter import extract_motion
+
+    mir = extract_motion(video, model_path=model)
+    mir.save(out)
+    print(f"✓ {video.name} → RD-MIR: {out}")
+    print(f"  frames={mir.num_frames} fps={mir.fps:g} "
+          f"mean_confidence={(mir.quality_metrics or {}).get('mean_confidence')} "
+          f"license_state={mir.license_state}")
+    return 0
+
+
+def _video_to_robot(video: Path, robot: str, out: Path, stride: int) -> int:
+    """local 動画 → RD-MIR → retarget → MuJoCo 検証 → human|robot side-by-side（Shorts to humanoid）。"""
+    from robotdance_perception.mediapipe_adapter import extract_motion
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_sim.mujoco_backend import certify
+    from robotdance_unitree import get_morphology
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    morph = get_morphology(robot)
+    mir = extract_motion(video)
+    motion = retarget(mir, morph)
+    certify(motion, morph)
+    cert = motion.sim_certificate
+    print(f"  extracted {mir.num_frames} frames → {robot}: {cert['verdict']} {cert['reasons']}")
+    render_side_by_side(
+        [
+            (mir.keypoints_3d_array(), f"video: {video.stem}", "#1f77b4"),
+            (motion.keypoints_3d_array(), robot, "#ff7f0e"),
+        ],
+        out, fps=mir.fps, stride=stride,
+        verdicts=[("SOURCE", "#1f77b4"), (cert["verdict"], "#2ca02c" if cert["passed"] else "#d62728")],
+    )
+    print(f"✓ Shorts-to-humanoid GIF を書き出しました: {out}")
+    return 0
+
+
 def _validate_sim(path: Path, robot: str, out: Path | None) -> int:
     from .rd_mir import RdMir
     from robotdance_retarget.kinematic import retarget
@@ -236,6 +274,17 @@ def main(argv: list[str] | None = None) -> int:
     p_multi.add_argument("--robots", nargs="+", default=["unitree_g1", "unitree_h1"])
     p_multi.add_argument("--stride", type=int, default=2)
 
+    p_extract = sub.add_parser("extract", help="local 動画から MediaPipe で RD-MIR を抽出")
+    p_extract.add_argument("video", type=Path, help="入力動画（ローカルファイル）")
+    p_extract.add_argument("-o", "--out", type=Path, default=Path("video.rdmir.json"))
+    p_extract.add_argument("--model", type=Path, default=None, help="pose model (.task) パス")
+
+    p_v2r = sub.add_parser("video-to-robot", help="動画 → RD-MIR → retarget → 物理検証 → side-by-side")
+    p_v2r.add_argument("video", type=Path, help="入力動画（ローカルファイル）")
+    p_v2r.add_argument("--robot", default="unitree_g1")
+    p_v2r.add_argument("-o", "--out", type=Path, default=Path("shorts_to_humanoid.gif"))
+    p_v2r.add_argument("--stride", type=int, default=2)
+
     p_vsim = sub.add_parser("validate-sim", help="RD-MIR を robot へ retarget し MuJoCo 物理検証")
     p_vsim.add_argument("path", type=Path, help="RD-MIR JSON")
     p_vsim.add_argument("--robot", default="unitree_g1")
@@ -265,6 +314,10 @@ def main(argv: list[str] | None = None) -> int:
         return _validate_sim(args.path, args.robot, args.out)
     if args.command == "demo-safety":
         return _demo_safety(args.out, args.robot, args.stride)
+    if args.command == "extract":
+        return _extract(args.video, args.out, args.model)
+    if args.command == "video-to-robot":
+        return _video_to_robot(args.video, args.robot, args.out, args.stride)
     parser.error(f"unknown command: {args.command}")
     return 2
 

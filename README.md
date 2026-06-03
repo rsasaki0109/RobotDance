@@ -70,6 +70,26 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 
 中核となる内部標準は **RD-MIR (RobotDance Motion Intermediate Representation)** です。詳細は [`specs/`](specs/) を参照。
 
+## Real video → humanoid（bring your own video）
+
+本命の **"Shorts to humanoid"**。ローカル動画を MediaPipe Pose で 3D 復元し、canonical RD-MIR →
+G1/H1 retarget → MuJoCo 物理検証まで一気通貫します。
+
+```bash
+pip install -e ".[demo,sim,perception]"
+
+# 動画 → RD-MIR → retarget → 物理検証 → human|robot side-by-side
+robotdance video-to-robot my_clip.mp4 --robot unitree_g1 -o shorts_to_humanoid.gif
+
+# 抽出だけ
+robotdance extract my_clip.mp4 -o clip.rdmir.json
+```
+
+> ⚠️ **動画は同梱しません。** 入力動画の権利はユーザー責任で、アダプタは動画を再配布せず、
+> 抽出 RD-MIR の `license_state` は `"unknown"`（source 未確認 → 派生 motion を公開しない）。
+> パイプラインの検証は、landmark→canonical マッピングの単体テストと、scikit-image の
+> `astronaut`（NASA, public domain）実写での検出テストで行っています（[`robotdance_perception`](robotdance_perception/)）。
+
 ## Demo 4 — Unsafe motion rejected
 
 > RobotDance は「動画を入れたら即ロボットが踊る」危険ツールではありません。retarget した運動を
@@ -170,9 +190,10 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 ## ステータス
 
 🚧 **Pre-v0.1。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
-**G1/H1 への kinematic retarget（multi-embodiment）**、**MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、
-3D & multi-panel ビューアまで動作（`synth`/`validate`/`view`/`retarget`/`view-pair`/`validate-sim`/`demo-g1`/`demo-multi`/`demo-safety`）。
-次は実動画からの 3D 復元（pose/HMR adapter）と実 URDF・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+**local 動画 → RD-MIR（MediaPipe Pose）**、**G1/H1 への kinematic retarget（multi-embodiment）**、
+**MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、3D & multi-panel ビューアまで動作
+（`extract`/`video-to-robot`/`synth`/`validate`/`view`/`retarget`/`view-pair`/`validate-sim`/`demo-g1`/`demo-multi`/`demo-safety`）。
+次は HMR adapter・temporal smoothing と実 URDF・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 

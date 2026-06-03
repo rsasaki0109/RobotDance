@@ -40,7 +40,11 @@ demo = [
     "matplotlib>=3.7",
     "imageio>=2.30",
 ]
-perception = []  # TODO(v0.1): pose / HMR adapter 依存
+# local video → RD-MIR（MediaPipe Pose）。
+perception = [
+    "mediapipe>=0.10",
+    "opencv-python>=4.8",
+]
 # MuJoCo 物理ベースの feasibility 検証（sim_certificate）。
 sim = [
     "mujoco>=3.0",
@@ -54,6 +58,9 @@ dev = [
     "matplotlib>=3.7",
     "imageio>=2.30",
     "mujoco>=3.0",
+    "mediapipe>=0.10",
+    "opencv-python>=4.8",
+    "scikit-image>=0.22",
 ]
 
 [project.scripts]
