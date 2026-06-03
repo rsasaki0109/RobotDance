@@ -22,6 +22,12 @@ tokenizer, encoder, diffusion/autoregressive model, policy training — Motion E
 - `text2motion.py` — **Text-conditioned 生成**。token prior を**テキスト特徴で条件付け**し、
   `TextToMotion.generate(caption)` で **caption → モーション**を生成する（"a backflip" → バックフリップ）。
   `text.py`（テキスト特徴）+ `tokenizer.py`（VQ-VAE）+ `prior.py`（生成）を 1 本に繋ぐ集大成。
+- `tracking_policy.py` — **RL tracking policy baseline**（§4.5）。
+  [`robotdance_sim.TrackingEnv`](../robotdance_sim/)（base 非駆動の物理 env）で参照運動を
+  **倒れずに追従する方策**を小型 **PPO** で学習する。学習表現の次にある制御スタックの足場で、
+  retarget→sim_certificate の「物理的に妥当か」の判定の先にある「**実際にバランスを取って動かせるか**」を扱う。
+  `TrackingPolicy.rollout()` が物理ロールアウトを RD-Motion（`control_mode="policy"`）として返し、
+  viewer / sim_certificate / ROS2 の既存パイプラインに流せる。
 
 ```bash
 pip install -e ".[learn]"          # torch を入れる
@@ -43,6 +49,10 @@ robotdance demo-generate --checkpoint motion_prior.pt -o generated.gif
 # テキストからモーションを生成（text → motion）
 robotdance train-text2motion --tokenizer motion_tokenizer.pt -o text2motion.pt --epochs 400
 robotdance generate-text "a person doing a backflip" --gif backflip.gif
+
+# RL tracking policy（参照を物理上で追従, §4.5）— sim + learn extra が必要
+robotdance train-tracking -o tracking_policy.pt --iterations 40
+robotdance demo-track --iterations 40 -o tracking.gif    # 参照 vs 物理追従 を side-by-side
 ```
 
 ```python
@@ -70,6 +80,10 @@ model.search("flipping backwards in the air", suite)   # → backflip が top-1
 >   （"a backflip" → energy ~0.26 vs "standing still" → ~0.02 の高/低エネルギー）。小さな合成 corpus の
 >   ため語彙・多様性・新規 caption 汎化は限定的。**生成物は物理的に妥当とは限らない** —
 >   retarget → sim_certificate（MuJoCo）の安全パイプラインを必ず通す。
+> - **RL tracking policy**: base 非駆動の物理 env で PPO を学習し、gentle 参照を **survival 100%** で
+>   追従（pose RMSE ~0.37）・物理ロールアウトを RD-Motion で返すことを示す。短い feasible クリップでは
+>   関節 PD だけで概ねバランスするため、v0 の残差 PPO は **PD を壊さず追従する足場**であって PD 超えの
+>   tracking 精度を主張しない。多様 motion 汎化・摂動頑健性・AMP/敵対報酬・実機転移は今後。
 >
 > weights は repo に同梱しない（`robotdance-*` weight family の方針）。motion foundation model・
-> RL tracking・contrastive **video**-text-motion は今後。
+> 高度な RL tracking（AMP/摂動/実機転移）・contrastive **video**-text-motion は今後。

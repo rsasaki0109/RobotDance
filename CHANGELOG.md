@@ -5,6 +5,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **RL tracking policy baseline**（`train-tracking` / `demo-track`,
+  `robotdance_sim.tracking_env` + `robotdance_models.tracking_policy`, torch/mujoco）:
+  参照運動を **MuJoCo forward 物理シミュレーション上で倒れずに追従**する方策を小型 **PPO** で学習する。
+  学習スタック（検索・トークン化・生成）の次にある**制御スタック**の最初の足場で、設計書 §4.5
+  （Sim-to-Real Policy Stack）に当たる。base（pelvis）は free joint で**非駆動**、駆動 DOF は関節空間 PD
+  （参照 qpos へアンカー）+ 方策の残差トルク（`qfrc_applied[6:]`）→ 「バランスを取りながら追う」ことが
+  本質的に必要（underactuated）。報酬 = 姿勢追従 + 直立 + 生存 − 制御コスト、転倒で終了。
+  `TrackingPolicy.rollout()` が物理ロールアウトを RD-Motion（`control_mode="policy"`）として返し、
+  viewer / sim_certificate / ROS2 の既存パイプラインに流せる。合成 gentle 参照で **survival 100%**・
+  pose RMSE ~0.37 を達成。**v0 は baseline 足場**: 短い feasible クリップでは関節 PD だけで概ねバランス
+  するため、残差 PPO は **PD を壊さず追従する**ことを学ぶ（PD 超えの tracking 精度・多様 motion 汎化・
+  摂動頑健性・AMP/敵対報酬・実機転移は今後）。近似質量ゆえ実機保証ではない。
+
 ## [0.6.0] - 2026-06-03
 
 Text-to-motion の節目リリース（pre-alpha）。**言葉でモーションを生成**できるようになり、

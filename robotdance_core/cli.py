@@ -435,6 +435,61 @@ def _demo_generate(out: Path, prior_ckpt: Path | None, epochs: int, temperature:
     return 0
 
 
+def _train_tracking(out: Path, robot: str, iterations: int, device: str | None) -> int:
+    """RL tracking policy（§4.5）を学習する。"""
+    from robotdance_core.synthetic import generate_dance
+    from robotdance_models.tracking_policy import train_tracking_policy
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_unitree import get_morphology
+
+    morph = get_morphology(robot)
+    ref = retarget(generate_dance(duration=2.0, arm_amp=0.6, sway_amp=0.08), morph)
+    policy, info = train_tracking_policy(ref, morph, iterations=iterations,
+                                         device=device, out_path=out)
+    rh = info["return_history"]
+    m = policy.rollout()[1]
+    print(f"✓ RL tracking policy 学習完了: {out}")
+    print(f"  robot={robot} device={info['device']} iterations={iterations} "
+          f"obs={info['obs_dim']} act={info['action_dim']}（base 非駆動）")
+    print(f"  episode return: {rh[0]:.2f} → {rh[-1]:.2f}（PPO）")
+    print(f"  rollout: 生存 {m['survived_frames']}/{m['reference_frames']} frames "
+          f"(survival {m['survival_ratio']:.0%}) / pose RMSE {m['mean_pose_rmse']:.3f}")
+    print("  ⚠️ v0 baseline: 関節 PD への残差を学習。近似質量・単一参照で完全追従ではない。")
+    return 0
+
+
+def _demo_track(out: Path, robot: str, iterations: int, stride: int) -> int:
+    """参照運動を RL policy で物理追従し、参照 vs 追従を side-by-side 描画する（§4.5）。"""
+    from robotdance_core.synthetic import generate_dance
+    from robotdance_models.tracking_policy import train_tracking_policy
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_unitree import get_morphology
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    morph = get_morphology(robot)
+    ref = retarget(generate_dance(duration=2.0, arm_amp=0.6, sway_amp=0.08), morph)
+    print(f"🤸 RL tracking policy を学習中（{robot}, PPO {iterations} iters, base 非駆動）...")
+    policy, info = train_tracking_policy(ref, morph, iterations=iterations)
+    motion, m = policy.rollout()
+    print(f"  episode return: {info['return_history'][0]:.2f} → {info['return_history'][-1]:.2f}")
+    print(f"  物理ロールアウト: 生存 {m['survived_frames']}/{m['reference_frames']} "
+          f"(survival {m['survival_ratio']:.0%}) / pose RMSE {m['mean_pose_rmse']:.3f}")
+
+    ref_kp = ref.keypoints_3d_array()
+    trk_kp = motion.keypoints_3d_array()
+    n = min(len(ref_kp), len(trk_kp))
+    panels = [
+        (ref_kp[:n], "reference (kinematic)", "#1f77b4"),
+        (trk_kp[:n], "RL tracked (physics)", "#d62728"),
+    ]
+    render_side_by_side(panels, out, stride=stride,
+                        verdicts=[("reference", "#1f77b4"),
+                                  (f"survival {m['survival_ratio']:.0%}", "#d62728")])
+    print(f"✓ tracking デモ GIF: {out}")
+    print("  ⚠️ v0 baseline: PD 残差を PPO で学習。倒れずに追従する足場で、SOTA tracking ではない。")
+    return 0
+
+
 def _search_text(query: str, checkpoint: Path, k: int) -> int:
     """テキスト query から合成モーション・スイートを意味検索する（§4.2 デモ）。"""
     from robotdance_core.synthetic import generate_backflip, generate_dance
@@ -801,6 +856,18 @@ def main(argv: list[str] | None = None) -> int:
     p_safety.add_argument("--robot", default="unitree_g1")
     p_safety.add_argument("--stride", type=int, default=2)
 
+    p_trk = sub.add_parser("train-tracking", help="RL tracking policy（物理上で参照を追従）を学習")
+    p_trk.add_argument("-o", "--out", type=Path, default=Path("tracking_policy.pt"))
+    p_trk.add_argument("--robot", default="unitree_g1")
+    p_trk.add_argument("--iterations", type=int, default=40)
+    p_trk.add_argument("--device", default=None, help="cpu / cuda（既定: 自動）")
+
+    p_dtrk = sub.add_parser("demo-track", help="参照を RL policy で物理追従し side-by-side 描画")
+    p_dtrk.add_argument("-o", "--out", type=Path, default=Path("tracking.gif"))
+    p_dtrk.add_argument("--robot", default="unitree_g1")
+    p_dtrk.add_argument("--iterations", type=int, default=40)
+    p_dtrk.add_argument("--stride", type=int, default=2)
+
     args = parser.parse_args(argv)
     if args.command == "validate":
         return _validate(args.spec, args.path)
@@ -820,6 +887,10 @@ def main(argv: list[str] | None = None) -> int:
         return _validate_sim(args.path, args.robot, args.out)
     if args.command == "demo-safety":
         return _demo_safety(args.out, args.robot, args.stride)
+    if args.command == "train-tracking":
+        return _train_tracking(args.out, args.robot, args.iterations, args.device)
+    if args.command == "demo-track":
+        return _demo_track(args.out, args.robot, args.iterations, args.stride)
     if args.command == "serve":
         return _serve(args.rdmotion, args.speed, args.ros2, args.allow_uncertified)
     if args.command == "demo-runtime":

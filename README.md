@@ -45,6 +45,7 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 | モーション → 離散トークン（VQ-VAE） | `train-tokenizer` / `demo-tokenizer` | 4× 圧縮・再構成 RMSE ~0.03 |
 | モーション生成・補完（token prior） | `train-prior` / `demo-generate` | next-token 92%・滑らか生成 |
 | テキスト → モーション生成（text2motion） | `train-text2motion` / `generate-text` | "a backflip" → バックフリップ |
+| RL tracking policy（物理上で参照を追従, §4.5） | `train-tracking` / `demo-track` | PPO・base 非駆動・survival 100% |
 | temporal smoothing + 2D overlay | `smooth` / `overlay` | jitter 0.099→0.022 |
 | benchmark（motion × robot leaderboard） | `benchmark` | CSV + leaderboard |
 | ROS2 安全再生（Jazzy, safety guard） | `serve --ros2` / `demo-runtime` | RViz 可視化 |
@@ -376,11 +377,11 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 **motion embeddings + 類似検索 + Motion Map + 重複除去（+ 学習 encoder option）**、
 **テキスト → モーション意味検索（contrastive text-motion）**、**モーション → 離散トークン（VQ-VAE）+ 生成・補完（token prior）+ テキスト条件付き生成（text2motion）**、
 **G1/H1 への kinematic retarget（multi-embodiment）+ アクチュエータ空間 IK（実 G1 関節角）**、
-**MuJoCo 物理検証（sim_certificate / PASS・REJECT）**、
+**MuJoCo 物理検証（sim_certificate / PASS・REJECT）+ RL tracking policy baseline（物理上で参照を追従, PPO, base 非駆動）**、
 **motion × robot benchmark + leaderboard**、**ROS2 runtime（safety guard + motion server + /joint_states, Jazzy）**、
 3D & multi-panel ビューアまで動作
-（`extract`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-text2motion`/`generate-text`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
-次は HMR adapter（4DHumans/GVHMR）・motion tokenizer/VQ-VAE・RL tracking baseline・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+（`extract`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-text2motion`/`generate-text`/`train-tracking`/`demo-track`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。
+次は HMR adapter（4DHumans/GVHMR）・高度な RL tracking（AMP/摂動/実機転移）・Isaac Lab backend。詳細は [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
 ## License
 

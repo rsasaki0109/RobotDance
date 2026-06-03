@@ -57,3 +57,4 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+MUJOCO_LOG.TXT
