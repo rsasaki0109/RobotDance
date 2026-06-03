@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-06-03
+
+Motion generation の節目リリース（pre-alpha）。離散トークン化（VQ-VAE）と生成 prior が揃い、
+**モーションを離散トークンに圧縮 → 生成・補完**できるようになった。検索・整合・トークン化・生成と、
+設計書 §4.2 Motion Intelligence Stack の中核が一段落。
+
 ### Added
 - **Motion VQ-VAE トークナイザ**（`train-tokenizer` / `demo-tokenizer`,
   `robotdance_models.tokenizer`, torch）: motion window を時間方向に 4× 圧縮した潜在列に符号化し、
@@ -20,6 +26,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   `complete()` で prefix を保持した**補完**を行う。tokenizer と prior が揃って生成が動く。
   合成 corpus で next-token 精度 ~92%・生成は滑らか（jitter ~0.03）。v0 は多様性/新規性が限定的・
   テキスト条件付けは今後。**生成物は物理的に妥当とは限らず** retarget → sim_certificate で検証する。
+
+[0.5.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.5.0
 
 ## [0.4.0] - 2026-06-03
 
