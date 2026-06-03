@@ -212,6 +212,9 @@ robotdance build-dataset manifests.json --data-root /path/to/amass -o build/
 → build/DATA_CARD.md（Data Bill of Materials: どの source が・どの権利で・公開されたか）
 ```
 
+- **アクチュエータ空間 retarget**（`retarget-ik --urdf`）: 実 URDF の微分可能 FK + 勾配 IK で
+  **実 G1 の 23 関節角**を出力（ROS2/SDK2 が command できる joint trajectory）。IK 位置誤差が
+  「実 G1 の限られた DOF で人間動作をどこまで追えるか」を示す（dance ~0.07m / backflip ~0.16m）。
 - **skeleton-first**: SMPL pose を FK して canonical 19-joint へ。**SMPL body model file は不要 / 同梱しない**（license friction 回避）。
 - 対応データセット: **AMASS**（mocap）/ **AIST++**（ダンス, 60fps）。同じ canonical RD-MIR に変換され retarget・物理検証へ流れる。
 - `--dedupe` で **motion embedding による near-duplicate 除去**（同じ振付を 1 本に集約）。

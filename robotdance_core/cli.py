@@ -238,6 +238,21 @@ def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_
     return 0
 
 
+def _retarget_ik(path: Path, urdf: Path, out: Path, steps: int) -> int:
+    from .rd_mir import RdMir
+    from robotdance_retarget.actuator_ik import actuator_retarget
+
+    motion = actuator_retarget(RdMir.load(path), urdf, steps=steps)
+    motion.save(out)
+    m = motion.retarget_metrics or {}
+    jr = motion.joint_rotations or {}
+    print(f"✓ actuator-space IK → {out}")
+    print(f"  {m.get('actuated_joints')} 関節角を出力（{len(jr.get('angles_rad', []))} frames）")
+    print(f"  IK 位置誤差 mean={m.get('ik_mean_pos_error_m')}m max={m.get('ik_max_pos_error_m')}m")
+    print("  ⚠️ 参照 IK（位置合わせ）。バランス policy ではない（sim_certificate で別途検証）。")
+    return 0
+
+
 def _import_urdf(urdf: Path, name: str, save: Path | None) -> int:
     import json
 
@@ -502,6 +517,12 @@ def main(argv: list[str] | None = None) -> int:
     p_mmap.add_argument("--checkpoint", type=Path, default=None,
                         help="学習 encoder の .pt（省略時は手作り embedding）")
 
+    p_ik = sub.add_parser("retarget-ik", help="RD-MIR を実 URDF のアクチュエータ関節角へ IK retarget")
+    p_ik.add_argument("path", type=Path, help="RD-MIR JSON")
+    p_ik.add_argument("--urdf", type=Path, required=True, help="ロボット URDF（例: g1_23dof.urdf）")
+    p_ik.add_argument("-o", "--out", type=Path, default=Path("g1_joints.rdmotion.json"))
+    p_ik.add_argument("--steps", type=int, default=300)
+
     p_urdf = sub.add_parser("import-urdf", help="実 URDF から実寸 RobotMorphology を構築する")
     p_urdf.add_argument("urdf", type=Path, help="URDF ファイル（例: g1_23dof.urdf）")
     p_urdf.add_argument("--name", default="unitree_g1")
@@ -581,6 +602,8 @@ def main(argv: list[str] | None = None) -> int:
         return _benchmark(args.robots, args.motions_dir, not args.no_sim, args.out)
     if args.command == "demo-motion-map":
         return _demo_motion_map(args.out, args.checkpoint)
+    if args.command == "retarget-ik":
+        return _retarget_ik(args.path, args.urdf, args.out, args.steps)
     if args.command == "import-urdf":
         return _import_urdf(args.urdf, args.name, args.save)
     if args.command == "train-encoder":
