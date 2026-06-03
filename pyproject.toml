@@ -80,6 +80,8 @@ packages = [
     "robotdance_retarget",
     "robotdance_sim",
     "robotdance_models",
+    "robotdance_ros2",
+    "robotdance_unitree",
     "robotdance_benchmarks",
     "robotdance_viewer",
 ]

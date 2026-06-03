@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+title: "RobotDance: a Human Video to Humanoid Motion Compiler"
+message: "If you use RobotDance in your research, please cite it as below."
+type: software
+authors:
+  - family-names: Sasaki
+    given-names: Ryohei
+repository-code: "https://github.com/rsasaki0109/RobotDance"
+url: "https://github.com/rsasaki0109/RobotDance"
+abstract: >-
+  RobotDance is an open-source motion compiler that converts legally available
+  human videos and mocap into humanoid motion datasets, embeddings, policies,
+  and robot-executable motions. It standardizes a Motion Intermediate
+  Representation (RD-MIR) and provides license-safe, manifest-driven data
+  pipelines, kinematic retargeting to Unitree G1/H1, MuJoCo physics-based
+  feasibility checking, motion embeddings/retrieval, benchmarking, and a
+  ROS2 (Jazzy) safety-gated motion runtime.
+keywords:
+  - humanoid
+  - motion-capture
+  - retargeting
+  - robotics
+  - ros2
+  - unitree
+  - human-pose
+  - motion-dataset
+license: Apache-2.0

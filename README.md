@@ -6,6 +6,11 @@
 
 *RobotDance は、権利管理された人間動画を、ヒューマノイドロボットの運動データ・運動埋め込み・学習 policy・実行可能モーションへ変換する OSS モーションコンパイラです。*
 
+[![CI](https://github.com/rsasaki0109/RobotDance/actions/workflows/ci.yml/badge.svg)](https://github.com/rsasaki0109/RobotDance/actions/workflows/ci.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+![ROS2](https://img.shields.io/badge/ROS2-Jazzy-22314E.svg)
+
 ![RobotDance: same motion, many humanoids](assets/readme/many_humanoids.gif)
 
 <sub>↑ **Same motion, many humanoids** — 1 つの人間モーション（RD-MIR）を Unitree G1（小型）と H1（full-size）へ
@@ -26,6 +31,23 @@
 Input:  a short human video
 Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 ```
+
+## 今動くもの（v0, すべて検証済み）
+
+| 機能 | コマンド | デモ |
+| --- | --- | --- |
+| 実動画 → 3D motion（MediaPipe） | `extract` / `video-to-robot` | bring your own video |
+| mocap → motion（AMASS, skeleton-first） | `build-dataset` | + license firewall / Data BOM |
+| G1 / H1 への retarget（multi-embodiment） | `retarget` / `demo-multi` | many humanoids ↑ |
+| MuJoCo 物理検証（安全な運動だけ通す） | `validate-sim` / `demo-safety` | Demo 4: unsafe rejected |
+| motion embeddings + 類似検索 + Motion Map | `demo-motion-map` | Demo 3 |
+| temporal smoothing + 2D overlay | `smooth` / `overlay` | jitter 0.099→0.022 |
+| benchmark（motion × robot leaderboard） | `benchmark` | CSV + leaderboard |
+| ROS2 安全再生（Jazzy, safety guard） | `serve --ros2` / `demo-runtime` | RViz 可視化 |
+
+> 入力は **合成 / 実動画(MediaPipe) / mocap(AMASS)** の 3 系統、すべて同じ canonical **RD-MIR** に合流し、
+> retarget → 物理検証 → embedding → 安全再生のパイプラインを流れます。
+> ⚠️ v0 は近似プロキシ・近似質量で**実機保証ではありません**（各パッケージ README 参照）。
 
 ## What RobotDance is / is not
 
