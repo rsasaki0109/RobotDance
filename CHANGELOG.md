@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-03
+
+制御スタック汎化の節目リリース（pre-alpha）。v0.7 の RL tracking 方策は**単一参照専用**だったが、
+本リリースで **1 つの方策が運動スイート全体を追従**できるよう汎化した（reference-conditioned）。
+「1 運動 = 1 方策」から「1 方策が運動に応じて追従を変える」へ進み、汎用 tracking policy の足場が整った。
+
 ### Added
 - **Multi-motion tracking policy**（`train-tracking --suite` / `demo-track-multi`,
   `robotdance_sim.MultiTrackingEnv` + `robotdance_models.train_multi_tracking_policy`, torch/mujoco）:
@@ -14,6 +20,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   なので、方策は運動に応じて追従を変える。`TrackingPolicy.rollout(idx)` で各参照を指定ロールアウトできる。
   合成 4 運動スイートで **全運動 survival 100%**（1 方策）を達成。PPO コアを `_ppo_train` に抽出し
   単一・複数で共有。v0 は依然 baseline 足場で、PD 超えの tracking 精度・摂動頑健性・実機転移は今後。
+
+[0.8.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.8.0
 
 ## [0.7.0] - 2026-06-03
 
