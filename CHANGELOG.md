@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-06-03
+
+Text-to-motion の節目リリース（pre-alpha）。**言葉でモーションを生成**できるようになり、
+v0.4 の contrastive 検索（text → 既存 motion）と合わせて **text↔motion 双方向**が揃った。
+生成物は schema 適合の RD-MIR なので、そのまま retarget → 物理検証 → ROS2 の安全パイプラインに流せる。
+
 ### Added
 - **Text-conditioned motion generation**（`train-text2motion` / `generate-text`,
   `robotdance_models.text2motion`, torch）: token prior を**テキスト特徴で条件付け**し、
@@ -14,6 +20,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   生成。合成 corpus で next-token 精度 ~94%、生成は caption の action 群に応じて変化
   （backflip→energy ~0.26 / standing still→~0.02）。生成物は schema 適合の RD-MIR で、
   retarget → sim_certificate の安全パイプラインに流せる。v0 は語彙・新規 caption 汎化が限定的。
+
+[0.6.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.6.0
 
 ## [0.5.0] - 2026-06-03
 
