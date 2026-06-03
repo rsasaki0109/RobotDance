@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-03
+
+説明責任の節目リリース（pre-alpha）。10 リリースで機能が揃ったのを受け、成果物の **Model / Motion
+Card** 生成を追加し、data lineage・license・**failure modes（既知の v0 限界）**・safety limits を
+構造化して出力できるようにした。「v0 の限界を正直に明示する」方針をツール化し、責任ある公開・利用の
+土台を整えた。
+
 ### Added
 - **Model / Motion Cards（§7）**（`model-card`, `robotdance_core.model_card`）: RD-MIR / RD-Motion から
   責任ある公開・利用に必要な情報を構造化したカードを生成する — **data lineage**（source → extractor →
@@ -14,6 +21,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   joint-space safety guard 必須を明記）・metrics。`build_mir_card` / `build_motion_card` /
   `render_markdown`（Markdown）+ 機械可読 JSON、collection 用 `license_composition`。純 Python で
   **CI でも検証**。dataset 全体の license firewall 内訳は既存の Data Bill of Materials（DATA_CARD.md）が担う。
+
+[0.11.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.11.0
 
 ## [0.10.0] - 2026-06-03
 
