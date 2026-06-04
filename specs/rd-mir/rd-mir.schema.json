@@ -140,8 +140,32 @@
     },
     "semantics": {
       "type": "object",
-      "description": "action label, text caption, music tempo, style tag",
-      "additionalProperties": true
+      "description": "行動・テキスト意味情報。v0 で構造化（後方互換のため additionalProperties は許可）。",
+      "additionalProperties": true,
+      "properties": {
+        "action_label": { "type": "string", "description": "主たる行動ラベル（例: walk, dance）" },
+        "style_tag": { "type": ["string", "null"], "description": "スタイル/様式タグ（例: ballet, casual）" },
+        "captions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "自然文記述（複数可）"
+        },
+        "segments": {
+          "type": "array",
+          "description": "フレーム/時間レベルの連続行動セグメント",
+          "items": {
+            "type": "object",
+            "required": ["label"],
+            "additionalProperties": true,
+            "properties": {
+              "label": { "type": "string" },
+              "start_t": { "type": ["number", "null"], "description": "開始秒" },
+              "end_t": { "type": ["number", "null"], "description": "終了秒" }
+            }
+          }
+        },
+        "source_dataset": { "type": "string" }
+      }
     },
     "privacy_flags": {
       "type": "object",

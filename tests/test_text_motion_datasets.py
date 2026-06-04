@@ -92,7 +92,10 @@ def test_babel_entry_attaches_labels(tmp_path: Path) -> None:
     mir = babel_entry_to_mir(_babel_entry(rel), tmp_path)
     assert mir.semantics["action_label"] == "walk"
     assert mir.semantics["babel_labels"] == ["walk", "locomotion"]
-    assert len(mir.semantics["babel_segments"]) == 1
+    # 構造化セグメント（label 必須）。
+    assert len(mir.semantics["segments"]) == 1
+    assert mir.semantics["segments"][0]["label"] == "walk"
+    assert mir.semantics["segments"][0]["start_t"] == 0.0
     assert mir.semantics["babel_sid"] == "12345"
     assert mir.source_ref["babel_sid"] == "12345"
     _valid(mir)

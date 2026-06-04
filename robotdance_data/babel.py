@@ -58,16 +58,17 @@ def babel_entry_to_mir(
     sid = str(entry.get("babel_sid", Path(feat_p).stem))
     mir = loader(npz, license_state=license_state, motion_id=motion_id or f"rdmir-babel-{sid}")
 
+    from robotdance_core.semantics import build_semantics
+
     labels = _seq_labels(entry)
-    sem = dict(mir.semantics or {})
-    sem.update({
-        "action_label": labels[0] if labels else "unknown",
-        "babel_labels": labels,
-        "babel_segments": _frame_segments(entry),
-        "babel_sid": sid,
-        "source_dataset": "babel",
-    })
-    mir.semantics = sem
+    mir.semantics = build_semantics(
+        action_label=labels[0] if labels else "unknown",
+        captions=labels,
+        segments=_frame_segments(entry),     # 構造化セグメント [{label, start_t, end_t}]
+        source_dataset="babel",
+        babel_labels=labels,
+        babel_sid=sid,
+    )
     src = dict(mir.source_ref or {})
     src["babel_sid"] = sid
     mir.source_ref = src

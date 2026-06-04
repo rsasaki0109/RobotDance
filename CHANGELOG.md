@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **RD-MIR semantics の構造化（§3）**（`robotdance_core.semantics`, rd-mir schema）: これまで自由 dict
+  だった `RdMir.semantics` を **action_label / style_tag / captions / segments（連続行動
+  `[{label, start_t, end_t}]`）/ source_dataset** として spec 化。`Semantics` / `Segment` pydantic +
+  `build_semantics(...)`（正規化・segments の label 必須を検証）/ `validate_semantics` / `segment_labels`。
+  rd-mir schema の `semantics` に構造を文書化（**後方互換のため `additionalProperties: true` を維持**＝
+  旧来の自由 dict もそのまま適合）。BABEL adapter が frame_ann を標準 `segments` として出力するよう更新。
+  pydantic のみで **CI 検証**。
+
 ## [0.24.0] - 2026-06-04
 
 公開準備の節目リリース（pre-alpha）。ディレクトリ内 artifact の Model Card 一括生成 + 索引

@@ -10,6 +10,10 @@ schemas, validators, metadata, CLI, config — RobotDance の中核。RD-MIR/RD-
 - `cli.py` — `robotdance` CLI（validate / synth / view / retarget / sim / train-* / serve / …）。
 - `rd_policy.py` — **RD-Policy** の pydantic モデル（学習済み policy の配布 artifact: I/O 規約・
   weights 参照・安全制約）。spec は `specs/rd-policy/`、export は `robotdance_models.policy_export`。
+- `semantics.py` — **RD-MIR semantics の構造化（§3）**: `action_label` / `style_tag` / `captions` /
+  `segments`（連続行動 `[{label, start_t, end_t}]`）/ `source_dataset` を pydantic（`Semantics` /
+  `Segment`）で定義。`build_semantics(...)` で正規化 dict 化（segments は label 必須を検証）、
+  `validate_semantics`。後方互換のため `RdMir.semantics` は dict のまま・schema は additionalProperties 許可。
 - `model_card.py` — **Model / Motion / Policy Card 生成（§7）**: RD-MIR/RD-Motion/**RD-Policy** から
   **data lineage・license・failure modes・safety limits**（policy は **I/O Contract・Weights** も）を
   Markdown + 機械可読 JSON で出力する。failure modes は手法シグナル（extractor / retarget / sim
