@@ -94,6 +94,26 @@ def test_g1_embedded_joint_limits_match_real_urdf() -> None:
     assert G1_JOINT_LIMITS["left_knee"]["torque"] == 139.0
 
 
+@_skip
+def test_safety_guard_from_real_g1_urdf_clamps_knee_reverse_bend() -> None:
+    """実 G1 URDF から構築した safety guard が膝の逆屈コマンドを実下限へクランプする。"""
+    import numpy as np
+
+    from robotdance_ros2.safety_guard import SafetyLimits, clamp_joint_trajectory
+    from robotdance_unitree.urdf_import import parse_actuated_limits
+
+    actuated = parse_actuated_limits(_URDF)
+    limits = SafetyLimits.from_actuated_limits(actuated, max_joint_accel=1e9)
+    names = list(actuated.keys())
+    knee = next(nm for nm in names if "knee" in nm)
+    knee_lo = limits.joint_position_limits[knee][0]
+    assert knee_lo > -0.2   # 実機の膝は逆屈不可（generic ±π ではない）
+    raw = np.zeros((30, len(names)))
+    raw[:, names.index(knee)] = np.linspace(0.0, -1.5, 30)  # 逆屈コマンド
+    safe, _ = clamp_joint_trajectory(raw, 1.0 / 30.0, limits, names)
+    assert float(safe[:, names.index(knee)].min()) >= knee_lo - 1e-6
+
+
 @_skip_h1
 def test_h1_embedded_joint_limits_match_real_urdf() -> None:
     """h1.py の H1_JOINT_LIMITS が実 h1.urdf と一致し、肩 yaw は ±3.14 を超過する。"""

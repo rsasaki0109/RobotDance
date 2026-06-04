@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-06-04
+
+実データ深掘りの継続（pre-alpha）。v0.31 で embodiment の joint limit を実 URDF 由来にしたが、
+その実 limit が**最終 gate の safety guard には届いておらず**、guard は依然 generic（位置 ±π /
+速度 12 / トルク 60）で全関節を一律にクランプしていた（膝を ±π＝逆屈可で通してしまう）。
+この配線ギャップを埋め、実 actuator limit から `SafetyLimits` を構築できるようにした。
+
+### Fixed
+- **safety guard が実 URDF の per-actuator limit を消費できる**（`robotdance_ros2.safety_guard`）:
+  `SafetyLimits.from_actuated_limits()` を追加。`parse_actuated_limits` 等の出力（actuator 名 →
+  position/velocity/torque）から、位置・トルクは per-joint の実値、速度は最も厳しい min（保守）で
+  包絡線を構築する。これで膝の逆屈コマンドが実下限（≈-0.087 rad）へクランプされる（generic ±π は素通し）。
+
+### Added
+- `demo-joint-safety --urdf <path>`: 実 URDF の joint limit で guard を構築し、膝の逆屈コマンドが
+  実下限へクランプされる様子を実演する（generic との対比）。
+- `SafetyLimits.from_actuated_limits` の `position_margin`（位置 limit に安全余裕 rad を取る）。
+
 ## [0.31.0] - 2026-06-04
 
 実データ深掘りの継続リリース（pre-alpha）。embodiment の joint limit が ±3.14 rad の placeholder

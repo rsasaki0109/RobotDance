@@ -113,6 +113,40 @@ def test_clamp_joint_trajectory_bounds_position_and_velocity() -> None:
     assert rep["velocity_clamp_frames"] > 0
 
 
+def test_safety_limits_from_actuated_limits_wires_real_per_joint() -> None:
+    """実 URDF 由来 limit から SafetyLimits を構築すると per-joint 位置/トルク・保守速度が入る。"""
+    actuated = {
+        "left_knee_joint": {"position": [-0.087, 2.880], "velocity": 20.0, "torque": 139.0},
+        "left_ankle_pitch_joint": {"position": [-0.873, 0.524], "velocity": 30.0, "torque": 35.0},
+        "left_shoulder_pitch_joint": {"position": [-3.089, 2.670], "velocity": 37.0, "torque": 25.0},
+    }
+    lim = SafetyLimits.from_actuated_limits(actuated)
+    # 位置・トルクは per-joint の実値。膝は逆屈不可（lower≈-0.087, generic ±π ではない）。
+    assert lim.joint_position_limits["left_knee_joint"] == (-0.087, 2.880)
+    assert lim.joint_torque_limits["left_knee_joint"] == 139.0
+    # 速度は最も厳しい関節（20）に合わせる保守設定。
+    assert lim.max_joint_speed == 20.0
+    # generic 既定トルクは最弱 actuator（25）に。
+    assert lim.max_joint_torque == 25.0
+    # position_margin で安全余裕を取れる。
+    lim_m = SafetyLimits.from_actuated_limits(actuated, position_margin=0.05)
+    assert lim_m.joint_position_limits["left_knee_joint"][0] == -0.087 + 0.05
+
+
+def test_guard_clamps_knee_reverse_bend_to_real_limit() -> None:
+    """実 limit から作った guard は、膝の逆屈コマンドを実下限へクランプする（generic は素通し）。"""
+    actuated = {"left_knee_joint": {"position": [-0.087, 2.880], "velocity": 20.0, "torque": 139.0}}
+    dt = 1.0 / 30.0
+    raw = np.linspace(0.0, -1.5, 30)[:, None]   # 逆屈方向へ -1.5 rad
+    real = SafetyLimits.from_actuated_limits(actuated, max_joint_accel=1e9)
+    safe, _ = clamp_joint_trajectory(raw, dt, real, ["left_knee_joint"])
+    assert float(safe.min()) >= -0.087 - 1e-6   # 実下限で止まる
+    # generic ±π 既定では逆屈 -1.5 を素通ししてしまう（対比）。
+    generic, _ = clamp_joint_trajectory(
+        raw, dt, SafetyLimits(max_joint_accel=1e9, enforce_torque_limit=False), ["left_knee_joint"])
+    assert float(generic.min()) < -1.0
+
+
 def test_clamp_joint_trajectory_bounds_torque() -> None:
     """トルク上限が推定必要トルク（I_eff·θ̈）を bound する。"""
     dt = 1.0 / 30.0

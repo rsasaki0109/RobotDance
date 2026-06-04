@@ -75,7 +75,7 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 | extraction benchmark（MediaPipe vs HMR, §4.1） | `benchmark-extraction` | MPJPE/PA-MPJPE/PCK/jitter |
 | Model Card + 索引（MIR/Motion/Policy, §7） | `model-card` / `cards-index` | lineage/license/failure/safety + CARDS_INDEX |
 | ROS2 安全再生（Jazzy, safety guard） | `serve --ros2` / `demo-runtime` | RViz 可視化 |
-| 関節空間 safety guard（位置/速度/加速度/トルククランプ, §5.6） | `demo-joint-safety` | 実機コマンド直前の最終 gate |
+| 関節空間 safety guard（位置/速度/加速度/トルククランプ, §5.6） | `demo-joint-safety [--urdf]` | 実機コマンド直前の最終 gate・実 URDF limit で構築可 |
 
 > 入力は **合成 / 実動画(MediaPipe) / mocap(AMASS)** の 3 系統、すべて同じ canonical **RD-MIR** に合流し、
 > retarget → 物理検証 → embedding → 安全再生のパイプラインを流れます。
@@ -398,7 +398,7 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 ## ステータス
 
-🏁 **v0.31.0（pre-alpha, [CHANGELOG](CHANGELOG.md)）。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
+🏁 **v0.32.0（pre-alpha, [CHANGELOG](CHANGELOG.md)）。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
 **local 動画 → RD-MIR（MediaPipe Pose / HMR 4DHumans・GVHMR SMPL adapter）+ smoothing + 2D overlay**、
 **AMASS / AIST++ / HumanML3D / BABEL ローダ + RD-Manifest license firewall（Data Bill of Materials）**、
 **motion embeddings + 類似検索 + Motion Map + 重複除去（+ 学習 encoder option）**、

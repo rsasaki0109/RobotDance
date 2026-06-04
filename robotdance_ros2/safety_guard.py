@@ -58,6 +58,40 @@ class SafetyLimits:
     joint_inertia: Optional[dict[str, float]] = field(default=None)         # 名 → kg·m^2
     joint_gravity_load: Optional[dict[str, float]] = field(default=None)    # 名 → N·m（重力保持）
 
+    @classmethod
+    def from_actuated_limits(
+        cls, actuated: dict[str, dict], *, position_margin: float = 0.0, **overrides
+    ) -> "SafetyLimits":
+        """実 URDF の actuated 関節 limit から実機 SafetyLimits を作る。
+
+        `actuated` は `{joint_name: {"position":[lo,hi], "velocity":v, "torque":τ}}`
+        （`robotdance_unitree.urdf_import.parse_actuated_limits` 等の出力, actuator 名キー）。
+        位置・トルクは **per-joint の実値**、速度は最も厳しい min（generic 既定で全関節を一律に
+        縛るのを止め、実機の事実をそのまま最終 gate へ流す）。`position_margin` で位置上下に
+        安全余裕（rad）を取れる。残りの包絡線は既定／`overrides` で指定。
+        """
+        pos: dict[str, tuple[float, float]] = {}
+        tau: dict[str, float] = {}
+        vels: list[float] = []
+        for name, lim in actuated.items():
+            lo, hi = float(lim["position"][0]), float(lim["position"][1])
+            pos[name] = (lo + position_margin, hi - position_margin)
+            if lim.get("torque"):
+                tau[name] = float(lim["torque"])
+            if lim.get("velocity"):
+                vels.append(float(lim["velocity"]))
+        kw: dict = {
+            "joint_position_limits": pos or None,
+            "joint_torque_limits": tau or None,
+        }
+        if tau:
+            kw["max_joint_torque"] = min(tau.values())  # 最弱 actuator を generic 既定に
+        if vels:
+            kw["max_joint_speed"] = min(vels)           # 最も厳しい関節に合わせる（保守）
+            kw["warn_joint_speed"] = round(min(vels) * 0.7, 2)
+        kw.update(overrides)
+        return cls(**kw)
+
 
 def _limit_arrays(
     limits: SafetyLimits, joint_names: Optional[list[str]], n: int

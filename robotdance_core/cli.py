@@ -798,34 +798,50 @@ def _demo_track(out: Path, robot: str, iterations: int, stride: int) -> int:
     return 0
 
 
-def _demo_joint_safety() -> int:
-    """関節空間 safety guard（§5.6）の位置/速度/加速度クランプを実演する。"""
+def _demo_joint_safety(urdf: Path | None = None) -> int:
+    """関節空間 safety guard（§5.6）の位置/速度/加速度クランプを実演する。
+
+    --urdf 指定時は実 actuator の joint limit で guard を構築し、膝の逆屈コマンドが実下限へ
+    クランプされる様子を見せる（generic ±π/±2 ではなく実機の事実で弾く）。
+    """
     import numpy as np
 
     from robotdance_ros2.safety_guard import SafetyLimits, clamp_joint_trajectory
 
-    # actuator-IK / tracking policy の関節角列に見立てた合成軌道（23-DOF, 30fps）。
     fps = 30.0
     dt = 1.0 / fps
     t = np.arange(60) / fps
-    n = 23
-    raw = 0.6 * np.sin(2 * np.pi * 0.8 * t)[:, None] * np.linspace(0.4, 1.0, n)[None, :]
-    # 不安全な外れ値を注入。
-    raw[:, 5] += np.linspace(0.0, 3.5, len(t))  # 緩やかに位置 limit(±2)超過 → 位置クランプ
-    raw[20, 3] += 5.0                            # 単発スパイク → 速度クランプ
-    raw[40, 7] += 3.0
-    raw[41, 7] -= 3.0                            # 往復ジャーク → 加速度クランプ
 
-    # 実機の関節 limit に見立てた値（位置 ±2.0 rad / トルク 40 N·m / 実効慣性 0.8 kg·m²）。
-    names = [f"joint_{i}" for i in range(n)]
-    limits = SafetyLimits(
-        max_joint_speed=12.0, max_joint_accel=400.0,
-        joint_position_limits={nm: (-2.0, 2.0) for nm in names},
-        enforce_torque_limit=True, max_joint_torque=40.0, default_joint_inertia=0.8,
-    )
+    if urdf is not None:
+        from robotdance_unitree.urdf_import import parse_actuated_limits
+
+        actuated = parse_actuated_limits(urdf)
+        names = list(actuated.keys())
+        n = len(names)
+        limits = SafetyLimits.from_actuated_limits(actuated, max_joint_accel=400.0)
+        # actuator-IK 風の軌道に「膝の逆屈」という実機では不可能なコマンドを注入。
+        raw = 0.4 * np.sin(2 * np.pi * 0.8 * t)[:, None] * np.linspace(0.4, 1.0, n)[None, :]
+        knee = next((i for i, nm in enumerate(names) if "knee" in nm), 0)
+        raw[:, knee] = np.linspace(0.0, -1.5, len(t))  # 逆屈 → 実下限(≈-0.09)へクランプされるはず
+        knee_lo = limits.joint_position_limits[names[knee]][0]
+        print(f"🦾 関節空間 safety guard ×実 URDF limit（{Path(urdf).name}）")
+        print(f"  膝関節 {names[knee]}: 実下限 {knee_lo:+.3f} rad（generic ±π なら逆屈 -1.5 を素通し）")
+    else:
+        n = 23
+        raw = 0.6 * np.sin(2 * np.pi * 0.8 * t)[:, None] * np.linspace(0.4, 1.0, n)[None, :]
+        raw[:, 5] += np.linspace(0.0, 3.5, len(t))  # 緩やかに位置 limit(±2)超過 → 位置クランプ
+        raw[20, 3] += 5.0                            # 単発スパイク → 速度クランプ
+        raw[40, 7] += 3.0
+        raw[41, 7] -= 3.0                            # 往復ジャーク → 加速度クランプ
+        names = [f"joint_{i}" for i in range(n)]
+        limits = SafetyLimits(
+            max_joint_speed=12.0, max_joint_accel=400.0,
+            joint_position_limits={nm: (-2.0, 2.0) for nm in names},
+            enforce_torque_limit=True, max_joint_torque=40.0, default_joint_inertia=0.8,
+        )
+        print("🦾 関節空間 safety guard（実機コマンド直前の最終 gate, §5.6）")
+
     safe, rep = clamp_joint_trajectory(raw, dt, limits, names)
-
-    print("🦾 関節空間 safety guard（実機コマンド直前の最終 gate, §5.6）")
     print(f"  関節数 {rep['joints']} / {rep['frames']} frames @ {fps:.0f}fps")
     print("  ── 速度（rad/s）──")
     print(f"    raw  max {rep['raw_max_joint_speed_rad_s']:8.2f}  →  "
@@ -839,9 +855,13 @@ def _demo_joint_safety() -> int:
     print(f"  クランプ発生: 位置 {rep['position_limit_frames']} / 速度 "
           f"{rep['velocity_clamp_frames']} / 加速度 {rep['accel_clamp_frames']} / "
           f"トルク超過 {rep['torque_violation_frames']} frames")
+    # 全関節が各自の位置 limit 内に収まっているか（per-joint 境界で検証）。
+    lo = np.array([limits.joint_position_limits[nm][0] for nm in names])
+    hi = np.array([limits.joint_position_limits[nm][1] for nm in names])
+    pos_ok = bool(np.all(safe >= lo[None, :] - 1e-6) and np.all(safe <= hi[None, :] + 1e-6))
     ok = (rep["safe_max_joint_speed_rad_s"] <= rep["max_joint_speed"] + 1e-6
           and rep["safe_est_max_torque_nm"] <= rep["max_joint_torque_nm"] + 1e-3
-          and float(np.abs(safe).max()) <= 2.0 + 1e-6)
+          and pos_ok)
     print(f"  ✓ 位置・速度・トルクを limit 内に整形: {ok}")
     print("  ⚠️ v0: 位置/速度/トルクを bound（加速度は best-effort）。トルクは粗い実効慣性モデルの"
           "計画段階 guard で、モータ電流飽和の代替ではない。")
@@ -1415,8 +1435,10 @@ def main(argv: list[str] | None = None) -> int:
     p_dtrkm.add_argument("--iterations", type=int, default=60)
     p_dtrkm.add_argument("--stride", type=int, default=2)
 
-    sub.add_parser("demo-joint-safety",
-                   help="関節空間 safety guard の位置/速度/加速度クランプを実演（§5.6）")
+    p_djs = sub.add_parser("demo-joint-safety",
+                           help="関節空間 safety guard の位置/速度/加速度クランプを実演（§5.6）")
+    p_djs.add_argument("--urdf", type=Path, default=None,
+                       help="実 URDF を指定すると実 actuator の joint limit で guard を構築する")
 
     args = parser.parse_args(argv)
     if args.command == "validate":
@@ -1449,7 +1471,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo-track-multi":
         return _demo_track_multi(args.out, args.robot, args.iterations, args.stride)
     if args.command == "demo-joint-safety":
-        return _demo_joint_safety()
+        return _demo_joint_safety(args.urdf)
     if args.command == "serve":
         return _serve(args.rdmotion, args.speed, args.ros2, args.allow_uncertified)
     if args.command == "demo-runtime":
