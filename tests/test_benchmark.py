@@ -27,6 +27,8 @@ def test_run_benchmark_no_sim_shape() -> None:
         assert r["bone_direction_cosine"] is not None
         assert r["height_scale"] is not None
         assert r["verdict"] is None  # sim off
+        # G1/H1 は per_joint_limits 持ち → 屈曲違反率が入る。
+        assert r["joint_flexion_violation"] is not None
 
 
 def test_write_csv_and_markdown(tmp_path) -> None:
@@ -37,8 +39,10 @@ def test_write_csv_and_markdown(tmp_path) -> None:
         rows = list(csv.DictReader(f))
     assert len(rows) == 4
     assert "motion_id" in rows[0] and "verdict" in rows[0]
+    assert "joint_flexion_violation" in rows[0]  # 新列が CSV に出る
     md = md_path.read_text("utf-8")
     assert "Leaderboard" in md and "unitree_g1" in md
+    assert "屈曲違反" in md  # leaderboard / 全 run 表に屈曲列が出る
 
 
 def test_aggregate_pass_rate() -> None:

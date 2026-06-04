@@ -19,7 +19,8 @@ robotdance benchmark --robots unitree_g1 unitree_h1 -o out/   # retarget×sim le
 robotdance benchmark-extraction --out-md extraction.md        # 抽出品質 leaderboard（§4.1）
 ```
 
-集約する指標: retarget（height_scale, bone_direction_cosine, foot_sliding）、
+集約する指標: retarget（height_scale, bone_direction_cosine, foot_sliding,
+**joint_flexion_violation** = 膝・肘の屈曲が実 per-joint 可動域上限を超えたフレーム比, G1/H1 のみ）、
 sim_certificate（verdict, airborne, balance, torque_ratio, ang_speed）、source 品質（confidence, jitter）、
 extraction（MPJPE / PA-MPJPE / PCK / MPJVE / jitter / bone-length MAE）。
 

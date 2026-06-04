@@ -72,6 +72,16 @@ def test_motion_card_surfaces_sim_certificate_when_present() -> None:
     assert any(f["area"] == "simulation" for f in card["failure_modes"])
 
 
+def test_motion_card_surfaces_joint_flexion_feasibility() -> None:
+    # G1 morphology は per_joint_limits を持つ → retarget が joint_flexion を出す。
+    motion = retarget(_mir(), get_morphology("unitree_g1"))
+    assert "joint_flexion" in motion.retarget_metrics
+    card = build_motion_card(motion)
+    feas = card["safety_limits"]["kinematic_feasibility"]
+    assert feas["joint_flexion_violation_ratio"] is not None
+    assert set(feas["tracked_joints"]) >= {"left_knee", "left_elbow"}
+
+
 def test_render_markdown_has_required_headers() -> None:
     card = build_motion_card(retarget(_mir(), get_morphology("unitree_g1")))
     md = render_markdown(card)

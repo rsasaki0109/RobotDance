@@ -8,8 +8,9 @@ from typing import Any
 
 _COLUMNS = [
     "motion_id", "motion_class", "robot", "height_scale", "bone_direction_cosine",
-    "foot_sliding", "verdict", "airborne_ratio", "balance_violation_ratio",
-    "torque_ratio", "max_joint_ang_speed", "source_confidence", "jitter",
+    "foot_sliding", "joint_flexion_violation", "verdict", "airborne_ratio",
+    "balance_violation_ratio", "torque_ratio", "max_joint_ang_speed",
+    "source_confidence", "jitter",
 ]
 
 
@@ -43,6 +44,7 @@ def aggregate_by_robot(report: dict) -> list[dict]:
             "mean_bone_dir_cos": _mean([r["bone_direction_cosine"] for r in rows]),
             "mean_foot_sliding": _mean([r["foot_sliding"] for r in rows]),
             "mean_height_scale": _mean([r["height_scale"] for r in rows]),
+            "mean_flexion_violation": _mean([r.get("joint_flexion_violation") for r in rows]),
         })
     return out
 
@@ -68,28 +70,30 @@ def write_markdown(report: dict, path: str | Path, *, title: str = "RobotDance B
         "",
         "## Leaderboard（robot 別集計）",
         "",
-        "| robot | runs | PASS率 | 平均 bone方向cos | 平均 foot_sliding | 平均 height_scale |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| robot | runs | PASS率 | 平均 bone方向cos | 平均 foot_sliding | 平均 height_scale | 平均 屈曲違反率 |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
     ]
     for a in aggregate_by_robot(report):
         lines.append(
             f"| {a['robot']} | {a['n']} | {_fmt(a['pass_rate'])} | {_fmt(a['mean_bone_dir_cos'])} | "
-            f"{_fmt(a['mean_foot_sliding'])} | {_fmt(a['mean_height_scale'])} |"
+            f"{_fmt(a['mean_foot_sliding'])} | {_fmt(a['mean_height_scale'])} | "
+            f"{_fmt(a.get('mean_flexion_violation'))} |"
         )
 
     lines += [
         "",
         "## 全 run（motion × robot）",
         "",
-        "| motion | class | robot | verdict | airborne | balance | torque× | 角速度 | foot_slide | bone_cos |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+        "| motion | class | robot | verdict | airborne | balance | torque× | 角速度 | foot_slide | bone_cos | 屈曲違反 |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for r in report["rows"]:
         lines.append(
             f"| {r['motion_id']} | {r['motion_class']} | {r['robot']} | {_fmt(r['verdict'])} | "
             f"{_fmt(r['airborne_ratio'])} | {_fmt(r['balance_violation_ratio'])} | "
             f"{_fmt(r['torque_ratio'])} | {_fmt(r['max_joint_ang_speed'])} | "
-            f"{_fmt(r['foot_sliding'])} | {_fmt(r['bone_direction_cosine'])} |"
+            f"{_fmt(r['foot_sliding'])} | {_fmt(r['bone_direction_cosine'])} | "
+            f"{_fmt(r.get('joint_flexion_violation'))} |"
         )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path

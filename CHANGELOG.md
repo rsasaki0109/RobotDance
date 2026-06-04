@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-06-04
+
+実データ深掘り（joint-flexion メトリクスを benchmark / Model Card で可視化, pre-alpha）。v0.39 で
+作った `retarget_metrics.joint_flexion`（膝・肘の屈曲角 vs 実 per-joint 可動域上限）は JSON に埋まる
+だけだったため、benchmark leaderboard と Motion Card に表出させて「retarget が実機可動域を超えていないか」
+を一目で見えるようにした。
+
+### Added
+- benchmark（`robotdance_benchmarks`）: `BenchmarkRow.joint_flexion_violation`（= `joint_flexion`
+  の `any_violation_ratio`）を追加。CSV 新列・leaderboard の robot 別「平均 屈曲違反率」・全 run 表の
+  「屈曲違反」列に表出。per_joint_limits を持つ embodiment（G1/H1）でのみ値が入る。
+- Model Card（`robotdance_core.model_card`）: Motion Card の `safety_limits.kinematic_feasibility`
+  に `joint_flexion_violation_ratio` と対象関節（膝・肘）を表出。>0 は実機可動域超過フレーム有 →
+  retarget 要見直しのシグナル。
+
 ## [0.39.0] - 2026-06-04
 
 実データ深掘り（per-joint limit を retarget 品質評価へ, pre-alpha）。kinematic retarget は keypoints

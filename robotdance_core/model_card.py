@@ -167,6 +167,13 @@ def build_motion_card(motion: RdMotion, *, mir: Optional[RdMir] = None) -> dict[
             "actuated_joints": len(jr.get("actuated_joint_names", [])),
             "note": "実機コマンド直前に joint-space safety guard（位置/速度/加速度クランプ）を通すこと。",
         }
+    flexion = metrics.get("joint_flexion")
+    if flexion:
+        safety["kinematic_feasibility"] = {
+            "joint_flexion_violation_ratio": flexion.get("any_violation_ratio"),
+            "tracked_joints": flexion.get("tracked", []),
+            "note": "膝・肘の屈曲角を実 per-joint 可動域上限と比較（>0 は実機可動域を超えるフレーム有 → retarget 要見直し）。",
+        }
 
     return {
         "rd_card_version": CARD_VERSION,

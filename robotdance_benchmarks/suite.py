@@ -27,6 +27,8 @@ class BenchmarkRow:
     height_scale: Optional[float] = None
     bone_direction_cosine: Optional[float] = None
     foot_sliding: Optional[float] = None
+    # 膝・肘の屈曲が実 per-joint 可動域上限を超えたフレーム比（per_joint_limits 有時のみ, v0.39+）
+    joint_flexion_violation: Optional[float] = None
     # sim_certificate（mujoco があれば）
     verdict: Optional[str] = None
     airborne_ratio: Optional[float] = None
@@ -94,6 +96,7 @@ def run_benchmark(
                 height_scale=rm.get("height_scale"),
                 bone_direction_cosine=rm.get("bone_direction_cosine"),
                 foot_sliding=rm.get("foot_sliding_m_per_frame"),
+                joint_flexion_violation=(rm.get("joint_flexion") or {}).get("any_violation_ratio"),
                 source_confidence=qm.get("mean_confidence"),
                 jitter=qm.get("jitter_after", qm.get("jitter_before")),
             )
