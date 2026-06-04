@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-06-04
+
+データ品質の節目リリース（pre-alpha）。motion-embedding 重複除去を**任意の RD-MIR コレクション**
+（HumanML3D/BABEL/Motion-X 等の import 出力）へ汎用化し、入口を跨いだ near-duplicate 除去を可能にした。
+
 ### Added
 - **汎用 near-duplicate 除去の text-motion 拡張（§4.1）**（`robotdance_motion.dedupe`,
   `import-babel --dedupe`, `dedupe-dir`）: これまで manifest 駆動ビルド（`build-dataset --dedupe`）に
@@ -13,6 +18,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   near-duplicate を cosine 類似度でグループ化し各グループ 1 本（最長フレーム）を代表に残す。
   `import-babel --dedupe` で保存前に除去、`dedupe-dir <dir> [--move]` で既存ディレクトリの
   `*.rdmir.json` を一括 dedupe（重複は `duplicates/` へ移動）。numpy のみで **CI 検証**。
+
+[0.23.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.23.0
 
 ## [0.22.0] - 2026-06-04
 
