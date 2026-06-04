@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-06-04
+
+実データ深掘り（屈曲違反の検出→自動補正, pre-alpha）。v0.39〜0.41 で「膝・肘の屈曲が実機可動域を
+超える」ことを検出・可視化・検証してきたが、診断のみだった。本版で **kinematic retarget に可動域内へ
+収める補正オプション**を追加し、診断から治療まで一貫させた。
+
+### Added
+- `retarget(..., clamp_flexion=True)`（`robotdance_retarget.kinematic`）: 屈曲が実 per-joint 可動域
+  上限を超えるフレームで、遠位サブチェーンを hinge 中心に剛体回転させ屈曲角を上限ちょうどへ収める
+  （d1-d2 平面内 slerp で目標方向→Rodrigues 回転、**bone 長は厳密保存**）。補正量は
+  `retarget_metrics.joint_flexion.clamp`（pre_clamp_max_flexion / corrected_frame_ratio）に記録。
+  膝補正は接地クランプ前に行い再接地。per_joint_limits 無や可動域内では no-op。
+- CLI: `robotdance retarget --clamp-flexion`。屈曲違反と補正量を標準出力に表示。
+
+### Notable
+- 可動域順守と忠実度のトレードオフは正直に表示: overbend を G1 で補正すると肘違反 0.25→0.00 になる
+  代わり bone_direction_cosine が 1.000→0.999 へわずかに低下する。
+
 ## [0.41.0] - 2026-06-04
 
 実データ深掘り（joint-flexion 違反の end-to-end 検証, pre-alpha）。v0.39/0.40 で作った屈曲メトリクスが

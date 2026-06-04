@@ -68,19 +68,26 @@ def _view(path: Path, out: Path, stride: int) -> int:
     return 0
 
 
-def _retarget(path: Path, out: Path, robot: str) -> int:
+def _retarget(path: Path, out: Path, robot: str, clamp_flexion: bool = False) -> int:
     from .rd_mir import RdMir
     from robotdance_retarget.kinematic import retarget
     from robotdance_unitree import get_morphology
 
     mir = RdMir.load(path)
-    motion = retarget(mir, get_morphology(robot))
+    motion = retarget(mir, get_morphology(robot), clamp_flexion=clamp_flexion)
     motion.save(out)
     m = motion.retarget_metrics or {}
     print(f"✓ {robot} RD-Motion を書き出しました: {out}")
     print(f"  height_scale={m.get('height_scale')} "
           f"bone_direction_cosine={m.get('bone_direction_cosine')} "
           f"foot_sliding={m.get('foot_sliding_m_per_frame')}")
+    jf = m.get("joint_flexion") or {}
+    if jf:
+        print(f"  joint_flexion violation={jf.get('any_violation_ratio')}")
+        clamp = jf.get("clamp")
+        if clamp:
+            print(f"  屈曲補正: corrected_frame_ratio={clamp.get('corrected_frame_ratio')} "
+                  f"（補正後 violation={jf.get('any_violation_ratio')}）")
     print("  ⚠️ kinematic preview のみ — 物理 sim 未検証（Phase 2）")
     return 0
 
@@ -1183,6 +1190,8 @@ def main(argv: list[str] | None = None) -> int:
     p_ret.add_argument("-o", "--out", type=Path, default=Path("robot.rdmotion.json"))
     p_ret.add_argument("--robot", default="unitree_g1",
                        help="対象ロボット（unitree_g1 / unitree_h1）")
+    p_ret.add_argument("--clamp-flexion", action="store_true",
+                       help="膝・肘の屈曲を実機可動域上限へ収める（検出→補正）")
 
     p_pair = sub.add_parser("view-pair", help="human RD-MIR と robot RD-Motion を side-by-side 描画")
     p_pair.add_argument("human", type=Path, help="RD-MIR JSON")
@@ -1464,7 +1473,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "view":
         return _view(args.path, args.out, args.stride)
     if args.command == "retarget":
-        return _retarget(args.path, args.out, args.robot)
+        return _retarget(args.path, args.out, args.robot, args.clamp_flexion)
     if args.command == "view-pair":
         return _view_pair(args.human, args.robot, args.out, args.stride)
     if args.command == "demo-g1":

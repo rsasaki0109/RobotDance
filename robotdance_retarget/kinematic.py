@@ -22,6 +22,19 @@ from robotdance_retarget.embodiment import RobotMorphology
 
 _EPS = 1e-8
 
+
+def _subtree(root: int) -> list[int]:
+    """root を含む部分木（子孫）の joint index 一覧。"""
+    out = [root]
+    changed = True
+    while changed:
+        changed = False
+        for j, p in enumerate(PARENTS):
+            if p in out and j not in out:
+                out.append(j)
+                changed = True
+    return out
+
 # 屈曲角が一意に定まる 1-DOF ヒンジ関節（canonical 名 → (近位 joint, ヒンジ joint, 遠位 joint)）。
 # 屈曲角 = 近位 bone と遠位 bone のなす角（直伸=0, 深屈=π 近く）。実 per_joint_limits の上限と比較する。
 # 股・肩は 3-DOF で屈曲角が一意でないため対象外。
@@ -47,8 +60,16 @@ def _height(kps_frame: np.ndarray) -> float:
     return float(kps_frame[:, 2].max() - kps_frame[:, 2].min())
 
 
-def retarget(mir: RdMir, morphology: RobotMorphology) -> RdMotion:
-    """RD-MIR を任意 robot 形態へ kinematic retarget して RD-Motion を返す。"""
+def retarget(
+    mir: RdMir, morphology: RobotMorphology, *, clamp_flexion: bool = False
+) -> RdMotion:
+    """RD-MIR を任意 robot 形態へ kinematic retarget して RD-Motion を返す。
+
+    clamp_flexion=True で、膝・肘の屈曲が実 per-joint 可動域上限を超えるフレームを、
+    遠位サブチェーンを hinge 中心に回して上限ちょうどへ収める（検出→補正）。補正量は
+    `retarget_metrics.joint_flexion.clamp` に記録し、補正後の違反率は ~0 になる。
+    per_joint_limits が無い morphology では no-op。
+    """
     human = mir.keypoints_3d_array()  # [T, J, 3]
     n_frames = human.shape[0]
     if human.shape[1] != NUM_JOINTS:
@@ -71,6 +92,11 @@ def retarget(mir: RdMir, morphology: RobotMorphology) -> RdMotion:
         for j in range(1, NUM_JOINTS):
             robot[f, j] = robot[f, PARENTS[j]] + dirs[f, j] * bone_len[j]
 
+    # 屈曲補正（opt-in）: 接地クランプ前に実可動域へ収める（膝補正後の再接地のため）。
+    clamp_info = None
+    if clamp_flexion:
+        robot, clamp_info = _clamp_flexion_to_limits(robot, morphology)
+
     # 接地クランプ: 各フレームで最下端の足を地面（z=ground）に合わせる。
     ground = 0.03
     foot_indices = [idx for pair in FOOT_JOINTS.values() for idx in pair]
@@ -81,6 +107,8 @@ def retarget(mir: RdMir, morphology: RobotMorphology) -> RdMotion:
     metrics = _retarget_metrics(human, robot, contacts, height_scale)
     flexion = _joint_flexion_metrics(robot, morphology)
     if flexion is not None:
+        if clamp_info is not None:
+            flexion["clamp"] = clamp_info
         metrics["joint_flexion"] = flexion
 
     return RdMotion(
@@ -176,4 +204,82 @@ def _joint_flexion_metrics(robot: np.ndarray, morphology: RobotMorphology) -> di
         "per_joint": per_joint,
         "any_violation_ratio": round(float(over_any.mean()), 4),
         "note": "膝・肘の屈曲角を bone 方向から導出し実可動域上限と比較（1-DOF ヒンジのみ, v0）。",
+    }
+
+
+def _rodrigues(v: np.ndarray, axis: np.ndarray, angle: float) -> np.ndarray:
+    """ベクトル v を単位 axis 回りに angle 回転（Rodrigues, scipy 非依存）。"""
+    c, s = np.cos(angle), np.sin(angle)
+    return v * c + np.cross(axis, v) * s + axis * (axis @ v) * (1.0 - c)
+
+
+def _clamp_flexion_to_limits(
+    robot: np.ndarray, morphology: RobotMorphology
+) -> tuple[np.ndarray, dict | None]:
+    """膝・肘の屈曲が実可動域上限を超えるフレームを、遠位サブチェーンを hinge 中心に
+    回して上限ちょうどへ収める。robot は in-place 更新し、補正サマリを返す。
+
+    手法: 近位 bone d1 と遠位 bone d2 のなす角 flex>upper のとき、d1-d2 平面内で d1 から
+    角 upper の方向 d2' を slerp で作り、d2→d2' の剛体回転を遠位サブチェーン全体へ適用する。
+    bone 長は保存（剛体回転）。per_joint_limits 無なら no-op。
+    """
+    pjl = morphology.per_joint_limits
+    if not pjl:
+        return robot, None
+    robot = robot.copy()
+    n_frames = robot.shape[0]
+    per_joint_corr: dict[str, dict] = {}
+    corrected_any = np.zeros(n_frames, dtype=bool)
+    for canon, (prox, hinge, dist) in _HINGE_JOINTS.items():
+        lim = pjl.get(canon)
+        if not lim or "position" not in lim:
+            continue
+        upper = float(lim["position"][1])
+        ip, ih, idd = index_of(prox), index_of(hinge), index_of(dist)
+        sub = _subtree(idd)  # 遠位サブチェーン（dist 含む）
+        pre_max = 0.0
+        corr = np.zeros(n_frames, dtype=bool)
+        for f in range(n_frames):
+            ph = robot[f, ih]
+            d1 = robot[f, ih] - robot[f, ip]
+            d2 = robot[f, idd] - ph
+            n1, n2 = np.linalg.norm(d1), np.linalg.norm(d2)
+            if n1 < _EPS or n2 < _EPS:
+                continue
+            d1 /= n1
+            d2 /= n2
+            flex = float(np.arccos(np.clip(d1 @ d2, -1.0, 1.0)))
+            pre_max = max(pre_max, flex)
+            if flex <= upper + 1e-6:
+                continue
+            sinf = np.sin(flex)
+            if sinf < _EPS:
+                continue
+            t = upper / flex
+            d2p = (np.sin((1 - t) * flex) / sinf) * d1 + (np.sin(t * flex) / sinf) * d2
+            d2p /= max(np.linalg.norm(d2p), _EPS)
+            axis = np.cross(d2, d2p)
+            na = np.linalg.norm(axis)
+            if na < _EPS:
+                continue
+            axis /= na
+            angle = float(np.arccos(np.clip(d2 @ d2p, -1.0, 1.0)))
+            for k in sub:
+                robot[f, k] = ph + _rodrigues(robot[f, k] - ph, axis, angle)
+            corr[f] = True
+        corrected_any |= corr
+        if corr.any():
+            per_joint_corr[canon] = {
+                "pre_clamp_max_flexion_rad": round(pre_max, 4),
+                "limit_upper_rad": round(upper, 4),
+                "corrected_frame_ratio": round(float(corr.mean()), 4),
+            }
+    if not per_joint_corr:
+        return robot, {"applied": True, "corrected_frame_ratio": 0.0, "per_joint": {},
+                       "note": "屈曲補正 ON だが可動域超過フレームなし（補正不要）。"}
+    return robot, {
+        "applied": True,
+        "corrected_frame_ratio": round(float(corrected_any.mean()), 4),
+        "per_joint": per_joint_corr,
+        "note": "可動域超過フレームの遠位サブチェーンを hinge 中心に回し上限へ収めた（bone 長保存）。",
     }

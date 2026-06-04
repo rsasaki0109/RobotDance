@@ -138,6 +138,78 @@ def test_overbend_synthetic_violates_via_real_retarget() -> None:
     assert jf["per_joint"]["left_knee"]["violation_ratio"] == 0.0
 
 
+def test_clamp_flexion_brings_overbend_within_limits() -> None:
+    """clamp_flexion=True で overbend の肘違反が 0 になり、補正量が記録され bone 長が保存される。"""
+    import numpy as np
+
+    from robotdance_core.skeleton import BONES
+    from robotdance_core.synthetic import generate_overbend
+    from robotdance_retarget.kinematic import retarget
+
+    mir = generate_overbend()
+    raw = retarget(mir, g1.MORPHOLOGY)
+    clamped = retarget(mir, g1.MORPHOLOGY, clamp_flexion=True)
+
+    assert raw.retarget_metrics["joint_flexion"]["any_violation_ratio"] > 0.0
+    jf = clamped.retarget_metrics["joint_flexion"]
+    assert jf["any_violation_ratio"] == 0.0
+    # 補正後の肘屈曲は上限ちょうど（以下）。
+    for side in ("left_elbow", "right_elbow"):
+        d = jf["per_joint"][side]
+        assert d["max_flexion_rad"] <= d["limit_upper_rad"] + 1e-6
+    # 補正サマリが記録される。
+    clamp = jf["clamp"]
+    assert clamp["applied"] is True
+    assert clamp["corrected_frame_ratio"] > 0.0
+    assert clamp["per_joint"]["left_elbow"]["pre_clamp_max_flexion_rad"] > clamp["per_joint"]["left_elbow"]["limit_upper_rad"]
+    # bone 長は剛体回転なので保存される。
+    rk, ck = np.array(raw.keypoints_3d), np.array(clamped.keypoints_3d)
+    for c, p in BONES:
+        assert np.allclose(np.linalg.norm(rk[:, c] - rk[:, p], axis=1),
+                           np.linalg.norm(ck[:, c] - ck[:, p], axis=1), atol=1e-9)
+
+
+def test_clamp_flexion_noop_when_within_limits() -> None:
+    """可動域内のダンスでは clamp_flexion は補正せず（corrected_frame_ratio=0）keypoints も不変。"""
+    import numpy as np
+
+    from robotdance_retarget.kinematic import retarget
+
+    mir = generate_dance(duration=2.0)
+    base = retarget(mir, g1.MORPHOLOGY)
+    clamped = retarget(mir, g1.MORPHOLOGY, clamp_flexion=True)
+    assert clamped.retarget_metrics["joint_flexion"]["clamp"]["corrected_frame_ratio"] == 0.0
+    assert np.allclose(np.array(base.keypoints_3d), np.array(clamped.keypoints_3d), atol=1e-9)
+
+
+def test_cli_retarget_clamp_flexion_flag(tmp_path: Path) -> None:
+    """CLI の --clamp-flexion で書き出した RD-Motion の屈曲違反が 0 になる。"""
+    from robotdance_core.cli import main
+    from robotdance_core.synthetic import generate_overbend
+
+    src = tmp_path / "ob.rdmir.json"
+    generate_overbend().save(src)
+    out = tmp_path / "rc.rdmotion.json"
+    rc = main(["retarget", str(src), "-o", str(out), "--robot", "unitree_g1", "--clamp-flexion"])
+    assert rc == 0
+    motion = RdMotion.load(out)
+    jf = motion.retarget_metrics["joint_flexion"]
+    assert jf["any_violation_ratio"] == 0.0
+    assert jf["clamp"]["corrected_frame_ratio"] > 0.0
+
+
+def test_clamp_flexion_noop_without_per_joint_limits() -> None:
+    """per_joint_limits が無い morphology では clamp は no-op（屈曲メトリクス自体も出ない）。"""
+    import dataclasses
+
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_unitree import get_morphology
+
+    stripped = dataclasses.replace(get_morphology("unitree_g1"), per_joint_limits=None)
+    motion = retarget(generate_dance(duration=1.0), stripped, clamp_flexion=True)
+    assert "joint_flexion" not in motion.retarget_metrics
+
+
 def test_joint_flexion_absent_without_per_joint_limits() -> None:
     """per_joint_limits が無い morphology では屈曲メトリクスは出ない（測れない）。"""
     import dataclasses
