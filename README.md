@@ -11,10 +11,19 @@
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![ROS2](https://img.shields.io/badge/ROS2-Jazzy-22314E.svg)
 
-![RobotDance: same motion, many humanoids](assets/readme/many_humanoids.gif)
+<img src="assets/readme/g1_dance.gif" width="300" alt="Real Unitree G1 dancing from a human motion">
 
-<sub>↑ **Same motion, many humanoids** — 1 つの人間モーション（RD-MIR）を Unitree G1（小型）と H1（full-size）へ
-**kinematic retarget**。embodiment 非依存を一撃で示す。pose モデル・物理 sim 不要の運動学プレビュー。実 URDF / 物理検証は Phase 2。</sub>
+<sub>↑ **人間のダンス → 実 Unitree G1 が踊る。** 合成ダンス（RD-MIR）を **actuator-space IK** で実 G1 の
+**23 関節角**へ retarget し、**公式 g1_23dof URDF の実メッシュ**でレンダリング（棒人間ではない）。
+関節角はそのまま ROS2/SDK2 が command できる形。kinematic playback（動的実現可能性は MuJoCo sim_certificate が別途検証）。</sub>
+
+<img src="assets/readme/many_humanoids_mesh.gif" width="480" alt="Same motion on Unitree G1 and H1">
+
+<sub>↑ **Same motion, many humanoids** — 同じ人間モーションを **実 Unitree G1（左, 小型）と H1（右, full-size）**
+の実メッシュへ retarget。**実寸 URDF 由来**の morphology なので、身長差（G1 1.29m / H1 1.66m）がそのまま見える。
+<br>※ ロボットメッシュ © Unitree Robotics（`unitree_ros`, BSD-3-Clause）。URDF/メッシュは repo に同梱せず
+利用者がローカル取得。GIF は RobotDance パイプライン出力（actuator-IK 関節角）の可視化で、
+[`scripts/render_robot_gif.py`](scripts/render_robot_gif.py)（pybullet headless）で生成。</sub>
 
 </div>
 

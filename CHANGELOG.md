@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **実 Unitree メッシュの hero GIF（README 刷新, §6）**（`scripts/render_robot_gif.py`,
+  `assets/readme/g1_dance.gif` / `many_humanoids_mesh.gif`）: 棒人間スケルトンに代え、**公式 G1/H1 の
+  実メッシュ**が RobotDance の **actuator-space IK 関節角**で踊る GIF を README hero に採用。pybullet
+  headless（TinyRenderer, GPU 不要）で地面影付きレンダリング。G1 単体 + G1|H1 横並び（実寸ゆえ身長差が
+  見える）。メッシュ/URDF は repo 非同梱（render のみ, © Unitree unitree_ros BSD-3）。
+- **actuator-space IK を H1 等に一般化**（`robotdance_retarget.actuator_retarget`）: `link_map` /
+  `robot_name` 引数を追加し、G1 以外の URDF（H1 = 19 DOF, `H1_LINK_MAP`）でも IK retarget 可能に
+  （実 H1 URDF で収束: IK err 0.098m, pre-clamp limit 違反 <0.5%）。既定は従来どおり G1。
+
 ### Changed
 - **G1 morphology を実 URDF 実寸に修正（real-data validation, §4.2）**（`robotdance_unitree.g1`）:
   v0 の手書き G1 プロキシは**実機と乖離していた**（公式 g1_23dof URDF と比較し nominal_height

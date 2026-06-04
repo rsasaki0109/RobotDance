@@ -120,14 +120,20 @@ def actuator_retarget(
     lr: float = 0.1,
     smooth_w: float = 0.5,
     device: Optional[str] = None,
+    link_map: Optional[dict[str, str]] = None,
+    robot_name: str = "unitree_g1",
 ) -> RdMotion:
-    """RD-MIR を実 G1 のアクチュエータ関節角へ IK retarget して RD-Motion を返す。"""
+    """RD-MIR を実 URDF のアクチュエータ関節角へ IK retarget して RD-Motion を返す。
+
+    link_map（canonical joint → URDF link）で G1 以外（H1 等）にも対応する（既定 G1_LINK_MAP）。
+    """
     from robotdance_retarget.kinematic import retarget
     from robotdance_unitree.urdf_import import urdf_to_morphology
 
+    lmap = link_map or G1_LINK_MAP
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
     chain = G1Chain(urdf_path)
-    morph = urdf_to_morphology(urdf_path, name="unitree_g1")
+    morph = urdf_to_morphology(urdf_path, name=robot_name, link_map=lmap)
 
     # kinematic retarget の link 位置を IK target にする（pelvis 相対）。
     kin = retarget(mir, morph)
@@ -136,7 +142,7 @@ def actuator_retarget(
     target_rel = kp - pelvis
 
     # IK 対象 = 実リンクにマップされる limb（pelvis 除く）。
-    pairs = [(index_of(c), chain.link_index(L)) for c, L in G1_LINK_MAP.items() if c != "pelvis"]
+    pairs = [(index_of(c), chain.link_index(L)) for c, L in lmap.items() if c != "pelvis"]
     canon_idx = [p[0] for p in pairs]
     link_idx = [p[1] for p in pairs]
     tgt = torch.tensor(target_rel[:, canon_idx, :], dtype=torch.float32, device=dev)  # [T, M, 3]
@@ -174,7 +180,7 @@ def actuator_retarget(
         "note": "参照 IK（位置合わせ）。バランス policy ではない。torso/toe は IK 対象外（合成 target）。",
     }
     return RdMotion(
-        robot_name="unitree_g1",
+        robot_name=robot_name,
         fps=mir.fps,
         duration=mir.duration,
         source_motion_id=mir.motion_id,

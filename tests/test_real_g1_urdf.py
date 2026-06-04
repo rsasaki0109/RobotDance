@@ -88,3 +88,20 @@ def test_h1_proxy_matches_real_urdf_dimensions() -> None:
     bones = [j for j in range(len(PARENTS)) if PARENTS[j] >= 0]
     mae = float(np.mean([abs(pb[j] - rb[j]) for j in bones]))
     assert mae < 0.01
+
+
+@_skip_h1
+def test_actuator_ik_on_real_h1_converges() -> None:
+    """実 H1 URDF で actuator-space IK が H1_LINK_MAP 指定で収束する（link_map 一般化）。"""
+    pytest.importorskip("torch")
+    from robotdance_core.synthetic import generate_dance
+    from robotdance_retarget.actuator_ik import actuator_retarget
+    from robotdance_unitree.urdf_import import H1_LINK_MAP as _HLM
+
+    motion = actuator_retarget(generate_dance(duration=1.0, arm_amp=0.6, sway_amp=0.08),
+                               _H1_URDF, steps=120, link_map=_HLM, robot_name="unitree_h1")
+    assert motion.robot_name == "unitree_h1"
+    mt = motion.retarget_metrics
+    assert mt["ik_mean_pos_error_m"] < 0.2
+    # H1 は pre-clamp で関節 limit にごく稀（<5%）に触れる（clamp 後は安全）。G1 は 0。
+    assert mt["joint_limit_violation_ratio_preclamp"] < 0.05
