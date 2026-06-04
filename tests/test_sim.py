@@ -222,24 +222,47 @@ def test_bone_angular_speed_is_twist_free() -> None:
     assert _max_bone_angular_speed(kps, dt) == pytest.approx(omega, abs=1e-6)
 
 
-@pytest.mark.parametrize("robot", ["unitree_g1", "unitree_h1"])
-def test_overbend_passes_sim_but_violates_flexion(robot: str) -> None:
-    """過屈曲モーションは動的には安定（sim PASS）だが運動学的に可動域違反 — 2 軸の直交性。
-
-    旧 sim は手首など leaf joint の未拘束 twist が偽の角速度スパイク（~79 rad/s）を生み、
-    overbend を誤って REJECT していた。bone 方向角速度（twist-free）化でこれを是正する。
-    """
-    morph = get_morphology(robot)
+def test_overbend_angular_speed_has_no_spurious_spike() -> None:
+    """過屈曲モーションの角速度は twist-free 化で偽スパイク（~79 rad/s）が消え実速度になる。"""
+    morph = get_morphology("unitree_g1")
     motion = retarget(generate_overbend(), morph)
     cert = simulate_certificate(motion, morph)
-    # 偽スパイクが無くなり、滑らかな折り畳みの実速度（<30 rad/s）になる。
-    assert cert["metrics"]["max_joint_ang_speed_rad_s"] < 30.0
-    # 足は接地・直立で動的には安定 → PASS。
-    assert cert["verdict"] == "PASS"
+    assert cert["metrics"]["max_joint_ang_speed_rad_s"] < 30.0  # 偽スパイクなし
+    # 動的サブ指標は全てクリーン（足は接地・直立で転倒/滞空なし）。
     assert cert["metrics"]["airborne_ratio"] == 0.0
-    # G1 は肘可動域（~2.09）を超えるので屈曲違反は別軸で検出される。
-    if robot == "unitree_g1":
-        assert motion.retarget_metrics["joint_flexion"]["any_violation_ratio"] > 0.0
+    assert cert["metrics"]["balance_violation_ratio"] == 0.0
+
+
+def test_certificate_rejects_rom_violation_and_clamp_remedies() -> None:
+    """動的に安定でも実機 ROM 超過なら統合 verdict は REJECT、clamp_flexion で PASS になる。
+
+    sim は動的 feasibility の権威だが、可動域を超える姿勢は指令不能なので運動学的 feasibility
+    （joint_flexion）も統合する。overbend G1 は動的にはクリーンだが肘が ROM 超過 → REJECT。
+    """
+    morph = get_morphology("unitree_g1")
+    # 補正なし: 動的指標はクリーンだが ROM 超過で REJECT。
+    raw = retarget(generate_overbend(), morph)
+    cert = simulate_certificate(raw, morph)
+    assert cert["metrics"]["airborne_ratio"] == 0.0
+    assert cert["metrics"]["balance_violation_ratio"] == 0.0
+    assert cert["metrics"]["max_joint_ang_speed_rad_s"] < 30.0
+    assert cert["verdict"] == "REJECT"
+    assert cert["metrics"]["joint_flexion_violation_ratio"] > 0.0
+    assert any("可動域" in r for r in cert["reasons"])
+    # clamp_flexion で可動域内へ収めると PASS。
+    fixed = retarget(generate_overbend(), morph, clamp_flexion=True)
+    cert2 = simulate_certificate(fixed, morph)
+    assert cert2["verdict"] == "PASS"
+    assert cert2["metrics"]["joint_flexion_violation_ratio"] == 0.0
+
+
+def test_certificate_no_rom_metric_without_per_joint_limits() -> None:
+    """per_joint_limits が無い morphology では ROM 統合は無効（joint_flexion 指標も出ない）。"""
+    import dataclasses
+
+    morph = dataclasses.replace(get_morphology("unitree_g1"), per_joint_limits=None)
+    cert = simulate_certificate(retarget(generate_dance(duration=1.0), morph), morph)
+    assert "joint_flexion_violation_ratio" not in cert["metrics"]
 
 
 def test_certify_attaches_to_motion() -> None:

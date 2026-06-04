@@ -8,7 +8,7 @@ motions: **5** × robots: **2** = 10 runs · sim: **on**
 
 | robot | runs | PASS率 | 平均 bone方向cos | 平均 foot_sliding | 平均 height_scale | 平均 屈曲違反率 |
 | --- | --- | --- | --- | --- | --- | --- |
-| unitree_g1 | 5 | 0.600 | 1.000 | 0.020 | 0.906 | 0.050 |
+| unitree_g1 | 5 | 0.400 | 1.000 | 0.020 | 0.906 | 0.050 |
 | unitree_h1 | 5 | 0.800 | 1.000 | 0.026 | 1.168 | 0.000 |
 
 ## 全 run（motion × robot）
@@ -23,5 +23,5 @@ motions: **5** × robots: **2** = 10 runs · sim: **on**
 | idle | dance | unitree_h1 | PASS | 0.000 | 0.000 | 0.339 | 0.930 | 0.002 | 1.000 | 0.000 |
 | backflip | backflip | unitree_g1 | REJECT | 0.875 | 0.938 | 0.414 | 4.010 | 0.089 | 1.000 | 0.000 |
 | backflip | backflip | unitree_h1 | REJECT | 0.875 | 0.938 | 0.453 | 4.010 | 0.116 | 1.000 | 0.000 |
-| overbend | overbend | unitree_g1 | PASS | 0.000 | 0.000 | 0.193 | 3.920 | 0.000 | 1.000 | 0.250 |
+| overbend | overbend | unitree_g1 | REJECT | 0.000 | 0.000 | 0.193 | 3.920 | 0.000 | 1.000 | 0.250 |
 | overbend | overbend | unitree_h1 | PASS | 0.000 | 0.000 | 0.504 | 3.920 | 0.000 | 1.000 | 0.000 |

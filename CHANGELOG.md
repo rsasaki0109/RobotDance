@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-06-04
+
+実データ深掘り（動的＋運動学的 feasibility の統合, pre-alpha）。v0.43 で overbend が動的には安定
+（sim PASS）だが実機 ROM 超過と判明したが、`sim_certificate.verdict` は動的判定のみだったため
+**verdict=PASS を信じた consumer が実機に不可能な肘角を指令しうる**穴があった。本版で運動学的
+feasibility（joint_flexion）を verdict に統合し、検出→可視化→検証→補正→**enforce** までを閉じた。
+
+### Changed
+- `simulate_certificate`（`robotdance_sim.mujoco_backend`）: `motion.retarget_metrics.joint_flexion`
+  の可動域違反を REJECT 理由に統合（per_joint_limits を持つ embodiment のみ）。動的に安定でも実機
+  ROM を超える姿勢は「指令不能」として REJECT する。`metrics.joint_flexion_violation_ratio` と
+  `thresholds.joint_flexion_violation_ratio` を追加。REJECT 理由には clamp_flexion での補正を誘導。
+
+### Notable
+- overbend G1 は動的指標が全てクリーン（airborne/balance/角速度 OK）だが肘 ROM 超過 0.25 → REJECT。
+  `clamp_flexion=True` で補正すると PASS になり、**clamp が feasibility 上の remedy として機能する**
+  ことを end-to-end で確認。sample leaderboard を再生成して反映（G1 PASS 率 0.4）。
+
 ## [0.43.0] - 2026-06-04
 
 実データ深掘り（sim_certificate の角速度を twist アーティファクトから是正, pre-alpha）。clamp の sim

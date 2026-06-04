@@ -206,6 +206,13 @@ def simulate_certificate(
     # max_joint_ang_speed は上で bone 方向から算出済み（twist-free）。
     # torque_ratio は per-joint 負荷率の最大（上のループで算出済み）。
 
+    # 運動学的 feasibility（関節可動域）: retarget が算出した joint_flexion 違反を取り込む。
+    # sim は動的 feasibility（転倒/トルク/滞空）の権威だが、実機可動域を超える姿勢は
+    # 動的に安定でも「指令不能」なので、ここで統合して REJECT 理由に含める（per_joint_limits
+    # を持つ embodiment のみ。retarget 側で測れない場合は None で判定対象外）。
+    jf = (motion.retarget_metrics or {}).get("joint_flexion") or {}
+    flexion_violation = jf.get("any_violation_ratio")
+
     reasons: list[str] = []
     if airborne_ratio > 0.1:
         reasons.append(f"airborne {airborne_ratio:.0%}（接地なしで支持不能）")
@@ -215,31 +222,41 @@ def simulate_certificate(
         reasons.append(f"重力保持トルク ×{torque_ratio:.2f}（actuator 限界超過）")
     if max_joint_ang_speed > 30.0:
         reasons.append(f"関節角速度過大 {max_joint_ang_speed:.0f} rad/s")
+    if flexion_violation is not None and flexion_violation > 0.0:
+        reasons.append(
+            f"関節可動域超過 {flexion_violation:.0%}（膝・肘が実機 ROM を超過 — "
+            "retarget の clamp_flexion で補正可）"
+        )
 
     passed = not reasons
+    metrics = {
+        "airborne_ratio": round(airborne_ratio, 3),
+        "balance_violation_ratio": round(balance_violation_ratio, 3),
+        "gravity_torque_nm": round(gravity_torque, 1),
+        "torque_ratio": round(torque_ratio, 3),
+        "max_joint_ang_speed_rad_s": round(max_joint_ang_speed, 2),
+    }
+    if flexion_violation is not None:
+        metrics["joint_flexion_violation_ratio"] = round(flexion_violation, 3)
     return {
         "backend": "mujoco",
         "mujoco_version": mujoco.__version__,
         "approximate_inertia": True,
         "passed": passed,
         "verdict": "PASS" if passed else "REJECT",
-        "metrics": {
-            "airborne_ratio": round(airborne_ratio, 3),
-            "balance_violation_ratio": round(balance_violation_ratio, 3),
-            "gravity_torque_nm": round(gravity_torque, 1),
-            "torque_ratio": round(torque_ratio, 3),
-            "max_joint_ang_speed_rad_s": round(max_joint_ang_speed, 2),
-        },
+        "metrics": metrics,
         "thresholds": {
             "airborne_ratio": 0.1,
             "balance_violation_ratio": 0.3,
             "gravity_torque_ratio": 1.0,
             "max_joint_ang_speed_rad_s": 30.0,
+            "joint_flexion_violation_ratio": 0.0,
         },
         "reasons": reasons,
         "note": (
-            "physically-informed feasibility（近似質量, v0）— 実機保証ではない。gravity_torque は"
-            " subtree COM から解析計算（mj_inverse の ball-joint 特異性を回避した robust 値）。"
+            "physically-informed feasibility（近似質量, v0）— 実機保証ではない。動的（転倒/トルク/"
+            "滞空/角速度）＋運動学的（関節可動域）の両 feasibility を統合。gravity_torque は subtree"
+            " COM から解析計算（mj_inverse の ball-joint 特異性を回避した robust 値）。"
         ),
     }
 

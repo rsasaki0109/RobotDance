@@ -21,7 +21,9 @@ Isaac Lab / MuJoCo / Genesis-style backend adapters — 物理シミュレーシ
   `MultiTrackingEnv(references, morphology)` は**参照スイート**を保持し、エピソードごとに参照を
   round-robin で切り替える（`reset(idx)` で `ref_qpos`/`T` を rebind）→ **1 方策が複数運動を追従**。
 
-検証する物理量（受動 forward sim は判別力がないため、**参照運動の実現可能性**を検証）:
+検証する量（受動 forward sim は判別力がないため、**参照運動の実現可能性**を検証）。
+**動的**（転倒/トルク/滞空/角速度）に加え、per_joint_limits を持つ embodiment では**運動学的**
+（関節可動域）feasibility も統合し、いずれか違反で REJECT:
 
 | 信号 | 手法 | 判定 |
 | --- | --- | --- |
@@ -29,6 +31,7 @@ Isaac Lab / MuJoCo / Genesis-style backend adapters — 物理シミュレーシ
 | balance / 転倒 | 質量モデルの COM → ZMP vs 接地足の支持多角形 | ZMP が支持外 >30% |
 | 滞空 | contact_schedule に接地なし | airborne >10% |
 | 過大運動 | bone 方向角速度（twist-free） | >30 rad/s |
+| 可動域超過 | retarget の joint_flexion 違反（膝・肘 vs 実機 ROM） | 違反フレーム >0% |
 
 ```python
 from robotdance_sim.backend import certify, backend_status
