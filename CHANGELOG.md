@@ -5,6 +5,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- **G1 morphology を実 URDF 実寸に修正（real-data validation, §4.2）**（`robotdance_unitree.g1`）:
+  v0 の手書き G1 プロキシは**実機と乖離していた**（公式 g1_23dof URDF と比較し nominal_height
+  1.120m vs 実 1.291m = **17cm 過小**、bone 長**平均相対誤差 ~26%**、肩/手首は ~80% 過大）。これを
+  公式 URDF 由来の実寸 canonical rest pose に更新し、nominal_height 1.291m・bone 誤差 **~0%** に一致させた
+  （関節オフセット＝寸法の事実のみ採用、mesh/URDF 本体は非同梱 = license-safe）。あわせて実 G1 URDF で
+  actuator-space IK が収束（IK mean err 0.062m, joint-limit 違反 0）することを確認。
+- **TrackingEnv の PD ゲイン再チューニング**（`robotdance_sim.tracking_env`）: 上記 G1 実寸化（背が高く
+  COM が上がった）に伴い、旧 kp=60 では関節 PD が実寸 G1 を支えきれず PD-only baseline が転倒していた
+  ため、既定を **kp=150 / kd=6** に更新（PD-only が gentle 参照で 59/59 生存に回復）。tracking 系テストを
+  実寸 G1 で再 green 化。これは「近似プロキシに合わせて隠れていた調整が、実寸化で露呈した」例。
+
+### Added
+- **実 G1 URDF 回帰テスト**（`tests/test_real_g1_urdf.py`）: 公式 g1_23dof URDF がローカルに在る場合のみ
+  実行し（`ROBOTDANCE_G1_URDF` か既知パスから探索、無ければ skip = CI 非破壊）、簡略 morphology が
+  実 URDF 寸法（nominal 1cm 以内 / bone MAE < 1cm）と一致し、actuator IK が収束することを検証する。
+
 ## [0.25.0] - 2026-06-04
 
 spec の質向上の節目リリース（pre-alpha）。自由 dict だった RD-MIR `semantics` を action_label /

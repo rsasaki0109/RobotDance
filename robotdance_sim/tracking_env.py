@@ -40,8 +40,8 @@ class TrackingEnv:
         morphology: RobotMorphology,
         *,
         total_mass: float = 35.0,
-        kp: float = 60.0,
-        kd: float = 3.0,
+        kp: float = 150.0,   # 実寸 G1（nominal 1.29m）を関節 PD で支える剛性。旧 60 は実寸で転倒した
+        kd: float = 6.0,
         torque_limit: float = 80.0,
         residual_scale: float = 6.0,
         fall_height_ratio: float = 0.5,

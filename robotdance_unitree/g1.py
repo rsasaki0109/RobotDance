@@ -1,11 +1,13 @@
-"""Unitree G1 embodiment（v0, 簡略化 kinematic プロキシ）。
+"""Unitree G1 embodiment（v0）。
 
-⚠️ v0 注意: これは実機 URDF / アクチュエータ写像ではない。retarget とビューアを sim なしで
-動かすための、G1 の体格に近い簡略 kinematic 形態（canonical と同一トポロジ）。
-実 URDF / SDK2 joint 写像 / joint limits の正確化は Phase 2 で行う（docs/ROADMAP.md）。
+retarget とビューアを sim なしで動かすための、canonical 19-joint と同一トポロジの G1 形態。
+rest pose は **公式 g1_23dof URDF の実寸**（Unitree unitree_ros / g1_description）から導いた
+canonical joint 位置を採用（v0.26 で更新）。関節オフセット＝寸法の事実のみ使用し、mesh/URDF 本体は
+同梱しない（license-safe）。実 actuator 写像・joint limits・慣性は actuator-space IK（retarget-ik /
+import-urdf）が実 URDF から扱う。
 
-G1 は身長 ~1.27m の小型ヒューマノイド。canonical 19-joint 構造を流用し、
-G1 に近い link 長（短い四肢・低い腰）を与えて embodiment 差を可視化する。
+⚠️ v0 注意: rest 寸法は実機相当だが、これは kinematic 形態であり実機慣性/アクチュエータモデルではない。
+（旧 v0 手書きプロキシは nominal 1.12m・bone 平均相対誤差 ~26% で実機と乖離していた。）
 """
 
 from __future__ import annotations
@@ -16,28 +18,29 @@ from robotdance_retarget.embodiment import RobotMorphology
 
 ROBOT_NAME = "unitree_g1"
 
-# G1 近似の rest pose（world, z-up, x-forward, y-left, 単位 m）。低く・四肢が短い stocky な体格。
+# 実 g1_23dof URDF 由来の canonical 19-joint rest pose（z-up, x-forward, y-left, m）。
+# 接地に合わせ足先が z≈0.03 になるよう全体を +0.809 m シフト。nominal_height ≈ 1.291 m。
 G1_REST = np.array(
     [
-        [0.00, 0.00, 0.70],   # 0 pelvis
-        [0.00, 0.00, 0.78],   # 1 spine
-        [0.00, 0.00, 0.92],   # 2 chest
-        [0.00, 0.00, 1.05],   # 3 neck
-        [0.00, 0.00, 1.15],   # 4 head
-        [0.00, 0.16, 1.00],   # 5 left_shoulder
-        [0.00, 0.17, 0.82],   # 6 left_elbow
-        [0.00, 0.18, 0.64],   # 7 left_wrist
-        [0.00, -0.16, 1.00],  # 8 right_shoulder
-        [0.00, -0.17, 0.82],  # 9 right_elbow
-        [0.00, -0.18, 0.64],  # 10 right_wrist
-        [0.00, 0.09, 0.66],   # 11 left_hip
-        [0.00, 0.09, 0.36],   # 12 left_knee
-        [0.00, 0.09, 0.06],   # 13 left_ankle
-        [0.12, 0.09, 0.03],   # 14 left_foot
-        [0.00, -0.09, 0.66],  # 15 right_hip
-        [0.00, -0.09, 0.36],  # 16 right_knee
-        [0.00, -0.09, 0.06],  # 17 right_ankle
-        [0.12, -0.09, 0.03],  # 18 right_foot
+        [0.000, 0.000, 0.809],   # 0 pelvis
+        [0.000, 0.000, 0.955],   # 1 spine
+        [0.000, 0.000, 1.101],   # 2 chest
+        [0.015, 0.000, 1.211],   # 3 neck
+        [0.030, 0.000, 1.321],   # 4 head
+        [0.000, 0.100, 1.101],   # 5 left_shoulder
+        [0.016, 0.147, 0.914],   # 6 left_elbow
+        [0.116, 0.149, 0.904],   # 7 left_wrist
+        [0.000, -0.100, 1.101],  # 8 right_shoulder
+        [0.016, -0.147, 0.914],  # 9 right_elbow
+        [0.116, -0.149, 0.904],  # 10 right_wrist
+        [0.000, 0.064, 0.706],   # 11 left_hip
+        [0.000, 0.119, 0.370],   # 12 left_knee
+        [0.000, 0.119, 0.070],   # 13 left_ankle
+        [0.120, 0.119, 0.030],   # 14 left_foot
+        [0.000, -0.064, 0.706],  # 15 right_hip
+        [0.000, -0.119, 0.370],  # 16 right_knee
+        [0.000, -0.119, 0.070],  # 17 right_ankle
+        [0.120, -0.119, 0.030],  # 18 right_foot
     ],
     dtype=np.float64,
 )
@@ -45,7 +48,7 @@ G1_REST = np.array(
 MORPHOLOGY = RobotMorphology(
     name=ROBOT_NAME,
     rest_pose=G1_REST,
-    urdf_ref="TODO(Phase2): unitree_ros2 / g1_description URDF",
+    urdf_ref="unitree_ros g1_description/g1_23dof.urdf（実寸由来, 本体は別途取得）",
     runtime_adapter="unitree_sdk2",
 )
 

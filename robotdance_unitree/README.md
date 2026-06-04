@@ -4,9 +4,12 @@ G1/H1 configs, URDF mapping, SDK2/ROS2 bridge assumptions — Unitree を primar
 
 ## 実装状況
 
-- `g1.py` / `h1.py` — **Unitree G1（小型 ~1.27m）/ H1（full-size ~1.8m）の v0 簡略 kinematic プロキシ**。
+- `g1.py` / `h1.py` — **Unitree G1（~1.29m）/ H1（full-size）の kinematic morphology**。
   各 `MORPHOLOGY`（[`RobotMorphology`](../robotdance_retarget/embodiment.py)）が rest pose から
   bone 長・全高を導き、[RD-Embodiment](../specs/rd-embodiment/) v0 schema 適合の dict を返す。
+  **G1 の rest pose は v0.26 で公式 g1_23dof URDF の実寸由来に更新**（旧手書きプロキシは nominal 1.12m・
+  bone 平均相対誤差 ~26% で乖離 → 実 URDF 一致の nominal 1.291m・誤差 ~0%。`tests/test_real_g1_urdf.py`
+  が実 URDF 在環境で回帰検証）。関節オフセット＝寸法の事実のみ採用し mesh/URDF 本体は同梱しない。
 - registry — `from robotdance_unitree import get_morphology, EMBODIMENTS`。新機種は registry に追加するだけ。
 - `configs/*.rdembodiment.json` — エクスポート済み embodiment（schema 検証済み）。
 - `urdf_import.py` — **実 URDF → 実寸 RobotMorphology**。zero-config FK でリンク世界位置を求め
