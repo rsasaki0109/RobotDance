@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-06-04
+
+実データ深掘り（twist 安定化の効果を定量化, pre-alpha）。v0.47 で reference qpos の twist を時間
+連続化したが、その恩恵がどの motion でどれだけ効くかは未計測だった。本版で reference 関節速度を
+MuJoCo 自身の tangent 空間差分（PD が追うベクトルそのもの）で測り、単フレーム復元 vs 時系列復元を
+default_motion_suite × G1/H1 で比較した。
+
+### Added
+- `robotdance_sim.reference_quality`: `reference_velocity_report`（単フレーム vs 時系列復元の
+  reference 最大関節速度・bone 真値・spike factor）と `reference_quality_table`（スイート全体の
+  markdown 表）。`python3 -m robotdance_sim.reference_quality` で doc 再生成。
+- `docs/sim/REFERENCE_QUALITY.md`: 生成された比較表。overbend G1 で 79.9→3.92 rad/s（20.4× の
+  偽スパイク除去）、**backflip でも G1 5.3×・H1 7.3×**（現実的な動的運動でも効く）。通常ダンスは
+  ~1.0×（特異点を踏まないため差なし）。位置・COM・verdict は不変で、差はすべて不可観測な twist。
+
 ## [0.47.0] - 2026-06-04
 
 実データ深掘り（再構成 qpos の twist を時間方向に安定化, pre-alpha）。v0.43 で sim の角速度指標は

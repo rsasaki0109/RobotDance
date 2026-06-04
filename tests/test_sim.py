@@ -309,6 +309,34 @@ def test_poses_to_qpos_single_frame_matches_pose_to_qpos() -> None:
     )
 
 
+def test_reference_velocity_report_quantifies_twist_spike_removal() -> None:
+    """過屈曲の reference 速度は単フレーム復元で偽スパイク、時系列復元で実 bone 速度に収束する。"""
+    from robotdance_sim.reference_quality import reference_velocity_report
+
+    morph = get_morphology("unitree_g1")
+    r = reference_velocity_report(retarget(generate_overbend(), morph), morph)
+    assert r["per_frame_max_rad_s"] > 50.0          # 単フレーム復元はスパイクを持つ
+    assert r["temporal_max_rad_s"] < 10.0           # 時系列復元で消える
+    # 時系列復元は物理的に真の bone 方向速度（twist-free）に整合。
+    assert r["temporal_max_rad_s"] == pytest.approx(r["bone_truth_rad_s"], abs=1.0)
+    assert r["spike_factor"] > 5.0                  # 偽スパイクが実速度の数倍
+
+
+def test_reference_velocity_temporal_never_worse_than_per_frame() -> None:
+    """スイート全 motion で時系列復元の reference 速度は単フレーム復元以下（退行ガード）。
+
+    通常運動（反平行付近に滞在する bone 無し）は特異点を踏まないので両者ほぼ一致、過屈曲・
+    宙返りなど一部のみ偽スパイクが顕在化する。いずれにせよ temporal が per_frame を上回らない。
+    """
+    from robotdance_benchmarks.suite import default_motion_suite
+    from robotdance_sim.reference_quality import reference_velocity_report
+
+    morph = get_morphology("unitree_g1")
+    for name, mir in default_motion_suite().items():
+        r = reference_velocity_report(retarget(mir, morph), morph)
+        assert r["temporal_max_rad_s"] <= r["per_frame_max_rad_s"] + 0.5, name
+
+
 def test_certificate_rejects_rom_violation_and_clamp_remedies() -> None:
     """動的に安定でも実機 ROM 超過なら統合 verdict は REJECT、clamp_flexion で PASS になる。
 

@@ -38,6 +38,8 @@ Isaac Lab / MuJoCo / Genesis-style backend adapters — 物理シミュレーシ
 > ため、極端な屈曲（観測方向が rest と反平行付近）でも shortest-arc 特異点を踏まず、bone 軸まわりの
 > 偽 twist スパイク（実測 ~80 rad/s）が出ない。bone 方向は厳密再現で位置・COM・トルクは不変。これにより
 > RL tracking の reference 速度・PD 追従誤差や export 軌道など qpos を差分する全経路が clean に保たれる。
+> 効果の定量比較は [`docs/sim/REFERENCE_QUALITY.md`](../docs/sim/REFERENCE_QUALITY.md)（overbend 20×・
+> backflip 5-7× の偽スパイク除去）。`python3 -m robotdance_sim.reference_quality` で再生成。
 
 ```python
 from robotdance_sim.backend import certify, backend_status
