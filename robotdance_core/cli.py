@@ -204,25 +204,68 @@ def _import_humanml3d(joints: Path, text: Path | None, fps: float, out: Path) ->
     return 0
 
 
-def _import_babel(babel_json: Path, amass_root: Path, limit: int | None, out_dir: Path) -> int:
-    """BABEL の行動ラベル + AMASS を RD-MIR 群に変換する（§4.1）。"""
+def _import_babel(babel_json: Path, amass_root: Path, limit: int | None, out_dir: Path,
+                  dedupe: bool = False, dedupe_threshold: float = 0.98) -> int:
+    """BABEL の行動ラベル + AMASS を RD-MIR 群に変換する（§4.1）。--dedupe で near-duplicate 除去。"""
     from collections import Counter
 
     from robotdance_data.babel import iter_babel
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    mirs = list(iter_babel(babel_json, amass_root, limit=limit))
+    removed = 0
+    if dedupe and len(mirs) > 1:
+        from robotdance_motion.dedupe import dedupe_mirs
+
+        res = dedupe_mirs(mirs, threshold=dedupe_threshold)
+        mirs = res["kept"]
+        removed = res["removed_count"]
+        print(f"  dedupe: {res['total']} → {res['kept_count']} 本"
+              f"（near-duplicate {removed} 本除去, threshold={dedupe_threshold}）")
+
     labels: Counter = Counter()
-    count = 0
-    for mir in iter_babel(babel_json, amass_root, limit=limit):
+    for mir in mirs:
         mir.save(out_dir / f"{mir.motion_id}.rdmir.json")
         labels[(mir.semantics or {}).get("action_label", "unknown")] += 1
-        count += 1
-    print(f"✓ BABEL → {count} RD-MIR を保存: {out_dir}")
+    print(f"✓ BABEL → {len(mirs)} RD-MIR を保存: {out_dir}")
     if labels:
         top = ", ".join(f"{k}={v}" for k, v in labels.most_common(6))
         print(f"  action_label 上位: {top}")
     print("  ⚠️ AMASS .npz が見つからない entry はスキップ。license_state=research_only。")
-    return 0 if count else 1
+    return 0 if mirs else 1
+
+
+def _dedupe_dir(in_dir: Path, threshold: float, move: bool) -> int:
+    """ディレクトリ内の *.rdmir.json を near-duplicate 除去する（汎用, §4.1）。"""
+    from robotdance_core.rd_mir import RdMir
+    from robotdance_motion.dedupe import dedupe_mirs
+
+    paths = sorted(in_dir.glob("*.rdmir.json"))
+    if len(paths) < 2:
+        print(f"⚠️ {in_dir} に dedupe 対象が不足（{len(paths)} 本）")
+        return 1
+    by_id = {}
+    mirs = []
+    for p in paths:
+        m = RdMir.load(p)
+        mirs.append(m)
+        by_id[m.motion_id] = p
+    res = dedupe_mirs(mirs, threshold=threshold)
+    print(f"🧹 dedupe {in_dir}: {res['total']} → {res['kept_count']} 本"
+          f"（near-duplicate {res['removed_count']} 本, threshold={threshold}）")
+    for g in res["groups"]:
+        if g["size"] > 1:
+            dups = [m for m in g["members"] if m != g["representative"]]
+            print(f"  keep {g['representative']} ← dup: {', '.join(dups)}")
+    if move and res["removed"]:
+        dup_dir = in_dir / "duplicates"
+        dup_dir.mkdir(exist_ok=True)
+        for mid in res["removed"]:
+            src = by_id.get(mid)
+            if src and src.exists():
+                src.rename(dup_dir / src.name)
+        print(f"  → 重複 {res['removed_count']} 本を {dup_dir} へ移動")
+    return 0
 
 
 def _import_motionx(motion: Path, text: Path | None, fps: float, out: Path) -> int:
@@ -1267,6 +1310,14 @@ def main(argv: list[str] | None = None) -> int:
     p_bab.add_argument("--amass-root", type=Path, required=True, help="AMASS .npz のルート")
     p_bab.add_argument("--limit", type=int, default=None)
     p_bab.add_argument("--out-dir", type=Path, default=Path("babel_rdmir"))
+    p_bab.add_argument("--dedupe", action="store_true", help="near-duplicate を除去して保存")
+    p_bab.add_argument("--dedupe-threshold", type=float, default=0.98)
+
+    p_dd = sub.add_parser("dedupe-dir",
+                          help="ディレクトリ内の *.rdmir.json を near-duplicate 除去（§4.1）")
+    p_dd.add_argument("in_dir", type=Path, help="*.rdmir.json を含むディレクトリ")
+    p_dd.add_argument("--threshold", type=float, default=0.98)
+    p_dd.add_argument("--move", action="store_true", help="重複を duplicates/ サブdir へ移動")
 
     p_mx = sub.add_parser("import-motionx",
                           help="Motion-X の whole-body SMPL-X(.npy)+text(.txt) を RD-MIR 化（§4.1）")
@@ -1419,7 +1470,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "import-humanml3d":
         return _import_humanml3d(args.joints, args.text, args.fps, args.out)
     if args.command == "import-babel":
-        return _import_babel(args.babel_json, args.amass_root, args.limit, args.out_dir)
+        return _import_babel(args.babel_json, args.amass_root, args.limit, args.out_dir,
+                             args.dedupe, args.dedupe_threshold)
+    if args.command == "dedupe-dir":
+        return _dedupe_dir(args.in_dir, args.threshold, args.move)
     if args.command == "import-motionx":
         return _import_motionx(args.motion, args.text, args.fps, args.out)
     if args.command == "import-hmr":

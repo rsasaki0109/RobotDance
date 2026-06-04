@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **汎用 near-duplicate 除去の text-motion 拡張（§4.1）**（`robotdance_motion.dedupe`,
+  `import-babel --dedupe`, `dedupe-dir`）: これまで manifest 駆動ビルド（`build-dataset --dedupe`）に
+  限定されていた motion-embedding 重複除去を、**任意の RD-MIR コレクション**（HumanML3D/BABEL/Motion-X
+  等の import 出力）に適用できるよう汎用化。`dedupe_mirs(mirs, threshold)` は I/O を持たない純粋関数で、
+  near-duplicate を cosine 類似度でグループ化し各グループ 1 本（最長フレーム）を代表に残す。
+  `import-babel --dedupe` で保存前に除去、`dedupe-dir <dir> [--move]` で既存ディレクトリの
+  `*.rdmir.json` を一括 dedupe（重複は `duplicates/` へ移動）。numpy のみで **CI 検証**。
+
 ## [0.22.0] - 2026-06-04
 
 見せ場（デモ品質）の節目リリース（pre-alpha）。RD-MIR の caption をオーバーレイし、text 検索の

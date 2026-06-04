@@ -27,7 +27,9 @@ robotdance import-motionx motion/000.npy --text texts/000.txt -o clip.rdmir.json
 
 source_uri は `dataset://<name>/<相対パス>` 形式（`<name>` = `amass` / `aist`）で dataset とローカル位置を指定。
 `--dedupe` は motion embedding の near-duplicate を検出し、各グループ 1 本だけ残す（残りは BOM に
-`near-duplicate of <id>` として記録）。
+`near-duplicate of <id>` として記録）。**text-motion adapter（HumanML3D/BABEL/Motion-X）等の任意の
+RD-MIR コレクション**にも `robotdance_motion.dedupe.dedupe_mirs(mirs)`（汎用・I/O なし）/
+`import-babel --dedupe` / `dedupe-dir <dir>` で同じ重複除去を適用できる。
 
 ## ライセンスファイアウォール
 
