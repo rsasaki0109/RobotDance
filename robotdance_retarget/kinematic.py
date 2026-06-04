@@ -17,10 +17,20 @@ import numpy as np
 
 from robotdance_core.rd_mir import RdMir, Skeleton
 from robotdance_core.rd_motion import RdMotion
-from robotdance_core.skeleton import FOOT_JOINTS, JOINT_NAMES, NUM_JOINTS, PARENTS
+from robotdance_core.skeleton import FOOT_JOINTS, JOINT_NAMES, NUM_JOINTS, PARENTS, index_of
 from robotdance_retarget.embodiment import RobotMorphology
 
 _EPS = 1e-8
+
+# 屈曲角が一意に定まる 1-DOF ヒンジ関節（canonical 名 → (近位 joint, ヒンジ joint, 遠位 joint)）。
+# 屈曲角 = 近位 bone と遠位 bone のなす角（直伸=0, 深屈=π 近く）。実 per_joint_limits の上限と比較する。
+# 股・肩は 3-DOF で屈曲角が一意でないため対象外。
+_HINGE_JOINTS = {
+    "left_knee": ("left_hip", "left_knee", "left_ankle"),
+    "right_knee": ("right_hip", "right_knee", "right_ankle"),
+    "left_elbow": ("left_shoulder", "left_elbow", "left_wrist"),
+    "right_elbow": ("right_shoulder", "right_elbow", "right_wrist"),
+}
 
 
 def _bone_directions(kps: np.ndarray) -> np.ndarray:
@@ -69,6 +79,9 @@ def retarget(mir: RdMir, morphology: RobotMorphology) -> RdMotion:
 
     contacts = mir.contacts or {}
     metrics = _retarget_metrics(human, robot, contacts, height_scale)
+    flexion = _joint_flexion_metrics(robot, morphology)
+    if flexion is not None:
+        metrics["joint_flexion"] = flexion
 
     return RdMotion(
         robot_name=morphology.name,
@@ -123,4 +136,44 @@ def _retarget_metrics(
         "foot_sliding_m_per_frame": round(foot_sliding, 5) if foot_sliding is not None else None,
         "physically_validated": False,
         "note": "kinematic preview only — sim/torque/balance は未検証（Phase 2）",
+    }
+
+
+def _joint_flexion_metrics(robot: np.ndarray, morphology: RobotMorphology) -> dict | None:
+    """1-DOF ヒンジ（膝・肘）の屈曲角を導出し、実 per-joint 可動域の超過を測る。
+
+    kinematic retarget は keypoints のみ出すため、膝・肘の屈曲角を近位/遠位 bone のなす角として
+    導出し、embodiment の per_joint_limits（実 URDF 由来の上限）と比較する。actuator-space IK は
+    実 limit で clamp 済みだが、この kinematic 経路はこれまで可動域チェックが無かった。
+    per_joint_limits が無い morphology では None（測れない）。
+    """
+    pjl = morphology.per_joint_limits
+    if not pjl:
+        return None
+    per_joint: dict[str, dict] = {}
+    over_any = np.zeros(robot.shape[0], dtype=bool)
+    for canon, (prox, hinge, dist) in _HINGE_JOINTS.items():
+        lim = pjl.get(canon)
+        if not lim or "position" not in lim:
+            continue
+        d1 = robot[:, index_of(hinge)] - robot[:, index_of(prox)]
+        d2 = robot[:, index_of(dist)] - robot[:, index_of(hinge)]
+        d1 /= np.maximum(np.linalg.norm(d1, axis=1, keepdims=True), _EPS)
+        d2 /= np.maximum(np.linalg.norm(d2, axis=1, keepdims=True), _EPS)
+        flex = np.arccos(np.clip((d1 * d2).sum(axis=1), -1.0, 1.0))  # 直伸=0, 深屈→π
+        upper = float(lim["position"][1])
+        over = flex > upper + 1e-6
+        over_any |= over
+        per_joint[canon] = {
+            "max_flexion_rad": round(float(flex.max()), 4),
+            "limit_upper_rad": round(upper, 4),
+            "violation_ratio": round(float(over.mean()), 4),
+        }
+    if not per_joint:
+        return None
+    return {
+        "tracked": sorted(per_joint),
+        "per_joint": per_joint,
+        "any_violation_ratio": round(float(over_any.mean()), 4),
+        "note": "膝・肘の屈曲角を bone 方向から導出し実可動域上限と比較（1-DOF ヒンジのみ, v0）。",
     }

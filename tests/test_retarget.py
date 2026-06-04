@@ -78,3 +78,55 @@ def test_side_by_side_render(tmp_path: Path) -> None:
         stride=2,
     )
     assert out.exists() and out.stat().st_size > 0
+
+
+def test_retarget_reports_joint_flexion_within_limits() -> None:
+    """retarget_metrics に膝・肘の屈曲メトリクスが付き、ダンスは実可動域内（違反0）。"""
+    import numpy as np
+
+    motion = retarget_to_g1(generate_dance(duration=2.0))
+    jf = motion.retarget_metrics["joint_flexion"]
+    assert set(jf["tracked"]) == {"left_knee", "right_knee", "left_elbow", "right_elbow"}
+    assert jf["any_violation_ratio"] == 0.0
+    for d in jf["per_joint"].values():
+        assert d["max_flexion_rad"] <= d["limit_upper_rad"]
+        assert 0.0 <= d["max_flexion_rad"] <= np.pi
+
+
+def test_joint_flexion_detects_over_bend() -> None:
+    """関節を実可動域上限を超えて屈曲させると violation_ratio が立つ。"""
+    import numpy as np
+
+    from robotdance_core.skeleton import NUM_JOINTS, index_of
+    from robotdance_retarget.kinematic import _joint_flexion_metrics
+    from robotdance_unitree import get_morphology
+
+    morph = get_morphology("unitree_g1")
+    kps = np.zeros((4, NUM_JOINTS, 3))
+    # 左脚: hip 上、knee 下、ankle を knee の真上へ折り畳む（屈曲≈π > 膝上限 2.88）。
+    kps[:, index_of("left_hip")] = [0.0, 0.1, 1.0]
+    kps[:, index_of("left_knee")] = [0.0, 0.1, 0.6]
+    kps[:, index_of("left_ankle")] = [0.0, 0.1, 1.0]   # ankle が hip と同位置＝完全折り畳み
+    # 右脚・腕は直伸（違反なし）にしておく。
+    for prox, mid, dist in [("right_hip", "right_knee", "right_ankle"),
+                            ("left_shoulder", "left_elbow", "left_wrist"),
+                            ("right_shoulder", "right_elbow", "right_wrist")]:
+        kps[:, index_of(prox)] = [0.0, -0.1, 1.0]
+        kps[:, index_of(mid)] = [0.0, -0.1, 0.6]
+        kps[:, index_of(dist)] = [0.0, -0.1, 0.2]
+    jf = _joint_flexion_metrics(kps, morph)
+    assert jf["per_joint"]["left_knee"]["violation_ratio"] == 1.0   # 全フレーム超過
+    assert jf["per_joint"]["right_knee"]["violation_ratio"] == 0.0  # 直伸は違反なし
+    assert jf["any_violation_ratio"] == 1.0
+
+
+def test_joint_flexion_absent_without_per_joint_limits() -> None:
+    """per_joint_limits が無い morphology では屈曲メトリクスは出ない（測れない）。"""
+    import dataclasses
+
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_unitree import get_morphology
+
+    stripped = dataclasses.replace(get_morphology("unitree_g1"), per_joint_limits=None)
+    motion = retarget(generate_dance(duration=1.0), stripped)
+    assert "joint_flexion" not in motion.retarget_metrics

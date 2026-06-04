@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-06-04
+
+実データ深掘り（per-joint limit を retarget 品質評価へ, pre-alpha）。kinematic retarget は keypoints
+のみ出すため可動域チェックが無かった（actuator-space IK は実 limit で clamp 済み）。膝・肘の屈曲角を
+bone 方向から導出し、実 per-joint 可動域の超過を `retarget_metrics` に記録するようにした。
+
+### Added
+- `retarget_metrics.joint_flexion`（`robotdance_retarget.kinematic`）: 1-DOF ヒンジ（膝・肘）の屈曲角を
+  近位/遠位 bone のなす角として導出し、embodiment の per_joint_limits（実 URDF 由来上限）と比較。
+  各関節の max_flexion・上限・violation_ratio と全体の any_violation_ratio を出す。per_joint_limits が
+  無い morphology では出さない（測れない）。股・肩は 3-DOF で屈曲角が一意でないため対象外（v0）。
+
 ## [0.38.0] - 2026-06-04
 
 実データ深掘り（safety guard の per-joint 化を完成, pre-alpha）。guard は位置・トルクが per-joint
