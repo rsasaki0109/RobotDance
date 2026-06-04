@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- CI の actions を Node 24 対応版へ更新（`actions/checkout@v4→v6`, `actions/setup-python@v5→v6`）。
+  GitHub が 2026-06-16 から Node 20 actions を Node 24 へ強制するため、事前に追従（パッケージ不変）。
+
 ## [0.30.0] - 2026-06-04
 
 実データ深掘りの継続リリース（pre-alpha）。v0.29 でバランス判定を凸包化した流れで、**支持多角形が
