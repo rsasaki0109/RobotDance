@@ -11,8 +11,13 @@ pytest.importorskip("mujoco")
 
 from robotdance_core.synthetic import generate_backflip, generate_dance  # noqa: E402
 from robotdance_retarget.kinematic import retarget  # noqa: E402
-from robotdance_sim.mjcf import build_mjcf  # noqa: E402
-from robotdance_sim.mujoco_backend import _zmp_in_support, certify, simulate_certificate  # noqa: E402
+from robotdance_sim.mjcf import FOOT_BOX_HALF_WIDTH, build_mjcf  # noqa: E402
+from robotdance_sim.mujoco_backend import (  # noqa: E402
+    _foot_footprint,
+    _zmp_in_support,
+    certify,
+    simulate_certificate,
+)
 from robotdance_unitree import get_morphology  # noqa: E402
 
 import numpy as np  # noqa: E402
@@ -72,6 +77,24 @@ def test_zmp_support_uses_polygon_not_per_foot_circles() -> None:
     one_foot = np.array([[0.06, 0.26], [0.16, 0.26]])
     assert _zmp_in_support(np.array([0.11, 0.30]), one_foot, margin=0.1)
     assert not _zmp_in_support(np.array([0.11, 0.60]), one_foot, margin=0.1)
+
+
+def test_foot_footprint_has_real_width_for_single_support() -> None:
+    """接地足は幅ゼロの線分でなく、実フットプリント（足 box 幅）の矩形として支持に寄与する。
+
+    旧来は ankle/toe の 2 点だけで横幅ゼロ → 片足支持で横バランスが評価できず margin 頼みだった。
+    footprint は ankle→toe に直交方向へ box 半幅だけ広がり、片足でも横方向の支持を持つ。
+    """
+    ankle = np.array([0.0, 0.10])
+    toe = np.array([0.12, 0.10])  # 前向き（+x）の足
+    corners = np.array(_foot_footprint(ankle, toe))
+    # 4 隅で、横（y）方向に ±box半幅の広がりを持つ。
+    assert len(corners) == 4
+    assert corners[:, 1].max() == pytest.approx(0.10 + FOOT_BOX_HALF_WIDTH)
+    assert corners[:, 1].min() == pytest.approx(0.10 - FOOT_BOX_HALF_WIDTH)
+    # 片足支持: 足中心からやや横にずれた ZMP も、footprint 幅の内側なら支持（margin 0 でも）。
+    lateral = np.array([0.06, 0.10 + FOOT_BOX_HALF_WIDTH * 0.5])
+    assert _zmp_in_support(lateral, corners, margin=0.0), "片足 footprint の横幅内が支持外と誤判定"
 
 
 @pytest.mark.parametrize("robot,total_mass", [("unitree_g1", 35.0), ("unitree_h1", 47.0)])

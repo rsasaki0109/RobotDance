@@ -18,6 +18,13 @@ from robotdance_retarget.embodiment import RobotMorphology
 # 足 bone（ankle→foot）。接地 box を付与する。
 _FOOT_CHILD_JOINTS = {JOINT_NAMES.index("left_foot"), JOINT_NAMES.index("right_foot")}
 
+# 接地 box の半寸（m）: 前後 half-length / 左右 half-width / 厚み half-height。
+# これが実際に sim される足の接地フットプリント。バランス判定（ZMP 支持多角形）も
+# この幅を実フットプリントの単一の出所として参照する（判定と sim の幾何を一致させる）。
+FOOT_BOX_HALF_LENGTH = 0.08
+FOOT_BOX_HALF_WIDTH = 0.04
+_FOOT_BOX_HALF_HEIGHT = 0.02
+
 # セグメント質量比（総質量に対する割合）。出典: Winter, D.A., "Biomechanics and Motor
 # Control of Human Movement"（人体計測の標準セグメント質量比）。
 # canonical 19-joint の各 bone（親→子, key=子 joint 名）へ写像する。pelvis(=root) はハブに割当。
@@ -99,8 +106,9 @@ def build_mjcf(morphology: RobotMorphology, *, total_mass: float = 35.0, ground:
         if j in _FOOT_CHILD_JOINTS:
             # 接地用の足 box（前方に伸ばす）。足部質量の box 側按分。
             box_mass = total_mass * _SEGMENT_MASS_FRACTION[JOINT_NAMES[j]] * _FOOT_BOX_SHARE
+            box_size = f"{FOOT_BOX_HALF_LENGTH} {FOOT_BOX_HALF_WIDTH} {_FOOT_BOX_HALF_HEIGHT}"
             s += (
-                f'{pad}  <geom type="box" pos="{_v(endpoint)}" size="0.08 0.04 0.02" '
+                f'{pad}  <geom type="box" pos="{_v(endpoint)}" size="{box_size}" '
                 f'mass="{box_mass:.4f}" friction="1 0.05 0.01"/>\n'
             )
         for c in children[j]:

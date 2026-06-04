@@ -22,7 +22,7 @@ from robotdance_core.rd_motion import RdMotion
 from robotdance_core.skeleton import FOOT_JOINTS, JOINT_NAMES, PARENTS
 from robotdance_retarget.embodiment import RobotMorphology
 
-from .mjcf import build_mjcf
+from .mjcf import FOOT_BOX_HALF_WIDTH, build_mjcf
 
 _G = 9.81
 _EPS = 1e-9
@@ -77,7 +77,7 @@ def simulate_certificate(
     *,
     total_mass: float | None = None,
     torque_limit: float | None = None,
-    support_margin: float = 0.12,
+    support_margin: float = 0.05,
 ) -> dict[str, Any]:
     """RD-Motion を MuJoCo 物理で検証し sim_certificate dict を返す。
 
@@ -85,6 +85,11 @@ def simulate_certificate(
     caller が明示すればそれを優先。旧実装は G1 値（35kg / 80N·m）をハードコードしており、
     H1（47kg / 160N·m）の certify でも G1 のトルク上限で torque_ratio を判定していた
     （= v0.27 の SimDefaults を導入したのにこの経路だけ配線漏れ）。
+
+    support_margin: ZMP が支持多角形（実フットプリント矩形の凸包）の外へ許容される距離（m）。
+        旧既定 0.12 は支持多角形に足の横幅が無かった分（半幅~0.04）を margin で誤魔化していた。
+        本実装は足幅を実フットプリントとして明示するので、margin は純粋なスラック（ZMP 推定誤差＋
+        未モデルの踵 ~0.05）に縮小（実測: 安定なダンスの ZMP は足面から最大 4.4mm）。
     """
     import mujoco
 
@@ -144,21 +149,22 @@ def simulate_certificate(
     zmp[safe, 0] = com[safe, 0] - com[safe, 2] * com_acc[safe, 0] / denom[safe]
     zmp[safe, 1] = com[safe, 1] - com[safe, 2] * com_acc[safe, 1] / denom[safe]
 
-    # 接地 / バランス判定。支持点は接地足の ankle と toe の両方（foot 面を近似）。
+    # 接地 / バランス判定。支持多角形は接地足の**実フットプリント矩形**（ankle→toe を長辺、
+    # 足 box 幅を短辺）の凸包。旧来は ankle/toe の 2 点（＝幅ゼロの前後線分）だけで、足の横幅を
+    # 無視し margin で誤魔化していた。特に片足支持では幅ゼロになり横バランスが評価できなかった。
     contacts = motion.contact_schedule or {}
     airborne = 0
     unsupported = 0
     for f in range(n):
-        grounded_idx: list[int] = []
+        corners: list[np.ndarray] = []
         for side, (ankle, toe) in FOOT_JOINTS.items():
             if np.asarray(contacts.get(f"{side}_foot", [False] * n), dtype=bool)[f]:
-                grounded_idx += [ankle, toe]
-        if not grounded_idx:
+                corners += _foot_footprint(kps[f][ankle][:2], kps[f][toe][:2])
+        if not corners:
             airborne += 1
             unsupported += 1
             continue
-        pts = kps[f][grounded_idx][:, :2]  # 接地足の xy（ankle + toe）
-        if not _zmp_in_support(zmp[f], pts, support_margin):
+        if not _zmp_in_support(zmp[f], np.array(corners), support_margin):
             unsupported += 1
 
     airborne_ratio = airborne / n
@@ -208,6 +214,21 @@ def certify(motion: RdMotion, morphology: RobotMorphology, **kwargs: Any) -> RdM
     """sim_certificate を計算して motion に格納し、同じ motion を返す。"""
     motion.sim_certificate = simulate_certificate(motion, morphology, **kwargs)
     return motion
+
+
+def _foot_footprint(ankle_xy: np.ndarray, toe_xy: np.ndarray) -> list[np.ndarray]:
+    """1 足の接地フットプリント矩形 4 隅（xy）。長辺=ankle→toe, 短辺=足 box 幅。
+
+    旧来は ankle/toe の 2 点だけを支持点にしており、足の横幅（実 sim の foot box 幅）を
+    無視していた。これにより片足支持では幅ゼロの線分になり横バランスが評価できなかった。
+    ankle→toe 方向に直交する向きへ box 半幅だけ広げ、実フットプリント相当の面を与える。
+    """
+    fwd = toe_xy - ankle_xy
+    norm = float(np.linalg.norm(fwd))
+    # 足が xy で潰れている（真上から踏む）退避: 既定の前向き。
+    fdir = fwd / norm if norm > 1e-6 else np.array([1.0, 0.0])
+    perp = np.array([-fdir[1], fdir[0]]) * FOOT_BOX_HALF_WIDTH
+    return [ankle_xy + perp, ankle_xy - perp, toe_xy + perp, toe_xy - perp]
 
 
 def _zmp_in_support(zmp_xy: np.ndarray, foot_pts: np.ndarray, margin: float) -> bool:
