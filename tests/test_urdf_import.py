@@ -98,3 +98,32 @@ def test_g1_link_map_covers_limbs() -> None:
     # 13 limb joint（pelvis + 各肢）をマップ、torso/toe は合成。
     assert len(G1_LINK_MAP) == 13
     assert "left_wrist" in G1_LINK_MAP and "right_ankle" in G1_LINK_MAP
+
+
+def test_urdf_import_brings_real_per_joint_limits(tmp_path: Path) -> None:
+    """URDF 由来 morphology は actuated 関節に実 limit を持ち、合成関節は placeholder に落ちる。"""
+    morph = urdf_to_morphology(_fixture_urdf(tmp_path / "g1.urdf"), name="g1_fixture")
+    jl = morph.to_rd_embodiment()["joint_limits"]
+    # fixture の actuated 関節は limit [-1,1] / effort 50 / velocity 10 を持つ。
+    assert jl["left_knee"] == {"position": [-1.0, 1.0], "velocity": 10.0, "torque": 50.0}
+    assert jl["left_shoulder"]["position"] == [-1.0, 1.0]
+    # 実 limit を取り込んだので placeholder ±3.14 ではない。
+    assert jl["left_knee"]["position"] != [-3.14, 3.14]
+    # actuator の無い合成関節（toe / 頭）は placeholder にフォールバック。
+    assert jl["left_foot"]["position"] == [-3.14, 3.14]
+    assert jl["head"]["position"] == [-3.14, 3.14]
+
+
+def test_canonical_envelope_aggregates_multi_dof_limb() -> None:
+    """1 canonical 関節に複数 DOF がある場合、位置は最広・速度/トルクは最小に集約される。"""
+    from robotdance_unitree.urdf_import import canonical_joint_limits
+
+    actuated = {
+        "left_hip_pitch_joint": {"position": [-2.5, 2.9], "velocity": 32.0, "torque": 88.0},
+        "left_hip_roll_joint": {"position": [-0.5, 3.0], "velocity": 30.0, "torque": 90.0},
+        "left_hip_yaw_joint": {"position": [-2.8, 2.8], "velocity": 32.0, "torque": 88.0},
+    }
+    out = canonical_joint_limits(actuated)["left_hip"]
+    assert out["position"] == [-2.8, 3.0]   # [min lower, max upper]
+    assert out["velocity"] == 30.0          # 最も厳しい（min）
+    assert out["torque"] == 88.0            # 最も厳しい（min）

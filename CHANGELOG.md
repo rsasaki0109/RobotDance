@@ -5,7 +5,27 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-06-04
+
+実データ深掘りの継続リリース（pre-alpha）。embodiment の joint limit が ±3.14 rad の placeholder
+だった（実機の膝は屈曲のみ・足首は狭レンジ・トルクは膝139/腕25 N·m と桁違い、なのに全関節 ±3.14・
+速度 12・トルク 60 を一律出力していた）欠陥を、**実 G1/H1 URDF 由来の per-joint limit** へ置き換えた。
+1 canonical ball joint に複数 DOF が対応するため envelope 集約（位置=最広レンジ、速度/トルク=最も厳しい
+min）し、actuator の無い合成関節（torso 連鎖・toe）だけ placeholder に残す。数値定数のみ埋め込み
+（mesh/URDF 非同梱, license-safe）で、URDF が無い CI でも既定 embodiment が実 limit を報告する。
+
+### Fixed
+- **RD-Embodiment の joint_limits を実 URDF 由来へ**（`robotdance_retarget.embodiment` /
+  `robotdance_unitree.urdf_import` / `g1` / `h1`）: `RobotMorphology` に `per_joint_limits` を追加し、
+  `to_rd_embodiment()` は actuator がある関節は実値、合成関節のみ placeholder を出力。実機の事実が
+  そのまま出る（G1 膝 [-0.087, 2.880]・トルク 139、H1 肩 yaw は 4.45rad で ±3.14 を超過、等）。
+
 ### Added
+- `urdf_import.parse_actuated_limits` / `canonical_joint_limits`: URDF の revolute 関節 limit を
+  読み、canonical 関節へ envelope 集約する。`urdf_to_morphology` が自動で取り込む。
+- `g1.G1_JOINT_LIMITS` / `h1.H1_JOINT_LIMITS`: 実 URDF 由来の canonical 関節 limit 定数。
+  `test_real_g1_urdf` が実 URDF からの算出値と完全一致を検証（drift 検出）。
+- `import-urdf` CLI が取り込んだ実 joint limit の関節数を表示。
 - README hero asset「Human → Humanoid」横並び GIF と生成スクリプト
   [`scripts/render_human_vs_robot_gif.py`](scripts/render_human_vs_robot_gif.py)。**同一の合成ダンス**を、
   左は canonical 19-joint 人間スケルトン（matplotlib）、右は actuator-space IK で実 G1 の 23 関節角へ

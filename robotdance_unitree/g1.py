@@ -45,11 +45,32 @@ G1_REST = np.array(
     dtype=np.float64,
 )
 
+# 実 g1_23dof URDF 由来の canonical 関節 limit（位置 rad / 速度 rad·s⁻¹ / トルク N·m）。
+# 1 canonical ball joint に複数 DOF が対応するため envelope 集約（位置=最広レンジ、速度/トルク=min）。
+# 数値のみ（mesh/URDF 非同梱, license-safe）。test_real_g1_urdf が実 URDF と一致を検証。
+# 膝は屈曲のみ（逆屈不可）、足首は狭レンジ、トルクは膝139/腕25 と関節ごとに大きく異なる。
+G1_JOINT_LIMITS: dict[str, dict[str, object]] = {
+    "left_hip": {"position": [-2.7576, 2.9671], "velocity": 32.0, "torque": 88.0},
+    "right_hip": {"position": [-2.9671, 2.8798], "velocity": 32.0, "torque": 88.0},
+    "left_knee": {"position": [-0.0873, 2.8798], "velocity": 20.0, "torque": 139.0},
+    "right_knee": {"position": [-0.0873, 2.8798], "velocity": 20.0, "torque": 139.0},
+    "left_ankle": {"position": [-0.8727, 0.5236], "velocity": 30.0, "torque": 35.0},
+    "right_ankle": {"position": [-0.8727, 0.5236], "velocity": 30.0, "torque": 35.0},
+    "left_shoulder": {"position": [-3.0892, 2.6704], "velocity": 37.0, "torque": 25.0},
+    "right_shoulder": {"position": [-3.0892, 2.6704], "velocity": 37.0, "torque": 25.0},
+    "left_elbow": {"position": [-1.0472, 2.0944], "velocity": 37.0, "torque": 25.0},
+    "right_elbow": {"position": [-1.0472, 2.0944], "velocity": 37.0, "torque": 25.0},
+    "left_wrist": {"position": [-1.9722, 1.9722], "velocity": 37.0, "torque": 25.0},
+    "right_wrist": {"position": [-1.9722, 1.9722], "velocity": 37.0, "torque": 25.0},
+    "spine": {"position": [-2.618, 2.618], "velocity": 32.0, "torque": 88.0},
+}
+
 MORPHOLOGY = RobotMorphology(
     name=ROBOT_NAME,
     rest_pose=G1_REST,
     urdf_ref="unitree_ros g1_description/g1_23dof.urdf（実寸由来, 本体は別途取得）",
     runtime_adapter="unitree_sdk2",
+    per_joint_limits=G1_JOINT_LIMITS,
     # G1（1.29m, ~35kg）の関節 PD で実寸を支える既定。kd=6 で安定（H1 ほどの慣性は無い）。
     sim_defaults=SimDefaults(total_mass=35.0, kp=150.0, kd=6.0, torque_limit=80.0),
 )

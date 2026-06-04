@@ -76,6 +76,39 @@ def test_actuator_ik_on_real_urdf_converges() -> None:
     assert ang.shape[1] == 23
 
 
+@_skip
+def test_g1_embedded_joint_limits_match_real_urdf() -> None:
+    """g1.py に埋め込んだ G1_JOINT_LIMITS が実 g1_23dof URDF の canonical envelope と一致する。
+
+    数値定数は手で埋め込んでいるため、実 URDF からの算出値と完全一致することを実機で検証し、
+    drift（実機更新や転記ミス）を捕捉する。
+    """
+    from robotdance_unitree.g1 import G1_JOINT_LIMITS
+    from robotdance_unitree.urdf_import import canonical_joint_limits, parse_actuated_limits
+
+    derived = canonical_joint_limits(parse_actuated_limits(_URDF))
+    assert derived == G1_JOINT_LIMITS
+    # 実機の事実: 膝は屈曲のみ（逆屈不可）でトルクは腕より強力。
+    assert G1_JOINT_LIMITS["left_knee"]["position"][0] > -0.2
+    assert abs(G1_JOINT_LIMITS["left_knee"]["position"][1] - 2.8798) < 1e-4
+    assert G1_JOINT_LIMITS["left_knee"]["torque"] == 139.0
+
+
+@_skip_h1
+def test_h1_embedded_joint_limits_match_real_urdf() -> None:
+    """h1.py の H1_JOINT_LIMITS が実 h1.urdf と一致し、肩 yaw は ±3.14 を超過する。"""
+    from robotdance_unitree.h1 import H1_JOINT_LIMITS
+    from robotdance_unitree.urdf_import import canonical_joint_limits, parse_actuated_limits
+
+    derived = canonical_joint_limits(parse_actuated_limits(_H1_URDF))
+    assert derived == H1_JOINT_LIMITS
+    # H1 肩 yaw は 4.45rad に達する → placeholder ±3.14 は逆に過小だった。
+    assert H1_JOINT_LIMITS["left_shoulder"]["position"][1] > 3.14
+    assert H1_JOINT_LIMITS["left_knee"]["torque"] == 300.0
+    # H1 は wrist actuator が無い（腕が肘止まり）→ 埋め込みにも wrist は無い。
+    assert "left_wrist" not in H1_JOINT_LIMITS
+
+
 @_skip_h1
 def test_h1_proxy_matches_real_urdf_dimensions() -> None:
     """簡略 H1 morphology が実 h1.urdf の実寸に一致する（旧プロキシは bone 相対誤差 ~33%）。"""

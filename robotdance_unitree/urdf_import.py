@@ -46,6 +46,59 @@ H1_LINK_MAP = {
 }
 
 
+# canonical 関節 → その limb に属する actuated URDF 関節名の prefix。実機は 1 canonical
+# ball joint に複数 DOF（hip=pitch/roll/yaw 等）が対応するため、その limb の全 DOF を envelope
+# 集約して canonical 1 関節の概略 limit にする（v0 ball-joint 近似に対する正直な要約）。
+_CANONICAL_ACTUATOR_PREFIX: dict[str, tuple[str, ...]] = {
+    "left_hip": ("left_hip",), "right_hip": ("right_hip",),
+    "left_knee": ("left_knee",), "right_knee": ("right_knee",),
+    "left_ankle": ("left_ankle",), "right_ankle": ("right_ankle",),
+    "left_shoulder": ("left_shoulder",), "right_shoulder": ("right_shoulder",),
+    "left_elbow": ("left_elbow",), "right_elbow": ("right_elbow",),
+    "left_wrist": ("left_wrist",), "right_wrist": ("right_wrist",),
+    "spine": ("waist", "torso"),  # 胴体 yaw（G1: waist_yaw / H1: torso）
+}
+
+
+def parse_actuated_limits(path: str | Path) -> dict[str, dict[str, object]]:
+    """URDF の revolute 関節ごとに {position[lo,hi], velocity, torque} を返す（actuated 名がキー）。"""
+    root = ET.parse(Path(path)).getroot()
+    out: dict[str, dict[str, object]] = {}
+    for j in root.findall("joint"):
+        if j.get("type") != "revolute":
+            continue
+        lim = j.find("limit")
+        if lim is None or lim.get("lower") is None:
+            continue
+        out[j.get("name")] = {
+            "position": [float(lim.get("lower")), float(lim.get("upper"))],
+            "velocity": float(lim.get("velocity", 0.0)),
+            "torque": float(lim.get("effort", 0.0)),
+        }
+    return out
+
+
+def canonical_joint_limits(actuated: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
+    """actuated 関節 limit を canonical 関節へ envelope 集約する。
+
+    位置は limb 内 DOF の最広レンジ [min lower, max upper]、速度・トルクは最も厳しい（min）値を採る
+    （feasibility を過大評価しない保守側）。actuator が 1 つも無い canonical は省く。
+    """
+    out: dict[str, dict[str, object]] = {}
+    for canon, prefixes in _CANONICAL_ACTUATOR_PREFIX.items():
+        dofs = [v for name, v in actuated.items()
+                if any(name.startswith(p + "_") for p in prefixes)]
+        if not dofs:
+            continue
+        out[canon] = {
+            "position": [round(min(d["position"][0] for d in dofs), 4),
+                         round(max(d["position"][1] for d in dofs), 4)],
+            "velocity": round(min(float(d["velocity"]) for d in dofs), 2),
+            "torque": round(min(float(d["torque"]) for d in dofs), 2),
+        }
+    return out
+
+
 def parse_urdf(path: str | Path) -> tuple[dict[str, tuple[str, np.ndarray, np.ndarray]], str]:
     """URDF を読み、child_link → (parent_link, origin_xyz, origin_rpy) と root link を返す。"""
     root = ET.parse(Path(path)).getroot()
@@ -118,9 +171,11 @@ def urdf_to_morphology(
     joints, root_link = parse_urdf(path)
     link_pos = link_world_positions(joints, root_link)
     rest = build_rest_pose(link_pos, link_map or G1_LINK_MAP)
+    per_joint = canonical_joint_limits(parse_actuated_limits(path))
     return RobotMorphology(
         name=name, rest_pose=rest,
         urdf_ref=urdf_ref or str(path), runtime_adapter="unitree_sdk2",
+        per_joint_limits=per_joint or None,
     )
 
 

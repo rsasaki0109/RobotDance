@@ -34,6 +34,22 @@ def test_each_embodiment_conforms(name: str) -> None:
     jsonschema.Draft202012Validator(_EMB_SCHEMA).validate(get_morphology(name).to_rd_embodiment())
 
 
+@pytest.mark.parametrize("name", sorted(EMBODIMENTS))
+def test_embodiment_reports_real_joint_limits_not_placeholder(name: str) -> None:
+    """既定 embodiment（URDF 無しでも）が実 actuator の joint limit を報告する。
+
+    膝は屈曲のみ（実機は逆屈不可）で placeholder ±3.14 とは別物、合成 toe は placeholder のまま。
+    """
+    jl = get_morphology(name).to_rd_embodiment()["joint_limits"]
+    # 膝は逆屈できない（lower > -0.5）し、placeholder ±3.14 ではない。
+    assert jl["left_knee"]["position"][0] > -0.5
+    assert jl["left_knee"]["position"] != [-3.14, 3.14]
+    # 膝トルクは腕より大きい（実機の事実: 脚の方が強力）。
+    assert jl["left_knee"]["torque"] > jl["left_elbow"]["torque"]
+    # actuator の無い合成 toe は placeholder のまま（正直に区別）。
+    assert jl["left_foot"]["position"] == [-3.14, 3.14]
+
+
 def test_h1_is_taller_than_g1_and_human() -> None:
     g1_h = get_morphology("unitree_g1").nominal_height
     h1_h = get_morphology("unitree_h1").nominal_height

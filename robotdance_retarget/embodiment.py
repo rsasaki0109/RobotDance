@@ -14,8 +14,9 @@ import numpy as np
 
 from robotdance_core.skeleton import JOINT_NAMES, PARENTS
 
-# 概略の joint limit プレースホルダ（位置 rad / 速度 rad·s⁻¹ / トルク N·m）。
-# 実機の正確値は Phase 2 で URDF から取り込む。
+# actuator の無い合成関節（torso 連鎖・toe 等）向けの概略 joint limit プレースホルダ
+# （位置 rad / 速度 rad·s⁻¹ / トルク N·m）。実 actuator がある関節は URDF 由来の
+# `per_joint_limits`（urdf_to_morphology / 各 embodiment の *_JOINT_LIMITS）で上書きする。
 _GENERIC_LIMIT = {"position": [-3.14, 3.14], "velocity": 12.0, "torque": 60.0}
 
 _PARENT_IDX = np.array([max(p, 0) for p in PARENTS])
@@ -48,6 +49,9 @@ class RobotMorphology:
     end_effectors: tuple[str, ...] = ("left_foot", "right_foot", "left_wrist", "right_wrist")
     control_modes: tuple[str, ...] = ("position", "policy")
     joint_limit: dict[str, Any] = field(default_factory=lambda: dict(_GENERIC_LIMIT))
+    # canonical 関節名 → 実 URDF 由来の {position[lo,hi], velocity, torque}。actuator がある
+    # 関節のみ。未設定（None）や未収載の関節は `joint_limit` プレースホルダにフォールバックする。
+    per_joint_limits: dict[str, Any] | None = None
     sim_defaults: SimDefaults = field(default_factory=SimDefaults)
 
     def __post_init__(self) -> None:
@@ -67,10 +71,17 @@ class RobotMorphology:
         """rest の概略全高（足先〜頭頂）。"""
         return float(self.rest_pose[:, 2].max() - self.rest_pose[:, 2].min())
 
+    def limit_for(self, joint_name: str) -> dict[str, Any]:
+        """canonical 関節の limit を返す。実 per-joint limit があればそれ、無ければ placeholder。"""
+        if self.per_joint_limits and joint_name in self.per_joint_limits:
+            return dict(self.per_joint_limits[joint_name])
+        return dict(self.joint_limit)
+
     def to_rd_embodiment(self) -> dict[str, Any]:
         """RD-Embodiment v0 schema 適合の dict を返す。
 
         v0 では canonical joint 名を流用（実 actuator 名への写像は Phase 2）。
+        joint_limits は実 actuator がある関節は URDF 由来の実値、合成関節は placeholder。
         """
         bones = self.bone_lengths
         return {
@@ -78,7 +89,7 @@ class RobotMorphology:
             "robot_name": self.name,
             "urdf_ref": self.urdf_ref,
             "joint_names": list(JOINT_NAMES),
-            "joint_limits": {name: dict(self.joint_limit) for name in JOINT_NAMES},
+            "joint_limits": {name: self.limit_for(name) for name in JOINT_NAMES},
             "link_lengths": {
                 JOINT_NAMES[j]: float(bones[j])
                 for j in range(len(JOINT_NAMES))

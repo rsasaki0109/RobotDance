@@ -464,8 +464,10 @@ def _import_urdf(urdf: Path, name: str, save: Path | None) -> int:
     schema = json.loads(
         (_SPECS_DIR / "rd-embodiment" / "rd-embodiment.schema.json").read_text(encoding="utf-8"))
     jsonschema.Draft202012Validator(schema).validate(emb)
+    n_real = len(morph.per_joint_limits or {})
     print(f"✓ URDF → RobotMorphology: {name}")
     print(f"  nominal_height={morph.nominal_height:.3f} m  joints={len(emb['joint_names'])}")
+    print(f"  実 joint limit を取り込み: {n_real} 関節（残りは合成のため placeholder）")
     print("  ⚠️ 寸法は実 URDF 由来。torso 連鎖・toe は合成、質量は近似（v0）。")
     if save is not None:
         save.write_text(json.dumps(emb, indent=2), encoding="utf-8")

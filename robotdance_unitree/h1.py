@@ -44,11 +44,30 @@ H1_REST = np.array(
     dtype=np.float64,
 )
 
+# 実 h1.urdf 由来の canonical 関節 limit（envelope 集約。位置 rad / 速度 rad·s⁻¹ / トルク N·m）。
+# H1 は腕が肘止まりで wrist actuator が無いため wrist は省略（合成前腕は limit 対象外）。
+# 肩 yaw は 4.45rad に達し、placeholder ±3.14 は逆に過小評価していた。膝トルク 300N·m と強力。
+# test_real_h1_urdf が実 URDF と一致を検証。
+H1_JOINT_LIMITS: dict[str, dict[str, object]] = {
+    "left_hip": {"position": [-3.14, 2.53], "velocity": 23.0, "torque": 200.0},
+    "right_hip": {"position": [-3.14, 2.53], "velocity": 23.0, "torque": 200.0},
+    "left_knee": {"position": [-0.26, 2.05], "velocity": 14.0, "torque": 300.0},
+    "right_knee": {"position": [-0.26, 2.05], "velocity": 14.0, "torque": 300.0},
+    "left_ankle": {"position": [-0.87, 0.52], "velocity": 9.0, "torque": 40.0},
+    "right_ankle": {"position": [-0.87, 0.52], "velocity": 9.0, "torque": 40.0},
+    "left_shoulder": {"position": [-2.87, 4.45], "velocity": 9.0, "torque": 18.0},
+    "right_shoulder": {"position": [-4.45, 2.87], "velocity": 9.0, "torque": 18.0},
+    "left_elbow": {"position": [-1.25, 2.61], "velocity": 20.0, "torque": 18.0},
+    "right_elbow": {"position": [-1.25, 2.61], "velocity": 20.0, "torque": 18.0},
+    "spine": {"position": [-2.35, 2.35], "velocity": 23.0, "torque": 200.0},
+}
+
 MORPHOLOGY = RobotMorphology(
     name=ROBOT_NAME,
     rest_pose=H1_REST,
     urdf_ref="unitree_ros h1_description/urdf/h1.urdf（実寸由来, 本体は別途取得）",
     runtime_adapter="unitree_sdk2",
+    per_joint_limits=H1_JOINT_LIMITS,
     # H1 は G1 より背が高く（1.66m）重い（47kg）→ 高い kd が必須（kd=6 では PD 振動で転倒）。
     sim_defaults=SimDefaults(total_mass=47.0, kp=200.0, kd=10.0, torque_limit=160.0),
 )
