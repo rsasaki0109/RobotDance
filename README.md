@@ -391,13 +391,13 @@ robotdance_viewer/      side-by-side video/motion/robot visualization
 
 ## ステータス
 
-🏁 **v0.26.0（pre-alpha, [CHANGELOG](CHANGELOG.md)）。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
+🏁 **v0.27.0（pre-alpha, [CHANGELOG](CHANGELOG.md)）。** specs v0、RD-MIR/RD-Motion の Python モデル、合成モーション生成、
 **local 動画 → RD-MIR（MediaPipe Pose / HMR 4DHumans・GVHMR SMPL adapter）+ smoothing + 2D overlay**、
 **AMASS / AIST++ / HumanML3D / BABEL ローダ + RD-Manifest license firewall（Data Bill of Materials）**、
 **motion embeddings + 類似検索 + Motion Map + 重複除去（+ 学習 encoder option）**、
 **テキスト → モーション意味検索（contrastive text-motion）**、**モーション → 離散トークン（VQ-VAE）+ 生成・補完・長尺（token prior）+ テキスト条件付き生成（text2motion）+ 双方向 denoiser（ノイズ除去・in-betweening）**、
 **G1/H1 への kinematic retarget（multi-embodiment）+ アクチュエータ空間 IK（実 G1 関節角）**、
-**MuJoCo 物理検証（sim_certificate / PASS・REJECT）+ RL tracking policy baseline（物理上で参照を追従, PPO, base 非駆動, 1 方策で複数運動を汎化）+ joint-space safety guard（位置/速度/加速度/トルク）**、
+**MuJoCo 物理検証（sim_certificate / PASS・REJECT）+ RL tracking policy baseline（物理上で参照を追従, PPO, base 非駆動, 1 方策で複数運動を汎化, embodiment 固有 PD 既定で G1/H1 とも安定）+ joint-space safety guard（位置/速度/加速度/トルク）**、
 **motion × robot benchmark + leaderboard + extraction benchmark（MPJPE/PA-MPJPE/PCK/jitter）**、**Model Card 生成（lineage/license/failure/safety, §7）**、**ROS2 runtime（safety guard: Cartesian + 関節空間 位置/速度/加速度クランプ + motion server + /joint_states, Jazzy）**、
 3D & multi-panel ビューアまで動作
 （`demo-pipeline`/`extract`/`import-hmr`/`import-humanml3d`/`import-babel`/`import-motionx`/`dedupe-dir`/`model-card`/`cards-index`/`benchmark-extraction`/`video-to-robot`/`build-dataset`/`benchmark`/`serve`/`demo-motion-map`/`train-text-motion`/`search-text`/`train-tokenizer`/`demo-tokenizer`/`train-prior`/`demo-generate`/`train-denoiser`/`demo-denoise`/`train-text2motion`/`generate-text`/`train-tracking`/`demo-track`/`demo-track-multi`/`demo-joint-safety`/`sim-backends`/`export-policy`/`retarget-ik`/`demo-runtime`/`overlay`/`smooth`/`demo-*` 他）。

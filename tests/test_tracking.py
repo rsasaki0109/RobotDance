@@ -56,6 +56,36 @@ def test_env_pd_baseline_is_stable() -> None:
     assert np.isfinite(info["pose_rmse"])
 
 
+def test_h1_pd_baseline_is_stable_with_morphology_defaults() -> None:
+    """H1 も morphology 由来の sim_defaults だけで PD-only 追従が安定する（転倒しない）。
+
+    real-data validation: H1 は G1 より背が高く（1.66m）手足が長いため実効関節慣性が大きく、
+    G1 既定 kd=6 だと PD が振動して横倒れする。embodiment 固有 sim_defaults（kd=10, mass=47）が
+    自動適用されることで、明示ゲイン無しでも安定することを担保する（機種取り違え回帰）。
+    """
+    morph = get_morphology("unitree_h1")
+    sd = morph.sim_defaults
+    # H1 は G1 より高い kd / 質量が既定として紐付いている。
+    assert sd.kd > get_morphology("unitree_g1").sim_defaults.kd
+    assert sd.total_mass > get_morphology("unitree_g1").sim_defaults.total_mass
+
+    # 複数のダンス振幅で、明示ゲイン無し（=morphology 既定）で全フレーム生存し直立を保つ。
+    for arm_amp, sway_amp in [(0.6, 0.08), (1.2, 0.15), (1.6, 0.18)]:
+        ref = retarget(generate_dance(duration=1.0, arm_amp=arm_amp, sway_amp=sway_amp), morph)
+        env = TrackingEnv(ref, morph)  # 明示ゲイン無し → morphology.sim_defaults
+        env.reset()
+        survived = 0
+        info = {"upright": 1.0, "pose_rmse": 0.0}
+        for _ in range(env.T - 1):
+            _o, _r, d, info = env.step(np.zeros(env.action_dim))
+            survived += 1
+            if d:
+                break
+        assert survived == env.T - 1, f"H1 が arm={arm_amp} で {survived}/{env.T-1} で転倒"
+        # 高さ判定だけでなく直立度でも健全（kd 不足の「偽生存」横倒れを排除）。
+        assert info["upright"] > 0.9
+
+
 def test_ppo_trains_and_rolls_out_valid_motion() -> None:
     """PPO が学習でき、物理ロールアウトが schema 適合の RD-Motion になる。"""
     ref, morph = _gentle_reference()

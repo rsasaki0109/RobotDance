@@ -5,6 +5,30 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-06-04
+
+実データ深掘りの継続リリース（pre-alpha）。v0.26 で G1/H1 の体格を実寸化した結果、**より背が高く
+（1.66m）手足の長い H1 が、G1 専用に調整された TrackingEnv 既定ゲインでは PD 振動で横倒れする**
+バグを発見・修正。embodiment 固有の sim 既定値（質量・PD ゲイン）を morphology に紐付け、
+「既定値が特定機種に隠れ調整される」事故構造そのものを解消した。
+
+### Added
+- **embodiment 固有の sim 既定値 `SimDefaults`**（`robotdance_retarget.embodiment`）: 機種ごとの概算
+  質量・関節 PD ゲイン（`total_mass` / `kp` / `kd` / `torque_limit`）を `RobotMorphology.sim_defaults`
+  として保持。G1=（35kg, kp150, kd6, tl80）、H1=（47kg, kp200, **kd10**, tl160）。`TrackingEnv` は
+  caller が明示しない限りこの morphology 既定を採用する（G1 既定の H1 への誤流用を防止）。
+- **H1 sim 安定性の回帰テスト**（`tests/test_tracking.py::test_h1_pd_baseline_is_stable_with_morphology_defaults`）:
+  H1 が morphology 既定だけで複数ダンス振幅で PD-only 追従し、全フレーム生存かつ upright>0.9 を保つこと、
+  および H1 の既定 kd / 質量が G1 より大きいことを担保（合成ダンス＋プロキシで完結 → CI 実行）。
+
+### Changed
+- **TrackingEnv の質量・PD ゲインを morphology 由来に変更**（`robotdance_sim.tracking_env`）: 旧来は
+  G1 専用の固定既定（mass=35, kp=150, kd=6）をハードコードしており、H1 に流用すると **kd 不足で PD が
+  振動して横倒れ**していた（H1: G1 既定で 15/29 転倒・upright 0.18 へ崩壊）。`total_mass` / `kp` / `kd` /
+  `torque_limit` の既定を `None` とし、未指定時は `morphology.sim_defaults` から取得するよう変更。
+  これにより H1 は明示ゲイン無しでも全ダンス振幅で安定（29/29 生存・upright 1.0・pose RMSE 0.21〜0.23）、
+  G1 は従来挙動を維持。real-data validation で「実寸化が露呈させた機種取り違えバグ」を closed。
+
 ## [0.26.0] - 2026-06-04
 
 実機忠実度の節目リリース（pre-alpha）。「広く v0 を積む」から方針転換し、**実 Unitree URDF で深掘り検証**
@@ -43,6 +67,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   実行し（`ROBOTDANCE_G1_URDF` か既知パスから探索、無ければ skip = CI 非破壊）、簡略 morphology が
   実 URDF 寸法（nominal 1cm 以内 / bone MAE < 1cm）と一致し、actuator IK が収束することを検証する。
 
+[0.27.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.27.0
 [0.26.0]: https://github.com/rsasaki0109/RobotDance/releases/tag/v0.26.0
 
 ## [0.25.0] - 2026-06-04

@@ -39,15 +39,24 @@ class TrackingEnv:
         reference: RdMotion,
         morphology: RobotMorphology,
         *,
-        total_mass: float = 35.0,
-        kp: float = 150.0,   # 実寸 G1（nominal 1.29m）を関節 PD で支える剛性。旧 60 は実寸で転倒した
-        kd: float = 6.0,
-        torque_limit: float = 80.0,
+        total_mass: float | None = None,
+        kp: float | None = None,
+        kd: float | None = None,
+        torque_limit: float | None = None,
         residual_scale: float = 6.0,
         fall_height_ratio: float = 0.5,
         upright_min: float = 0.3,
     ) -> None:
         import mujoco
+
+        # 質量・PD ゲインは embodiment 固有の既定（morphology.sim_defaults）から取る。
+        # caller が明示した値があればそれを優先。これにより「G1 既定が H1 に流用されて転倒」
+        # のような機種取り違えバグを防ぐ（H1 は kd=6 だと PD 振動で横倒れ → kd=10 が必要）。
+        sd = morphology.sim_defaults
+        total_mass = sd.total_mass if total_mass is None else total_mass
+        kp = sd.kp if kp is None else kp
+        kd = sd.kd if kd is None else kd
+        torque_limit = sd.torque_limit if torque_limit is None else torque_limit
 
         self._mj = mujoco
         self.reference = reference

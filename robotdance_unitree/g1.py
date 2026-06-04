@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from robotdance_retarget.embodiment import RobotMorphology
+from robotdance_retarget.embodiment import RobotMorphology, SimDefaults
 
 ROBOT_NAME = "unitree_g1"
 
@@ -50,6 +50,8 @@ MORPHOLOGY = RobotMorphology(
     rest_pose=G1_REST,
     urdf_ref="unitree_ros g1_description/g1_23dof.urdf（実寸由来, 本体は別途取得）",
     runtime_adapter="unitree_sdk2",
+    # G1（1.29m, ~35kg）の関節 PD で実寸を支える既定。kd=6 で安定（H1 ほどの慣性は無い）。
+    sim_defaults=SimDefaults(total_mass=35.0, kp=150.0, kd=6.0, torque_limit=80.0),
 )
 
 # 後方互換のモジュールレベル別名。

@@ -21,6 +21,22 @@ _GENERIC_LIMIT = {"position": [-3.14, 3.14], "velocity": 12.0, "torque": 60.0}
 _PARENT_IDX = np.array([max(p, 0) for p in PARENTS])
 
 
+@dataclass(frozen=True)
+class SimDefaults:
+    """embodiment 固有の MuJoCo tracking 既定（概算質量・関節 PD ゲイン）。
+
+    背が高く手足の長い機種ほど実効関節慣性が大きく、**より高い kd（関節ダンピング）**が要る。
+    kd が不足すると PD が振動して横倒れする（実証: H1 は G1 の kd=6 だと振動して転倒し、
+    kd=10 で upright=1.0 安定）。質量も機種実機相当にする（G1≈35kg, H1≈47kg）。
+    これらを embodiment に紐付けることで「既定値が特定機種に隠れ調整される」事故を防ぐ。
+    """
+
+    total_mass: float = 35.0
+    kp: float = 150.0
+    kd: float = 6.0
+    torque_limit: float = 80.0
+
+
 @dataclass
 class RobotMorphology:
     """canonical トポロジ上の robot 形態。"""
@@ -32,6 +48,7 @@ class RobotMorphology:
     end_effectors: tuple[str, ...] = ("left_foot", "right_foot", "left_wrist", "right_wrist")
     control_modes: tuple[str, ...] = ("position", "policy")
     joint_limit: dict[str, Any] = field(default_factory=lambda: dict(_GENERIC_LIMIT))
+    sim_defaults: SimDefaults = field(default_factory=SimDefaults)
 
     def __post_init__(self) -> None:
         self.rest_pose = np.asarray(self.rest_pose, dtype=np.float64)

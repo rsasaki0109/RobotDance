@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from robotdance_retarget.embodiment import RobotMorphology
+from robotdance_retarget.embodiment import RobotMorphology, SimDefaults
 
 ROBOT_NAME = "unitree_h1"
 
@@ -49,6 +49,8 @@ MORPHOLOGY = RobotMorphology(
     rest_pose=H1_REST,
     urdf_ref="unitree_ros h1_description/urdf/h1.urdf（実寸由来, 本体は別途取得）",
     runtime_adapter="unitree_sdk2",
+    # H1 は G1 より背が高く（1.66m）重い（47kg）→ 高い kd が必須（kd=6 では PD 振動で転倒）。
+    sim_defaults=SimDefaults(total_mass=47.0, kp=200.0, kd=10.0, torque_limit=160.0),
 )
 
 BONE_LENGTHS = MORPHOLOGY.bone_lengths
