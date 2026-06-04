@@ -65,12 +65,25 @@ G1_JOINT_LIMITS: dict[str, dict[str, object]] = {
     "spine": {"position": [-2.618, 2.618], "velocity": 32.0, "torque": 88.0},
 }
 
+# 実 g1_23dof URDF の <inertial> 由来の canonical 質量分布（Σ≈1, 数値のみで license-safe）。
+# 各 link 質量を世界 COM 最近傍の canonical bone へ割当て・左右対称化。実機は股/膝アクチュエータで
+# 脚が重く（脚~53%, 胴体~29%）、Winter 人体プライア（胴体~58%/脚~32%）とは別物。
+# test_real_g1_urdf が実 URDF からの算出値と一致を検証。
+G1_MASS_FRACTION: dict[str, float] = {
+    "pelvis": 0.001, "spine": 0.0071, "chest": 0.2499, "neck": 0.001, "head": 0.0302,
+    "left_shoulder": 0.001, "left_elbow": 0.0611, "left_wrist": 0.0279,
+    "right_shoulder": 0.001, "right_elbow": 0.0611, "right_wrist": 0.0279,
+    "left_hip": 0.0556, "left_knee": 0.1334, "left_ankle": 0.0585, "left_foot": 0.0177,
+    "right_hip": 0.0556, "right_knee": 0.1334, "right_ankle": 0.0585, "right_foot": 0.0177,
+}
+
 MORPHOLOGY = RobotMorphology(
     name=ROBOT_NAME,
     rest_pose=G1_REST,
     urdf_ref="unitree_ros g1_description/g1_23dof.urdf（実寸由来, 本体は別途取得）",
     runtime_adapter="unitree_sdk2",
     per_joint_limits=G1_JOINT_LIMITS,
+    mass_distribution=G1_MASS_FRACTION,
     # G1（1.29m, ~35kg）の関節 PD で実寸を支える既定。kd=6 で安定（H1 ほどの慣性は無い）。
     sim_defaults=SimDefaults(total_mass=35.0, kp=150.0, kd=6.0, torque_limit=80.0),
 )

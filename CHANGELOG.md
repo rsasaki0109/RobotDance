@@ -5,6 +5,27 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-06-04
+
+実データ深掘り（質量スレッド再開, pre-alpha）。sim の質量分布は v0.29 以降 Winter 人体計測比を
+**全ロボットに**適用していたが、これは実ロボットには誤りだった—実 G1/H1 は股・膝アクチュエータで
+**脚が最重量（脚 ~53-58% > 胴体 ~29%）**で、Winter 人体（胴体 ~58%/脚 ~32%）とは逆。実 URDF の
+`<inertial>` から実機の質量分布を取り込んで置き換えた。
+
+### Fixed
+- **sim の質量分布を実 URDF inertial 由来へ**（`robotdance_sim.mjcf` / `robotdance_unitree`）:
+  `RobotMorphology.mass_distribution` を追加し、`build_mjcf` は実分布があればそれ、無ければ
+  Winter プライアへフォールバック（Σ=1 再正規化で総質量は厳密保存）。実機の脚優位な分布が
+  sim の COM / ZMP / 重力トルクに反映される。
+
+### Added
+- `urdf_import.canonical_mass_distribution` / `parse_link_inertials` / `link_world_frames`:
+  各 link の世界 COM を最近傍の canonical bone へ割当て・左右対称化して canonical 19-joint の
+  質量分布（Σ=1）と総質量を算出する。
+- `g1.G1_MASS_FRACTION` / `h1.H1_MASS_FRACTION`: 実 URDF 由来の質量分布定数（数値のみ,
+  license-safe）。`test_real_g1_urdf` が実 URDF からの算出値と一致を検証。
+- `import-urdf` CLI が取り込んだ実質量分布（脚/胴体比）を表示。実 H1 URDF 総質量は ~59kg と判明。
+
 ## [0.33.0] - 2026-06-04
 
 実データ深掘りの締め（pre-alpha）。v0.32 で実 URDF limit から `SafetyLimits` を作る primitive を

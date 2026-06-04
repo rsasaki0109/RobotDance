@@ -476,7 +476,13 @@ def _import_urdf(urdf: Path, name: str, save: Path | None) -> int:
     print(f"✓ URDF → RobotMorphology: {name}")
     print(f"  nominal_height={morph.nominal_height:.3f} m  joints={len(emb['joint_names'])}")
     print(f"  実 joint limit を取り込み: {n_real} 関節（残りは合成のため placeholder）")
-    print("  ⚠️ 寸法は実 URDF 由来。torso 連鎖・toe は合成、質量は近似（v0）。")
+    if morph.mass_distribution is not None:
+        md = morph.mass_distribution
+        legs = sum(md[k] for k in md if any(s in k for s in ("hip", "knee", "ankle", "foot")))
+        trunk = sum(md.get(k, 0.0) for k in ("pelvis", "spine", "chest", "neck", "head"))
+        print(f"  実 <inertial> 質量分布を取り込み: 脚 {legs:.0%} / 胴体 {trunk:.0%}"
+              f"（実機は脚が最重量。Winter 人体プライアとは別物）")
+    print("  ⚠️ 寸法・質量分布は実 URDF 由来。torso 連鎖・toe は合成（v0）。")
     if save is not None:
         save.write_text(json.dumps(emb, indent=2), encoding="utf-8")
         print(f"  → RD-Embodiment 保存: {save}")

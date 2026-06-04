@@ -52,6 +52,9 @@ class RobotMorphology:
     # canonical 関節名 → 実 URDF 由来の {position[lo,hi], velocity, torque}。actuator がある
     # 関節のみ。未設定（None）や未収載の関節は `joint_limit` プレースホルダにフォールバックする。
     per_joint_limits: dict[str, Any] | None = None
+    # canonical 関節名 → 質量割合（実 URDF inertial 由来, Σ≈1）。sim の MJCF 質量配分に使う。
+    # None なら sim 側で Winter 人体計測比へフォールバック。
+    mass_distribution: dict[str, float] | None = None
     sim_defaults: SimDefaults = field(default_factory=SimDefaults)
 
     def __post_init__(self) -> None:

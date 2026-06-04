@@ -24,12 +24,13 @@ import numpy as np  # noqa: E402
 
 
 @pytest.mark.parametrize("robot", ["unitree_g1", "unitree_h1"])
-def test_mass_distribution_is_trunk_heavy_anthropometric(robot: str) -> None:
-    """質量分布が人体計測（Winter）相当: 胴体が最重量で、腕は胴体より軽い。
+def test_mass_distribution_matches_real_urdf_leg_heavy(robot: str) -> None:
+    """質量分布が実 URDF inertial 相当: 実機は脚が最重量（股/膝アクチュエータ）。
 
-    旧実装は質量 ∝ bone 長で配分しており、長い腕 bone に過大質量を与え、H1 では
-    腕 32% > 胴体 19% という非物理分布だった（人もロボットも胴体が最重量部位）。
-    Winter 比で配分し直し、胴体~58% / 腕~10% / 脚~32% 相当になることを担保する。
+    旧実装は Winter 人体計測比（胴体~58%/脚~32%）を全ロボットに適用していたが、これは
+    **実ロボットには誤り**だった—実 G1/H1 は脚が ~53-58% で胴体より重い（股・膝に重い
+    アクチュエータ）。embodiment.mass_distribution（実 URDF <inertial> 由来）を sim に流し、
+    生成 MJCF の質量分布が実機の脚優位な分布になることを担保する。
     """
     import mujoco
 
@@ -53,10 +54,11 @@ def test_mass_distribution_is_trunk_heavy_anthropometric(robot: str) -> None:
                 g[grp] += mm
                 break
     tot = sum(g.values())
-    trunk, arms = g["trunk"] / tot, g["arms"] / tot
-    assert trunk > 0.45, f"{robot}: 胴体が軽すぎる({trunk:.0%})—人体計測では最重量(~58%)"
-    assert arms < trunk, f"{robot}: 腕({arms:.0%})が胴体({trunk:.0%})より重い非物理分布"
-    assert arms < 0.2, f"{robot}: 腕が重すぎる({arms:.0%})—人体計測では~10%"
+    trunk, arms, legs = g["trunk"] / tot, g["arms"] / tot, g["legs"] / tot
+    # 実機は脚が最重量（胴体・腕より重い）。人体プライアの「胴体最重量」とは逆。
+    assert legs > 0.45, f"{robot}: 脚が軽すぎる({legs:.0%})—実 URDF では最重量(~53-58%)"
+    assert legs > trunk, f"{robot}: 脚({legs:.0%})が胴体({trunk:.0%})より軽い—実機分布と不一致"
+    assert arms < 0.25, f"{robot}: 腕が重すぎる({arms:.0%})"
 
 
 def test_zmp_support_uses_polygon_not_per_foot_circles() -> None:

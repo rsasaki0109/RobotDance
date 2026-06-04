@@ -62,12 +62,25 @@ H1_JOINT_LIMITS: dict[str, dict[str, object]] = {
     "spine": {"position": [-2.35, 2.35], "velocity": 23.0, "torque": 200.0},
 }
 
+# 実 h1.urdf の <inertial> 由来の canonical 質量分布（Σ≈1, 数値のみで license-safe）。
+# H1 は脚~58%/胴体~30% とさらに脚が重い（実 URDF 総質量は ~59kg）。Winter 人体とは別物。
+# torso 質量は spine bone へ集約（H1 の torso_link COM が spine 高さ）。
+# test_real_h1_urdf が実 URDF からの算出値と一致を検証。
+H1_MASS_FRACTION: dict[str, float] = {
+    "pelvis": 0.001, "spine": 0.298, "chest": 0.001, "neck": 0.001, "head": 0.001,
+    "left_shoulder": 0.001, "left_elbow": 0.0478, "left_wrist": 0.0125,
+    "right_shoulder": 0.001, "right_elbow": 0.0478, "right_wrist": 0.0125,
+    "left_hip": 0.1453, "left_knee": 0.083, "left_ankle": 0.0473, "left_foot": 0.0121,
+    "right_hip": 0.1453, "right_knee": 0.083, "right_ankle": 0.0473, "right_foot": 0.0121,
+}
+
 MORPHOLOGY = RobotMorphology(
     name=ROBOT_NAME,
     rest_pose=H1_REST,
     urdf_ref="unitree_ros h1_description/urdf/h1.urdf（実寸由来, 本体は別途取得）",
     runtime_adapter="unitree_sdk2",
     per_joint_limits=H1_JOINT_LIMITS,
+    mass_distribution=H1_MASS_FRACTION,
     # H1 は G1 より背が高く（1.66m）重い（47kg）→ 高い kd が必須（kd=6 では PD 振動で転倒）。
     sim_defaults=SimDefaults(total_mass=47.0, kp=200.0, kd=10.0, torque_limit=160.0),
 )

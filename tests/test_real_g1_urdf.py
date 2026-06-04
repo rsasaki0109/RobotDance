@@ -95,6 +95,33 @@ def test_g1_embedded_joint_limits_match_real_urdf() -> None:
 
 
 @_skip
+def test_g1_embedded_mass_distribution_matches_real_urdf() -> None:
+    """g1.py の G1_MASS_FRACTION が実 g1_23dof URDF の inertial 由来分布と一致し、脚優位である。"""
+    from robotdance_unitree.g1 import G1_MASS_FRACTION
+    from robotdance_unitree.urdf_import import canonical_mass_distribution
+
+    frac, total = canonical_mass_distribution(_URDF)
+    assert abs(total - 34.13) < 0.1
+    for name, v in frac.items():
+        assert abs(v - G1_MASS_FRACTION[name]) < 1e-3, name
+    legs = sum(frac[k] for k in frac if any(s in k for s in ("hip", "knee", "ankle", "foot")))
+    trunk = sum(frac[k] for k in ("pelvis", "spine", "chest", "neck", "head"))
+    assert legs > 0.45 and legs > trunk   # 実機は脚が最重量
+
+
+@_skip_h1
+def test_h1_embedded_mass_distribution_matches_real_urdf() -> None:
+    """h1.py の H1_MASS_FRACTION が実 h1.urdf 由来分布と一致する（実総質量 ~59kg）。"""
+    from robotdance_unitree.h1 import H1_MASS_FRACTION
+    from robotdance_unitree.urdf_import import H1_LINK_MAP, canonical_mass_distribution
+
+    frac, total = canonical_mass_distribution(_H1_URDF, link_map=H1_LINK_MAP)
+    assert total > 55.0   # H1 実 URDF は ~59kg（SimDefaults の 47 は控えめ）
+    for name, v in frac.items():
+        assert abs(v - H1_MASS_FRACTION[name]) < 1e-3, name
+
+
+@_skip
 def test_safety_guard_from_real_g1_urdf_clamps_knee_reverse_bend() -> None:
     """実 G1 URDF から構築した safety guard が膝の逆屈コマンドを実下限へクランプする。"""
     import numpy as np

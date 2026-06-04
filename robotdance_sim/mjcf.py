@@ -63,25 +63,33 @@ _SEGMENT_MASS_FRACTION = {k: v / _W_SUM for k, v in _SEGMENT_MASS_WEIGHT.items()
 _FOOT_BOX_SHARE = 0.5
 
 
-def build_mjcf(morphology: RobotMorphology, *, total_mass: float = 35.0, ground: bool = True) -> str:
+def build_mjcf(
+    morphology: RobotMorphology, *, total_mass: float = 35.0, ground: bool = True,
+    mass_fraction: "dict[str, float] | None" = None,
+) -> str:
     """morphology から MJCF 文字列を生成する。
 
     total_mass: robot の総質量（kg, 実機相当）。G1≈35, H1≈47 程度。
-        Winter 人体計測のセグメント質量比（_SEGMENT_MASS_FRACTION, Σ=1）で各部位へ配分するので、
-        生成 MJCF の総質量は total_mass に厳密一致し（宣言質量＝実質量）、かつ胴体重心の
-        物理的に妥当な質量分布になる（旧 bone 長比は腕>胴体の非物理分布だった）。
+    mass_fraction: canonical joint 名 → 質量割合（Σ=1 へ再正規化して使用）。None なら
+        morphology.mass_distribution（実 URDF inertial 由来があればそれ）→ 無ければ Winter 人体
+        計測比（_SEGMENT_MASS_FRACTION）の順でフォールバック。実機分布は脚が重い（股・膝
+        アクチュエータ）ので Winter 人体プライアと有意に異なる。いずれも Σ=1 なので生成 MJCF の
+        総質量は total_mass に厳密一致する（宣言質量＝実質量）。
     ground: 地面 plane を含めるか。逆動力学（mj_inverse）では接触力が混入して
             内部トルクを汚染するため、トルク/COM 計算では ground=False（純浮遊多体）にする。
     """
     rest = morphology.rest_pose
-    pelvis_hub_mass = total_mass * _SEGMENT_MASS_FRACTION["pelvis"]
+    raw = mass_fraction or getattr(morphology, "mass_distribution", None) or _SEGMENT_MASS_FRACTION
+    fsum = sum(raw.get(name, 0.0) for name in JOINT_NAMES) or 1.0
+    frac = {name: raw.get(name, 0.0) / fsum for name in JOINT_NAMES}  # Σ=1 へ再正規化
+    pelvis_hub_mass = total_mass * frac["pelvis"]
 
     def _bone_mass(j: int) -> float:
         """bone j（親→子 joint）のセグメント質量（kg）。足部は box と按分。"""
-        frac = _SEGMENT_MASS_FRACTION[JOINT_NAMES[j]]
+        f = frac[JOINT_NAMES[j]]
         if j in _FOOT_CHILD_JOINTS:
-            frac *= 1.0 - _FOOT_BOX_SHARE  # capsule 側（残りは接地 box へ）
-        return max(total_mass * frac, 0.01)
+            f *= 1.0 - _FOOT_BOX_SHARE  # capsule 側（残りは接地 box へ）
+        return max(total_mass * f, 0.01)
 
     # 各 joint の子 bone リスト（MJCF ネストは joint 親子ツリーと一致）。
     children: dict[int, list[int]] = {i: [] for i in range(len(JOINT_NAMES))}
@@ -105,7 +113,7 @@ def build_mjcf(morphology: RobotMorphology, *, total_mass: float = 35.0, ground:
         )
         if j in _FOOT_CHILD_JOINTS:
             # 接地用の足 box（前方に伸ばす）。足部質量の box 側按分。
-            box_mass = total_mass * _SEGMENT_MASS_FRACTION[JOINT_NAMES[j]] * _FOOT_BOX_SHARE
+            box_mass = total_mass * frac[JOINT_NAMES[j]] * _FOOT_BOX_SHARE
             box_size = f"{FOOT_BOX_HALF_LENGTH} {FOOT_BOX_HALF_WIDTH} {_FOOT_BOX_HALF_HEIGHT}"
             s += (
                 f'{pad}  <geom type="box" pos="{_v(endpoint)}" size="{box_size}" '

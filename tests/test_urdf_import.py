@@ -114,6 +114,44 @@ def test_urdf_import_brings_real_per_joint_limits(tmp_path: Path) -> None:
     assert jl["head"]["position"] == [-3.14, 3.14]
 
 
+def test_canonical_mass_distribution_symmetric_and_normalized(tmp_path: Path) -> None:
+    """URDF inertial → canonical 質量分布が Σ=1・左右対称で、脚 link 質量が脚 bone に乗る。"""
+    from robotdance_unitree.urdf_import import canonical_mass_distribution
+
+    def link(name, parent, xyz, mass):
+        j = (f'<joint name="{name}_j" type="revolute"><parent link="{parent}"/>'
+             f'<child link="{name}"/><origin xyz="{xyz}" rpy="0 0 0"/>'
+             f'<limit lower="-1" upper="1" effort="1" velocity="1"/></joint>') if parent else ""
+        return (f'<link name="{name}"><inertial><mass value="{mass}"/>'
+                f'<origin xyz="0 0 0"/></inertial></link>' + j)
+
+    parts = ['<robot name="g1_fixture">', link("pelvis", None, None, 3.0)]
+    for side, sgn in (("left", 1), ("right", -1)):
+        y = 0.06 * sgn
+        parts += [
+            link(f"{side}_hip_pitch_link", "pelvis", f"0 {y} -0.10", 4.0),
+            link(f"{side}_knee_link", f"{side}_hip_pitch_link", "0 0 -0.30", 2.0),
+            link(f"{side}_ankle_pitch_link", f"{side}_knee_link", "0 0 -0.30", 0.6),
+            link(f"{side}_shoulder_pitch_link", "pelvis", f"0 {0.1 * sgn} 0.40", 1.0),
+            link(f"{side}_elbow_link", f"{side}_shoulder_pitch_link", "0 0 -0.20", 0.5),
+            link(f"{side}_wrist_roll_rubber_hand", f"{side}_elbow_link", "0.10 0 -0.05", 0.3),
+        ]
+    parts.append("</robot>")
+    urdf = tmp_path / "mass.urdf"
+    urdf.write_text("\n".join(parts), encoding="utf-8")
+
+    frac, total = canonical_mass_distribution(urdf)
+    assert abs(sum(frac.values()) - 1.0) < 1e-9
+    assert abs(total - 19.8) < 1e-6   # 3 + 2*(4+2+0.6+1+0.5+0.3)
+    # 左右対称。
+    for seg in ("hip", "knee", "ankle", "shoulder", "elbow", "wrist"):
+        assert abs(frac[f"left_{seg}"] - frac[f"right_{seg}"]) < 1e-9
+    # 脚（hip+knee+ankle+foot）が腕（shoulder+elbow+wrist）より重い（脚 link 質量が大きい）。
+    legs = sum(frac[k] for k in frac if any(s in k for s in ("hip", "knee", "ankle", "foot")))
+    arms = sum(frac[k] for k in frac if any(s in k for s in ("shoulder", "elbow", "wrist")))
+    assert legs > arms
+
+
 def test_canonical_envelope_aggregates_multi_dof_limb() -> None:
     """1 canonical 関節に複数 DOF がある場合、位置は最広・速度/トルクは最小に集約される。"""
     from robotdance_unitree.urdf_import import canonical_joint_limits

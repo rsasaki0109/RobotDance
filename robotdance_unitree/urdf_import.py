@@ -20,7 +20,7 @@ from typing import Optional
 import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 
-from robotdance_core.skeleton import JOINT_NAMES, index_of
+from robotdance_core.skeleton import JOINT_NAMES, PARENTS, index_of
 from robotdance_retarget.embodiment import RobotMorphology
 
 # canonical limb joint → Unitree G1 (23dof) URDF link。torso 連鎖・toe は合成する。
@@ -135,6 +135,99 @@ def link_world_positions(
     return {link: world(link)[0] for link in list(joints) + [root_link]}
 
 
+def link_world_frames(
+    joints: dict[str, tuple[str, np.ndarray, np.ndarray]], root_link: str
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """zero-config での各リンク frame の世界 (位置, 回転) を FK で求める。"""
+    cache: dict[str, tuple[np.ndarray, np.ndarray]] = {root_link: (np.zeros(3), np.eye(3))}
+
+    def world(link: str) -> tuple[np.ndarray, np.ndarray]:
+        if link in cache:
+            return cache[link]
+        parent, xyz, rpy = joints[link]
+        pp, pr = world(parent)
+        cache[link] = (pp + pr @ xyz, pr @ Rot.from_euler("xyz", rpy).as_matrix())
+        return cache[link]
+
+    return {link: world(link) for link in list(joints) + [root_link]}
+
+
+def parse_link_inertials(path: str | Path) -> dict[str, tuple[float, np.ndarray]]:
+    """各 link の (質量 kg, link frame での COM xyz) を返す（inertial が無い link は省く）。"""
+    root = ET.parse(Path(path)).getroot()
+    out: dict[str, tuple[float, np.ndarray]] = {}
+    for link in root.findall("link"):
+        inj = link.find("inertial")
+        if inj is None:
+            continue
+        m = inj.find("mass")
+        if m is None or m.get("value") is None:
+            continue
+        o = inj.find("origin")
+        com = _vec(o.get("xyz") if o is not None else None)
+        out[link.get("name")] = (float(m.get("value")), com)
+    return out
+
+
+def _point_segment_distance(p: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
+    """点 p と線分 ab の距離。"""
+    ab = b - a
+    denom = float(ab @ ab)
+    t = 0.0 if denom < 1e-12 else float(np.clip((p - a) @ ab / denom, 0.0, 1.0))
+    return float(np.linalg.norm(p - (a + t * ab)))
+
+
+# canonical 質量分布で、link が 1 つも割当たらない関節にも与える最小割合（mjcf の 0 質量 body 回避 +
+# 総質量厳密保存のため。総質量×この値 > mjcf の 0.01kg floor になるよう十分大きく取る）。
+_MIN_SEGMENT_FRACTION = 0.001
+
+
+def canonical_mass_distribution(
+    path: str | Path, *, link_map: Optional[dict[str, str]] = None
+) -> tuple[dict[str, float], float]:
+    """URDF の <inertial> から canonical 19-joint の質量分布（fraction, Σ=1）と総質量を返す。
+
+    各 link の世界 COM を最近傍の canonical bone セグメント（親→子）または pelvis ハブ（点）へ
+    割当てて集約する。これにより人体計測（Winter）プライアではなく**実機の実分布**になる
+    （実機は股・膝アクチュエータで脚が重く、人体より胴体比が低い）。数値のみで license-safe。
+    """
+    lmap = link_map or G1_LINK_MAP
+    joints, root_link = parse_urdf(path)
+    frames = link_world_frames(joints, root_link)
+    rest = build_rest_pose(link_world_positions(joints, root_link), lmap)
+    inertials = parse_link_inertials(path)
+
+    segments = [(j, rest[PARENTS[j]], rest[j]) for j in range(len(JOINT_NAMES)) if PARENTS[j] >= 0]
+    mass = {name: 0.0 for name in JOINT_NAMES}
+    for link, (m, com_local) in inertials.items():
+        if link not in frames:
+            continue
+        pos, rot = frames[link]
+        com = pos + rot @ com_local
+        best_name, best_d = "pelvis", float(np.linalg.norm(com - rest[0]))  # pelvis ハブ（点）
+        for j, a, b in segments:
+            d = _point_segment_distance(com, a, b)
+            if d < best_d:
+                best_name, best_d = JOINT_NAMES[j], d
+        mass[best_name] += m
+
+    # 左右対称化: link COM が境界付近で左右にフリップする割当ゆらぎを除き、物理的対称性を担保する。
+    for name in list(mass):
+        if name.startswith("left_"):
+            mirror = "right_" + name[len("left_"):]
+            avg = 0.5 * (mass[name] + mass.get(mirror, 0.0))
+            mass[name] = mass[mirror] = avg
+
+    total = sum(mass.values())
+    if total <= 0.0:
+        raise ValueError("URDF に <inertial> 質量が無い—質量分布を算出できない")
+    floor = total * _MIN_SEGMENT_FRACTION
+    floored = {name: max(m, floor) for name, m in mass.items()}  # 0 質量関節にも最小値
+    fsum = sum(floored.values())
+    fraction = {name: m / fsum for name, m in floored.items()}  # Σ=1 に正規化
+    return fraction, total
+
+
 def build_rest_pose(link_pos: dict[str, np.ndarray], link_map: dict[str, str]) -> np.ndarray:
     """リンク世界位置から canonical 19-joint rest pose [19, 3] を作る（torso・toe は合成）。"""
     out = np.zeros((len(JOINT_NAMES), 3))
@@ -168,14 +261,20 @@ def urdf_to_morphology(
     urdf_ref: Optional[str] = None,
 ) -> RobotMorphology:
     """URDF から実寸 rest pose を持つ RobotMorphology を構築する。"""
+    lmap = link_map or G1_LINK_MAP
     joints, root_link = parse_urdf(path)
     link_pos = link_world_positions(joints, root_link)
-    rest = build_rest_pose(link_pos, link_map or G1_LINK_MAP)
+    rest = build_rest_pose(link_pos, lmap)
     per_joint = canonical_joint_limits(parse_actuated_limits(path))
+    try:
+        mass_dist, _ = canonical_mass_distribution(path, link_map=lmap)
+    except ValueError:
+        mass_dist = None  # <inertial> 無し URDF（合成 fixture 等）は質量分布なし
     return RobotMorphology(
         name=name, rest_pose=rest,
         urdf_ref=urdf_ref or str(path), runtime_adapter="unitree_sdk2",
         per_joint_limits=per_joint or None,
+        mass_distribution=mass_dist,
     )
 
 
