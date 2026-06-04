@@ -71,6 +71,18 @@ class TrackingEnv:
         self.residual_scale = residual_scale
         self.upright_min = upright_min
 
+        # per-DOF トルク上限: 各 ball joint(jnt_j) の 3 DOF に、その関節の **実 actuator トルク上限**を
+        # 割り当てる（実値が無ければ scalar torque_limit）。強い関節（膝~139）と弱い関節（足首~35）を
+        # 区別してクランプし、弱い関節に非現実的な大トルクを通さない。
+        cap = np.full(self.model.nv, float(torque_limit), dtype=np.float64)
+        for jid in range(self.model.njnt):
+            jname = mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_JOINT, jid)
+            if jname and jname.startswith("jnt_"):
+                lim = morphology.joint_torque_limit(JOINT_NAMES[int(jname[4:])])
+                adr = self.model.jnt_dofadr[jid]
+                cap[adr:adr + 3] = lim  # ball joint = 3 DOF
+        self._torque_cap = cap[6:]  # free joint の 6-DOF を除き tau と整列
+
         self.fps = float(reference.fps)
         self.dt = 1.0 / self.fps
         self.n_substeps = max(1, round(self.dt / self.model.opt.timestep))
@@ -112,7 +124,7 @@ class TrackingEnv:
         target = self.ref_qpos[min(self.t + 1, self.T - 1)]
         err = self._err_to(target)  # nv: target ⊖ current（tangent 空間）
         tau = self.kp * err[6:] - self.kd * self.data.qvel[6:] + a
-        tau = np.clip(tau, -self.torque_limit, self.torque_limit)
+        tau = np.clip(tau, -self._torque_cap, self._torque_cap)  # per-joint 実 actuator 上限
         self.data.qfrc_applied[:] = 0.0
         self.data.qfrc_applied[6:] = tau
         for _ in range(self.n_substeps):

@@ -119,21 +119,28 @@ def test_mjcf_total_mass_is_conserved(robot: str) -> None:
     )
 
 
-def test_certify_uses_embodiment_torque_limit_not_g1_default() -> None:
-    """certify は morphology.sim_defaults のトルク上限を使う（G1 値の固定流用ではない）。
+def test_certify_uses_per_joint_torque_limits() -> None:
+    """certify は実 per-joint actuator トルク上限で負荷率を判定する（単一スカラー流用ではない）。
 
-    旧実装は simulate_certificate に torque_limit=80（G1値）をハードコードしており、
-    H1（160N·m）の certify でも 80 で torque_ratio を計算していた（配線漏れ）。
-    既定経路（torque_limit 未指定）と H1 値を明示した場合の torque_ratio が一致し、
-    かつ G1 値を明示した場合とは異なることで、embodiment 由来であることを担保する。
+    旧実装は torque_ratio = max重力トルク / scalar で、強い関節（膝~139）と弱い関節（足首~35）を
+    区別できなかった。per-joint 化後は各関節の必要トルク÷その関節上限の最大率を取る。H1 は
+    per_joint_limits を持つので既定（torque_limit 未指定）は per-joint で判定し、scalar を明示すると
+    全関節へその値を強制する（旧挙動・対比用）。
     """
+    import dataclasses
+
     morph = get_morphology("unitree_h1")
     motion = retarget(generate_dance(duration=1.0), morph)
     default = simulate_certificate(motion, morph)["metrics"]["torque_ratio"]
-    h1_explicit = simulate_certificate(motion, morph, torque_limit=160.0)["metrics"]["torque_ratio"]
-    g1_default = simulate_certificate(motion, morph, torque_limit=80.0)["metrics"]["torque_ratio"]
-    assert default == pytest.approx(h1_explicit), "既定が H1 のトルク上限(160)を使っていない"
-    assert default != pytest.approx(g1_default), "既定が G1 のトルク上限(80)に固定されたまま"
+    # scalar を明示すると per-joint ではなくその値で判定 → 既定（per-joint）とは異なる。
+    scalar80 = simulate_certificate(motion, morph, torque_limit=80.0)["metrics"]["torque_ratio"]
+    scalar300 = simulate_certificate(motion, morph, torque_limit=300.0)["metrics"]["torque_ratio"]
+    assert default != pytest.approx(scalar80), "既定が per-joint ではなく scalar を使っている"
+    assert scalar80 > scalar300, "scalar 上限が小さいほど負荷率は高いはず"
+    # per_joint_limits を外すと sim_defaults スカラーへフォールバック（per-joint を使っている証左）。
+    stripped = dataclasses.replace(morph, per_joint_limits=None)
+    fallback = simulate_certificate(motion, stripped)["metrics"]["torque_ratio"]
+    assert fallback != pytest.approx(default), "per_joint_limits の有無で torque_ratio が変わらない"
 
 
 @pytest.mark.parametrize("robot", ["unitree_g1", "unitree_h1"])

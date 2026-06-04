@@ -95,7 +95,8 @@ def simulate_certificate(
 
     sd = morphology.sim_defaults
     total_mass = sd.total_mass if total_mass is None else total_mass
-    torque_limit = sd.torque_limit if torque_limit is None else torque_limit
+    # torque_limit を明示した場合は全関節へその scalar を強制（旧挙動）。未指定なら関節ごとに
+    # 実 actuator 上限（per_joint_limits）を使い、無い関節のみ sim_defaults スカラーへ落ちる。
 
     # 地面なしの純浮遊多体: mj_inverse に接触力が混入せず、内部トルクが純 RNEA になる。
     # バランスは motion の contact_schedule と keypoints から別途計算するため地面は不要。
@@ -114,6 +115,15 @@ def simulate_certificate(
     grav_bodies = [model.body(f"body_{j}").id for j in range(1, len(JOINT_NAMES))
                    if j not in toe_joints]
     sub_mass = {bid: float(model.body_subtreemass[bid]) for bid in grav_bodies}
+    # 各 joint の **実 actuator トルク上限**（per-joint。実値が無ければ sim 既定スカラー）。
+    # 強い関節（膝~139）と弱い関節（足首~35）を区別して負荷率を判定するため。
+    body_torque_limit = {
+        model.body(f"body_{j}").id: (
+            torque_limit if torque_limit is not None
+            else morphology.joint_torque_limit(JOINT_NAMES[j])
+        )
+        for j in range(1, len(JOINT_NAMES)) if j not in toe_joints
+    }
 
     # 各フレームの qpos / COM / 重力保持トルク。
     qpos = np.stack([_pose_to_qpos(model, morphology, kps[f]) for f in range(n)])
@@ -126,14 +136,19 @@ def simulate_certificate(
         com[f] = data.subtree_com[root_id]
         # joint j の重力保持トルク = m_subtree·g·(joint anchor と subtree COM の水平距離)。
         # mj_inverse の ball-joint 特異性を避ける robust な解析計算。
-        tmax = 0.0
+        # 負荷率 = 必要トルク / その関節の実 actuator 上限。最大「率」の関節が律速（強弱を区別）。
+        tmax = 0.0       # 絶対トルク最大（報告用）
+        rmax = 0.0       # 負荷率最大（判定用）
         for bid in grav_bodies:
             anchor = data.xpos[bid]
             csub = data.subtree_com[bid]
             d_horiz = float(np.hypot(csub[0] - anchor[0], csub[1] - anchor[1]))
-            tmax = max(tmax, sub_mass[bid] * _G * d_horiz)
-        per_frame_torque.append(tmax)
-    gravity_torque = float(np.max(per_frame_torque)) if per_frame_torque else 0.0
+            tau_j = sub_mass[bid] * _G * d_horiz
+            tmax = max(tmax, tau_j)
+            rmax = max(rmax, tau_j / body_torque_limit[bid])
+        per_frame_torque.append((tmax, rmax))
+    gravity_torque = float(np.max([t for t, _ in per_frame_torque])) if per_frame_torque else 0.0
+    torque_ratio = float(np.max([r for _, r in per_frame_torque])) if per_frame_torque else 0.0
 
     # joint 角速度（first-order 差分。ang_speed 用）。
     qvel = np.zeros((n, model.nv))
@@ -170,7 +185,7 @@ def simulate_certificate(
     airborne_ratio = airborne / n
     balance_violation_ratio = unsupported / n
     max_joint_ang_speed = float(np.abs(qvel[:, 6:]).max()) if n > 1 else 0.0
-    torque_ratio = gravity_torque / torque_limit
+    # torque_ratio は per-joint 負荷率の最大（上のループで算出済み）。
 
     reasons: list[str] = []
     if airborne_ratio > 0.1:

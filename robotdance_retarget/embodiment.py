@@ -80,6 +80,18 @@ class RobotMorphology:
             return dict(self.per_joint_limits[joint_name])
         return dict(self.joint_limit)
 
+    def joint_torque_limit(self, joint_name: str) -> float:
+        """関節の actuator トルク上限（N·m）。実 per-joint 値があればそれ、無ければ sim 既定スカラー。
+
+        sim（tracking / certificate）が「強い関節（膝~139）と弱い関節（足首~35）」を区別して
+        トルクをクランプ・判定するために使う。実値が無い関節は sim_defaults.torque_limit に落ちる。
+        """
+        if self.per_joint_limits and joint_name in self.per_joint_limits:
+            t = self.per_joint_limits[joint_name].get("torque")
+            if t:
+                return float(t)
+        return self.sim_defaults.torque_limit
+
     def to_rd_embodiment(self) -> dict[str, Any]:
         """RD-Embodiment v0 schema 適合の dict を返す。
 

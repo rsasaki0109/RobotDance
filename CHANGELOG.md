@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-06-04
+
+実データ深掘り（joint limit × 質量スレッドの交点, pre-alpha）。sim のトルク判定・クランプは単一
+スカラー（G1 80 / H1 160 N·m）で全関節を扱っており、強い関節（膝~139）と弱い関節（足首~35）を
+区別できなかった。v0.31 で取り込んだ **per-joint actuator トルク上限**を sim へ配線した。
+
+### Fixed
+- **sim certificate のトルク判定を per-joint 負荷率へ**（`robotdance_sim.mujoco_backend`）:
+  `torque_ratio` を「max(各関節の重力保持トルク ÷ その関節の実 actuator 上限)」に変更。旧スカラーは
+  律速する弱い関節（足首）の負荷を 2-3 倍過小評価していた（実測: G1 0.117→0.239, H1 0.203→0.627）。
+- **tracking env のトルククランプを per-DOF へ**（`robotdance_sim.tracking_env`）: 各 ball joint の
+  3 DOF にその関節の実 actuator 上限を割り当て、弱い関節へ非現実的な大トルクを通さない。
+
+### Added
+- `RobotMorphology.joint_torque_limit(name)`: 実 per-joint トルク上限（無ければ sim_defaults スカラー）。
+- `simulate_certificate(..., torque_limit=X)` 明示時は全関節へその scalar を強制（旧挙動・対比用）、
+  未指定なら per-joint。
+
 ## [0.35.0] - 2026-06-04
 
 実データ深掘り（質量スレッドの締め, pre-alpha）。v0.34 の質量分布取り込みで実 H1 URDF 総質量が
