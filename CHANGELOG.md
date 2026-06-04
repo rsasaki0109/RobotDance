@@ -5,6 +5,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.61.0] - 2026-06-05
+
+新展開（sim-to-real ギャップを明文化, pre-alpha）。多機能・多機種が揃った今、v0 の近似と「feasibility
+≠ 実機保証」の境界を文書化し、プロジェクトの誠実さを締める。
+
+### Added
+- `docs/SIM_TO_REAL.md`: certificate が**検証すること/しないこと**の対比表、パイプライン段階別の v0 近似
+  （retarget の twist 規約 / capsule 質量プロキシ / 準静的 ZMP・平地 / **重力保持トルク（動的トルク
+  含まず）** / 接地の運動学判定 / PD baseline）、未モデル項目（actuator 動力学・遅延・センサノイズ等）、
+  実機へ渡す前の必須手順（balance 制御＋safety guard＋漸進検証）を明示。README / sim README からリンク。
+
+### Fixed
+- ステールなコメントを是正（誠実さ）: `mujoco_backend` の docstring「質量・慣性は近似（bone 長比）」→
+  実 URDF 由来（v0.34/v0.52）に。sim README のトルク手法「mj_inverse 純 RNEA」→ 実際の**重力保持
+  トルク（準静的・解析計算, 動的トルク含まず）**に修正。
+
 ## [0.60.0] - 2026-06-05
 
 新展開（合成モーションスイートを拡充, pre-alpha）。4 機種が揃った feasibility 検証を、より多様な運動で

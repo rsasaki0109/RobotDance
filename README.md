@@ -79,7 +79,8 @@ Output: Unitree G1 simulation motion + RD-MIR dataset + motion embedding
 
 > 入力は **合成 / 実動画(MediaPipe) / mocap(AMASS)** の 3 系統、すべて同じ canonical **RD-MIR** に合流し、
 > retarget → 物理検証 → embedding → 安全再生のパイプラインを流れます。
-> ⚠️ v0 は近似プロキシ・近似質量で**実機保証ではありません**（各パッケージ README 参照）。
+> ⚠️ v0 は近似を含み**実機保証ではありません**（質量・慣性は実 URDF 由来だが balance/トルクは準静的近似）。
+> 近似と実機との境界は [`docs/SIM_TO_REAL.md`](docs/SIM_TO_REAL.md)、各パッケージ README も参照。
 
 ## What RobotDance is / is not
 

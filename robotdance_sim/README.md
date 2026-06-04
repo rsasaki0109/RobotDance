@@ -27,7 +27,7 @@ Isaac Lab / MuJoCo / Genesis-style backend adapters — 物理シミュレーシ
 
 | 信号 | 手法 | 判定 |
 | --- | --- | --- |
-| torque saturation | 逆動力学 `mj_inverse`（純 RNEA）→ 内部 joint トルク | p50 が actuator 限界超過 |
+| torque saturation | subtree COM からの**重力保持トルク**（準静的・解析計算, 動的トルク含まず） | 実 per-joint effort 上限超過 |
 | balance / 転倒 | 質量モデルの COM → ZMP vs 接地足の支持多角形 | ZMP が支持外 >30% |
 | 滞空 | contact_schedule に接地なし | airborne >10% |
 | 関節速度超過 | temporal qpos の関節相対速度 vs **実 per-joint 速度上限**（v0.38） | 比 >1.0（per_joint_limits 無→全関節一律 30 rad/s） |
@@ -57,7 +57,8 @@ robotdance validate-sim dance.rdmir.json --backend mujoco
 > 質量分布も実 URDF inertial 由来 v0.34）。capsule 近似（`real_inertia=False` で再現）は COM を幾何
 > 中心に置き重力トルクを誤推定していた（実測 H1 -22%）。実慣性は逆動力学のみで PD-safe（v0.51 実証）。
 > **tracking/PPO 経路は本フラグの影響を受けず capsule のまま**（baseline 退行回避）。出力は
-> "physically-informed feasibility" であって**実機保証ではない**。`pip install -e ".[sim]"` で mujoco。
+> "physically-informed feasibility" であって**実機保証ではない**（近似と境界の詳細は
+> [`docs/SIM_TO_REAL.md`](../docs/SIM_TO_REAL.md)）。`pip install -e ".[sim]"` で mujoco。
 >
 > **TrackingEnv（v0 baseline）注意:** 素朴な報酬/終了条件の **baseline 足場**であり、SOTA tracking
 > （DeepMimic/AMP 等）ではない。短い feasible クリップでは関節 PD だけで概ねバランスするため、v0 の

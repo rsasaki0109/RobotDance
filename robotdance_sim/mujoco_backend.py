@@ -7,8 +7,10 @@
   2. 逆動力学（mj_inverse）で各 joint の必要トルク → torque saturation
   3. 質量モデルの COM → ZMP を計算し、接地足の支持多角形を外れる/滞空で balance violation
 
-⚠️ v0 の質量・慣性は近似（bone 長比）であり実機値ではない。出力 sim_certificate は
-"physically informed feasibility" であって実機保証ではない。
+⚠️ v0 注意: 質量分布・慣性テンソルは実 URDF <inertial> 由来（v0.34/v0.52, 既定で実慣性）だが、
+link→bone は世界 COM 最近傍集約・bone は capsule/点質量プロキシ。トルクは重力保持（準静的）で動的
+トルクは含まない。出力 sim_certificate は "physically-informed feasibility" であって実機保証ではない
+（近似と境界の詳細は docs/SIM_TO_REAL.md）。
 """
 
 from __future__ import annotations

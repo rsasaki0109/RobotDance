@@ -60,6 +60,15 @@ def test_provenance_doc_lists_all_embodiments() -> None:
     assert "BSD 3-Clause" in doc and "Apache-2.0" in doc
 
 
+def test_sim_to_real_doc_states_boundary() -> None:
+    """docs/SIM_TO_REAL.md が「feasibility ≠ 実機保証」の境界と主要近似を明示する（誠実さの担保）。"""
+    doc = (_ROOT / "docs" / "SIM_TO_REAL.md").read_text(encoding="utf-8")
+    assert "保証ではありません" in doc or "実機保証ではない" in doc
+    # 主要な近似が言及されている。
+    for kw in ("ZMP", "重力保持", "twist", "velocity"):
+        assert kw in doc, f"{kw} が docs/SIM_TO_REAL.md に未記載"
+
+
 def test_booster_t1_real_urdf_geometry_and_limits() -> None:
     """3 機種目 Booster T1 が実 URDF 由来の geometry / limit / 質量 / 慣性で canonical へ写像される。
 
