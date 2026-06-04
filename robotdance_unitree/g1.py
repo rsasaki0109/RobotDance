@@ -84,8 +84,9 @@ MORPHOLOGY = RobotMorphology(
     runtime_adapter="unitree_sdk2",
     per_joint_limits=G1_JOINT_LIMITS,
     mass_distribution=G1_MASS_FRACTION,
-    # G1（1.29m, ~35kg）の関節 PD で実寸を支える既定。kd=6 で安定（H1 ほどの慣性は無い）。
-    sim_defaults=SimDefaults(total_mass=35.0, kp=150.0, kd=6.0, torque_limit=80.0),
+    # G1（1.29m）の関節 PD で実寸を支える既定。total_mass は実 g1_23dof URDF 総質量（34.13kg）。
+    # kd=6 で安定（H1 ほどの慣性は無い）。
+    sim_defaults=SimDefaults(total_mass=34.13, kp=150.0, kd=6.0, torque_limit=80.0),
 )
 
 # 後方互換のモジュールレベル別名。

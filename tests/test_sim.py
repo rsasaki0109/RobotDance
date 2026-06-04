@@ -99,18 +99,21 @@ def test_foot_footprint_has_real_width_for_single_support() -> None:
     assert _zmp_in_support(lateral, corners, margin=0.0), "片足 footprint の横幅内が支持外と誤判定"
 
 
-@pytest.mark.parametrize("robot,total_mass", [("unitree_g1", 35.0), ("unitree_h1", 47.0)])
-def test_mjcf_total_mass_is_conserved(robot: str, total_mass: float) -> None:
-    """生成 MJCF の総質量が宣言 total_mass に一致する（宣言質量＝実質量）。
+@pytest.mark.parametrize("robot", ["unitree_g1", "unitree_h1"])
+def test_mjcf_total_mass_is_conserved(robot: str) -> None:
+    """生成 MJCF の総質量が宣言 total_mass（embodiment 既定＝実 URDF 総質量）に一致する。
 
     旧実装は pelvis ハブ(3kg)+足 box(0.6kg) を total_mass の上乗せにしており、
     宣言35kg の G1 を実38.6kg(+10.3%) で sim していた。PD ゲインや逆動力学トルクは
     実質量に依存するため、宣言と実体がズレると「35kg 用に調整したつもりが 38.6kg を制御」
     という隠れ取り違えが起きる。固定質量を bone 配分予算から差し引いて質量を保存する。
+    total_mass は各 embodiment の sim_defaults（実 URDF 総質量: G1 34.13 / H1 59.34kg）。
     """
     import mujoco
 
-    model = mujoco.MjModel.from_xml_string(build_mjcf(get_morphology(robot), total_mass=total_mass))
+    morph = get_morphology(robot)
+    total_mass = morph.sim_defaults.total_mass
+    model = mujoco.MjModel.from_xml_string(build_mjcf(morph, total_mass=total_mass))
     assert model.body_mass.sum() == pytest.approx(total_mass, abs=1e-3), (
         f"{robot}: 宣言 {total_mass}kg と MJCF 実質量 {model.body_mass.sum():.3f}kg が不一致"
     )

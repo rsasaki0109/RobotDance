@@ -81,8 +81,9 @@ MORPHOLOGY = RobotMorphology(
     runtime_adapter="unitree_sdk2",
     per_joint_limits=H1_JOINT_LIMITS,
     mass_distribution=H1_MASS_FRACTION,
-    # H1 は G1 より背が高く（1.66m）重い（47kg）→ 高い kd が必須（kd=6 では PD 振動で転倒）。
-    sim_defaults=SimDefaults(total_mass=47.0, kp=200.0, kd=10.0, torque_limit=160.0),
+    # H1 は G1 より背が高く（1.66m）重い → 高い kd が必須（kd=6 では PD 振動で転倒）。
+    # total_mass は実 h1.urdf 総質量（59.34kg, 旧 47 は実機より過小だった）。
+    sim_defaults=SimDefaults(total_mass=59.34, kp=200.0, kd=10.0, torque_limit=160.0),
 )
 
 BONE_LENGTHS = MORPHOLOGY.bone_lengths

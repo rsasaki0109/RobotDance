@@ -69,7 +69,7 @@ def build_mjcf(
 ) -> str:
     """morphology から MJCF 文字列を生成する。
 
-    total_mass: robot の総質量（kg, 実機相当）。G1≈35, H1≈47 程度。
+    total_mass: robot の総質量（kg, 実機相当）。実 URDF 総質量は G1≈34, H1≈59 程度。
     mass_fraction: canonical joint 名 → 質量割合（Σ=1 へ再正規化して使用）。None なら
         morphology.mass_distribution（実 URDF inertial 由来があればそれ）→ 無ければ Winter 人体
         計測比（_SEGMENT_MASS_FRACTION）の順でフォールバック。実機分布は脚が重い（股・膝

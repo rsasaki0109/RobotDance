@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-06-04
+
+実データ深掘り（質量スレッドの締め, pre-alpha）。v0.34 の質量分布取り込みで実 H1 URDF 総質量が
+**~59kg**（SimDefaults の 47 は実機より 26% 過小）と判明したのを受け、各 embodiment の
+`sim_defaults.total_mass` を実 URDF 総質量へ補正した（G1 35→34.13, H1 47→59.34）。
+
+### Fixed
+- **embodiment の total_mass を実 URDF 総質量へ**（`robotdance_unitree.g1` / `h1`）: G1 34.13kg /
+  H1 59.34kg。宣言質量＝実 URDF 質量になり、PD ゲイン・逆動力学トルク・ZMP 判定が実機質量で
+  駆動する。H1 は kd=10 のまま PD-only で安定を維持（survival 全フレーム・upright 1.0 を実測確認）。
+
+### Changed
+- `test_mjcf_total_mass_is_conserved` を sim_defaults（実 URDF 総質量）駆動に変更（ハードコード
+  35/47 を撤廃）。`test_real_g1_urdf` に sim_defaults.total_mass＝実 URDF 総質量の一致検証を追加。
+
 ## [0.34.0] - 2026-06-04
 
 実データ深掘り（質量スレッド再開, pre-alpha）。sim の質量分布は v0.29 以降 Winter 人体計測比を

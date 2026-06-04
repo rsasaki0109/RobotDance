@@ -60,7 +60,7 @@ def test_h1_pd_baseline_is_stable_with_morphology_defaults() -> None:
     """H1 も morphology 由来の sim_defaults だけで PD-only 追従が安定する（転倒しない）。
 
     real-data validation: H1 は G1 より背が高く（1.66m）手足が長いため実効関節慣性が大きく、
-    G1 既定 kd=6 だと PD が振動して横倒れする。embodiment 固有 sim_defaults（kd=10, mass=47）が
+    G1 既定 kd=6 だと PD が振動して横倒れする。embodiment 固有 sim_defaults（kd=10, mass=59.34）が
     自動適用されることで、明示ゲイン無しでも安定することを担保する（機種取り違え回帰）。
     """
     morph = get_morphology("unitree_h1")

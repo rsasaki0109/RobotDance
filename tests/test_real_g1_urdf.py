@@ -122,6 +122,19 @@ def test_h1_embedded_mass_distribution_matches_real_urdf() -> None:
 
 
 @_skip
+def test_embodiment_sim_defaults_mass_matches_real_urdf_total() -> None:
+    """各 embodiment の sim_defaults.total_mass が実 URDF 総質量に一致する（隠れ取り違え防止）。"""
+    from robotdance_unitree import get_morphology
+    from robotdance_unitree.urdf_import import H1_LINK_MAP, canonical_mass_distribution
+
+    _, g1_total = canonical_mass_distribution(_URDF)
+    assert get_morphology("unitree_g1").sim_defaults.total_mass == pytest.approx(g1_total, abs=0.1)
+    if _H1_URDF is not None:
+        _, h1_total = canonical_mass_distribution(_H1_URDF, link_map=H1_LINK_MAP)
+        assert get_morphology("unitree_h1").sim_defaults.total_mass == pytest.approx(h1_total, abs=0.1)
+
+
+@_skip
 def test_safety_guard_from_real_g1_urdf_clamps_knee_reverse_bend() -> None:
     """実 G1 URDF から構築した safety guard が膝の逆屈コマンドを実下限へクランプする。"""
     import numpy as np
