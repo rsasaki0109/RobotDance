@@ -42,9 +42,23 @@ def test_write_csv_and_markdown(tmp_path) -> None:
     assert len(rows) == len(default_motion_suite())
     assert "motion_id" in rows[0] and "verdict" in rows[0]
     assert "joint_flexion_violation" in rows[0]  # 新列が CSV に出る
+    # 重力保持 vs 動的（重力＋慣性）トルクが CSV に分離して出る（v0.62/v0.63 の可視化）。
+    assert "gravity_torque_nm" in rows[0] and "dynamic_torque_nm" in rows[0]
     md = md_path.read_text("utf-8")
     assert "Leaderboard" in md and "unitree_g1" in md
     assert "屈曲違反" in md  # leaderboard / 全 run 表に屈曲列が出る
+    assert "重力tq" in md and "動的tq" in md  # トルク分離列が leaderboard に出る
+
+
+def test_dynamic_torque_propagates_to_benchmark() -> None:
+    """sim 経由で gravity/dynamic torque が row に伝播し、動的 ≥ 重力（慣性は非負寄与）。"""
+    pytest.importorskip("mujoco")
+    report = run_benchmark({"dance_fast": default_motion_suite()["dance_fast"]},
+                           ["unitree_h1"], with_sim=True)
+    row = report["rows"][0]
+    assert row["gravity_torque_nm"] is not None and row["dynamic_torque_nm"] is not None
+    # 速い運動なので動的（重力＋慣性）は重力保持を上回る。
+    assert row["dynamic_torque_nm"] >= row["gravity_torque_nm"]
 
 
 def test_overbend_propagates_violation_to_leaderboard() -> None:

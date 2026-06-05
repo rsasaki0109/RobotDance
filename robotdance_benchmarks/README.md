@@ -22,7 +22,8 @@ robotdance benchmark-extraction --out-md extraction.md        # 抽出品質 lea
 
 集約する指標: retarget（height_scale, bone_direction_cosine, foot_sliding,
 **joint_flexion_violation** = 膝・肘の屈曲が実 per-joint 可動域上限を超えたフレーム比, G1/H1 のみ）、
-sim_certificate（verdict, airborne, balance, torque_ratio, ang_speed）、source 品質（confidence, jitter）、
+sim_certificate（verdict, airborne, balance, torque_ratio, **gravity_torque_nm**＝重力保持成分 /
+**dynamic_torque_nm**＝重力＋並進＋回転慣性の合計 — 両者の差が慣性寄与, ang_speed）、source 品質（confidence, jitter）、
 extraction（MPJPE / PA-MPJPE / PCK / MPJVE / jitter / bone-length MAE）。
 
 サンプル結果（合成スイート × G1/H1）: [`../docs/benchmark/LEADERBOARD.md`](../docs/benchmark/LEADERBOARD.md)。

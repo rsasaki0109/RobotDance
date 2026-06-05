@@ -34,6 +34,10 @@ class BenchmarkRow:
     airborne_ratio: Optional[float] = None
     balance_violation_ratio: Optional[float] = None
     torque_ratio: Optional[float] = None
+    # 重力保持（準静的）成分と、重力＋並進＋回転慣性の合計（v0.62/v0.63）。N·m。
+    # torque_ratio は dynamic_torque_nm / 実 effort 上限の最大なので、この 2 値の差が慣性寄与。
+    gravity_torque_nm: Optional[float] = None
+    dynamic_torque_nm: Optional[float] = None
     max_joint_ang_speed: Optional[float] = None
     # source 品質（RD-MIR の quality_metrics から）
     source_confidence: Optional[float] = None
@@ -120,6 +124,8 @@ def run_benchmark(
                 row.airborne_ratio = cm.get("airborne_ratio")
                 row.balance_violation_ratio = cm.get("balance_violation_ratio")
                 row.torque_ratio = cm.get("torque_ratio")
+                row.gravity_torque_nm = cm.get("gravity_torque_nm")
+                row.dynamic_torque_nm = cm.get("dynamic_torque_nm")
                 row.max_joint_ang_speed = cm.get("max_joint_ang_speed_rad_s")
             rows.append(row)
 

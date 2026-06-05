@@ -5,6 +5,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.64.0] - 2026-06-05
+
+実データ深掘り（重力 vs 動的トルクを leaderboard に分離露出, pre-alpha）。v0.62/v0.63 で実装した
+「重力保持」と「重力＋並進＋回転慣性」の 2 成分を benchmark CSV / leaderboard に出し、各 motion×robot
+が**重力支配か慣性支配か**を可読化する。
+
+### Added
+- benchmark の各 run に `gravity_torque_nm`（重力保持＝準静的成分）と `dynamic_torque_nm`（重力＋並進
+  ＋回転慣性の合計）を記録（`BenchmarkRow`／CSV 列／leaderboard 表）。両者の差が**慣性寄与**で、速い
+  運動ほど開く（例: idle は重力≈動的、dance は動的≫重力）。`torque×` は従来どおり動的tq/実 effort 上限。
+- robot 別集計に「平均 動的tq(N·m)」列を追加（機種の重さ・慣性負荷の比較が一目で可能。Apollo 125 / H1 62
+  / G1 36 / T1 25 N·m）。
+- benchmark テストに gravity/dynamic torque の CSV・leaderboard 伝播と「動的 ≥ 重力」検証を追加。
+
 ## [0.63.0] - 2026-06-05
 
 実データ深掘り（トルクに回転慣性反作用を追加, pre-alpha）。v0.62 で省いた回転慣性項を加え、関節
