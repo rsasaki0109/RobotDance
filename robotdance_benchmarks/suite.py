@@ -72,6 +72,10 @@ def default_motion_suite() -> dict[str, RdMir]:
         "squat": generate_squat(),
         # その場足踏み: 単脚支持の balance（ZMP vs 支持多角形）を exercise。
         "march": generate_march(),
+        # 緩やかな足踏み（低速・低い持ち上げ）: 歩調を落とすと慣性トルクが下がり、狭股機種
+        # （G1/T1）は ZMP が支持内に収まり PASS。広股機種（H1/Apollo）は受動準静的モデルでは
+        # なお balance 違反（実機は足首戦略の能動バランスで実現しうる — v0 未モデル, SIM_TO_REAL 参照）。
+        "march_gentle": generate_march(steps_per_second=0.5, lift=0.5),
     }
     for name, mir in suite.items():
         mir.motion_id = name

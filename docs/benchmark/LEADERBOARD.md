@@ -1,6 +1,6 @@
 # RobotDance Benchmark
 
-motions: **7** × robots: **4** = 28 runs · sim: **on**
+motions: **8** × robots: **4** = 32 runs · sim: **on**
 
 > ⚠️ v0: 近似形態プロキシ。sim は実 URDF 慣性テンソルで検証（v0.52）。実機保証ではない（各 README 参照）。
 
@@ -8,10 +8,10 @@ motions: **7** × robots: **4** = 28 runs · sim: **on**
 
 | robot | runs | PASS率 | 平均 bone方向cos | 平均 foot_sliding | 平均 height_scale | 平均 屈曲違反率 | 平均 動的tq(N·m) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| unitree_g1 | 7 | 0.429 | 1.000 | 0.017 | 0.891 | 0.036 | 35.629 |
-| unitree_h1 | 7 | 0.571 | 1.000 | 0.021 | 1.149 | 0.000 | 62.371 |
-| booster_t1 | 7 | 0.571 | 1.000 | 0.015 | 0.675 | 0.026 | 24.900 |
-| apptronik_apollo | 7 | 0.714 | 1.000 | 0.022 | 1.117 | 0.000 | 125.443 |
+| unitree_g1 | 8 | 0.500 | 1.000 | 0.016 | 0.886 | 0.031 | 35.200 |
+| unitree_h1 | 8 | 0.500 | 1.000 | 0.019 | 1.142 | 0.000 | 60.775 |
+| booster_t1 | 8 | 0.625 | 1.000 | 0.014 | 0.671 | 0.023 | 23.850 |
+| apptronik_apollo | 8 | 0.625 | 1.000 | 0.020 | 1.111 | 0.000 | 124.625 |
 
 ## 全 run（motion × robot）
 
@@ -48,3 +48,7 @@ motions: **7** × robots: **4** = 28 runs · sim: **on**
 | march | march | unitree_h1 | REJECT | 0.000 | 0.450 | 1.071 | 29.900 | 142.600 | 5.610 | 0.018 | 1.000 | 0.000 |
 | march | march | booster_t1 | REJECT | 0.000 | 0.450 | 1.781 | 9.300 | 53.400 | 5.610 | 0.016 | 1.000 | 0.000 |
 | march | march | apptronik_apollo | REJECT | 0.000 | 0.583 | 3.169 | 54.100 | 380.300 | 5.610 | 0.019 | 1.000 | 0.000 |
+| march_gentle | march | unitree_g1 | PASS | 0.000 | 0.150 | 0.366 | 12.400 | 32.200 | 1.570 | 0.008 | 1.000 | 0.000 |
+| march_gentle | march | unitree_h1 | REJECT | 0.000 | 0.850 | 0.349 | 28.500 | 49.600 | 1.570 | 0.008 | 1.000 | 0.000 |
+| march_gentle | march | booster_t1 | PASS | 0.000 | 0.017 | 0.550 | 7.500 | 16.500 | 1.570 | 0.007 | 1.000 | 0.000 |
+| march_gentle | march | apptronik_apollo | REJECT | 0.000 | 0.850 | 0.991 | 46.300 | 118.900 | 1.570 | 0.008 | 1.000 | 0.000 |

@@ -562,6 +562,31 @@ def test_squat_is_feasible_and_march_exercises_balance() -> None:
     assert mar["metrics"]["airborne_ratio"] == 0.0          # 常に片足は接地（滞空ではない）
 
 
+def test_gentle_march_lowers_torque_and_passes_on_narrow_stance() -> None:
+    """歩調を落とした march（低速・低い持ち上げ）は慣性トルクが下がり、狭股機種（G1）は重心が
+    支持内に収まり PASS。広股機種（H1）は受動準静的モデルではなお balance 違反（足首戦略の能動
+    バランスが要る — v0 未モデル）。march の feasibility が歩調＋形態で決まることを実証。"""
+    from robotdance_core.synthetic import generate_march
+
+    naive = generate_march()
+    gentle = generate_march(steps_per_second=0.5, lift=0.5)
+
+    g1 = get_morphology("unitree_g1")
+    g1_naive = simulate_certificate(retarget(naive, g1), g1)
+    g1_gentle = simulate_certificate(retarget(gentle, g1), g1)
+    # 狭股 G1: naive は REJECT、緩やかにすると PASS（歩調で feasible に転じる）。
+    assert g1_naive["verdict"] == "REJECT"
+    assert g1_gentle["verdict"] == "PASS"
+
+    h1 = get_morphology("unitree_h1")
+    h1_naive = simulate_certificate(retarget(naive, h1), h1)
+    h1_gentle = simulate_certificate(retarget(gentle, h1), h1)
+    # 歩調を落とすと慣性トルクは全機種で下がる（H1 も torque_ratio 低下）。
+    assert h1_gentle["metrics"]["torque_ratio"] < h1_naive["metrics"]["torque_ratio"]
+    # ただし広股 H1 は受動モデルでなお balance 違反（能動バランス未モデルの境界）。
+    assert h1_gentle["metrics"]["balance_violation_ratio"] > 0.3
+
+
 def test_certificate_no_rom_metric_without_per_joint_limits() -> None:
     """per_joint_limits が無い morphology では ROM 統合は無効（joint_flexion 指標も出ない）。"""
     import dataclasses

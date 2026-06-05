@@ -16,7 +16,7 @@ from robotdance_benchmarks.suite import default_motion_suite, run_benchmark
 def test_default_suite_has_variety() -> None:
     suite = default_motion_suite()
     assert {"dance_normal", "dance_fast", "idle", "backflip", "overbend",
-            "squat", "march"} <= set(suite)
+            "squat", "march", "march_gentle"} <= set(suite)
 
 
 def test_run_benchmark_no_sim_shape() -> None:

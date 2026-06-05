@@ -34,6 +34,12 @@ RobotDance の `sim_certificate` は **"physically-informed feasibility"** — *
   矩形の凸包**を支持多角形とする。**傾斜・不整地・段差・摩擦円錐・足裏の柔軟性は未モデル**。
 - balance 制御器は無い（参照運動の ZMP が支持内かのみ判定）。`march`（単脚支持）が REJECT するのは
   この準静的・受動モデルゆえで、実機は balance 制御で単脚支持を実現しうる。
+  - **歩調を落とすと（`march_gentle`: 低速・低い持ち上げ）慣性トルクが下がり、狭股機種（G1/T1）は
+    重心軌道が支持多角形内に収まり PASS** する（適切な歩調なら単脚支持は feasible の実証）。一方
+    **広股機種（H1/Apollo）は受動準静的モデルではなお balance 違反**で、これは支持足が外側にあり
+    重心を支持脚上へ載せるには**足首戦略（接地足を軸に上体を傾ける能動バランス）**が要るため。
+    v0 はこの能動バランスを未モデル（剛体並進では支持足も動き COM-足の相対が変わらず無効）。
+    つまり march の feasibility は **歩調（慣性）＋形態（股幅）＋能動バランスの有無**で決まる。
 
 ### トルク
 - `torque_ratio` は Newton-Euler の関節トルク **`τ = dL_com/dt + r × m·(a_com − g)`**／実 per-joint effort

@@ -5,6 +5,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.67.0] - 2026-06-05
+
+合成スイートに `march_gentle` を追加し、**march の feasibility が歩調＋形態＋能動バランスで決まる**ことを
+実証（pre-alpha）。単脚支持が「v0 では原理的に不可能」ではなく「適切な歩調なら狭股機種で実現可能」で
+あることを示し、広股機種で残る balance 違反の理由（足首戦略の未モデル）を明文化する。
+
+### Added
+- `default_motion_suite` に `march_gentle`（低速・低い持ち上げの足踏み）。歩調を落とすと慣性トルクが
+  下がり、**狭股機種（G1/T1）は重心が支持多角形内に収まり PASS**（naive march は全機種 REJECT）。
+  広股機種（H1/Apollo）は受動準静的モデルでなお balance 違反（torque は全機種で解消）。benchmark は 32 run に。
+- test: gentle march が G1 を REJECT→PASS に転じ、H1 の torque_ratio を下げつつ広股ゆえ balance は残ることを検証。
+
+### Changed
+- `docs/SIM_TO_REAL.md` の march 節を拡張: feasibility は歩調（慣性）＋形態（股幅）＋能動バランスの
+  有無で決まると明記。**剛体並進では支持足も動き COM-足の相対が変わらず balance を改善できない**（足を
+  接地したまま上体を傾ける足首戦略 IK が要る）ことを実装上の注意として記録。v0 はこの能動バランスを未モデル。
+
 ## [0.66.0] - 2026-06-05
 
 実データ深掘り（律速関節を Model Card の executability に集約, pre-alpha）。v0.65 で certificate に出した
