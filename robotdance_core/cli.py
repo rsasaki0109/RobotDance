@@ -332,7 +332,8 @@ def _import_hmr(path: Path, source: str, fps: float | None, out: Path) -> int:
     return 0
 
 
-def _extract(video: Path, out: Path, model: Path | None, backend: str, num_poses: int) -> int:
+def _extract(video: Path, out: Path, model: Path | None, backend: str, num_poses: int,
+             check: bool = True) -> int:
     from robotdance_perception.backends import get_backend
 
     b = get_backend(backend)
@@ -352,8 +353,17 @@ def _extract(video: Path, out: Path, model: Path | None, backend: str, num_poses
           f"mean_confidence={q.get('mean_confidence')} "
           f"subjects={q.get('n_subjects_max', 1)} "
           f"lift={q.get('lift', 'none')} license_state={mir.license_state}")
-    if (q.get("n_subjects_max") or 1) > 1:
-        print("  ⚠️ 複数人を検出 → 最大人物を起点に追跡。意図と違えば演武者領域に crop を。")
+    if check:
+        # 抽出直後に健全性チェック（mirror/深度/接地/多人数）。warn だけ簡潔に出す。
+        from robotdance_motion.doctor import diagnose_motion
+
+        warns = [c for c in diagnose_motion(mir) if c.status == "warn"]
+        if warns:
+            print(f"  🩺 健全性: {len(warns)} 件の注意（詳細は `motion-doctor {out}`）")
+            for c in warns:
+                print(f"     ⚠️ {c.name}: {c.message}")
+        else:
+            print("  🩺 健全性: 問題なし")
     return 0
 
 
@@ -1459,6 +1469,8 @@ def main(argv: list[str] | None = None) -> int:
                            help="pose 検出バックエンド（list-backends で一覧）")
     p_extract.add_argument("--num-poses", type=int, default=4,
                            help="検出させる最大人数（多人数シーンで前景被写体を追跡）")
+    p_extract.add_argument("--no-check", action="store_true",
+                           help="抽出直後の健全性チェック（motion-doctor）をスキップ")
 
     p_doc = sub.add_parser("motion-doctor",
                            help="RD-MIR の健全性チェック（mirror/深度/接地/多人数 等を診断）")
@@ -1674,7 +1686,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "overlay":
         return _overlay(args.video, args.mir, args.out, args.stride)
     if args.command == "extract":
-        return _extract(args.video, args.out, args.model, args.backend, args.num_poses)
+        return _extract(args.video, args.out, args.model, args.backend, args.num_poses,
+                        check=not args.no_check)
     if args.command == "motion-doctor":
         return _motion_doctor(args.rdmir)
     if args.command == "list-backends":

@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.92.0] - 2026-06-06
+
+### Added
+
+- CLI `extract` が抽出直後に `motion-doctor` の健全性チェックを自動実行し、warn を簡潔に表示
+  （mirror/深度/接地/多人数 等）。`--no-check` でスキップ可能。手動の多人数警告は doctor に統合。
+
 ## [0.91.0] - 2026-06-06
 
 単眼抽出のデバッグ知見を再利用可能な健全性チェックに製品化（pre-alpha）。
