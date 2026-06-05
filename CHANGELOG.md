@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.85.0] - 2026-06-05
+
+pose 検出器の比較を CLI の正規コマンドに昇格（pre-alpha）。
+
+### Added
+
+- CLI `pose-compare <clip> [-o out.gif] [--stride] [--width]`: available な全 pose backend を
+  同一動画で比較し、overlay GIF（任意）と検出率・平均 confidence・推論時間の指標表を出す。
+- `robotdance_perception/compare.py`: 比較ロジックを `compare_backends(video, out_gif=...)` に集約
+  （CLI と `scripts/compare_pose_backends.py` の共通実装）。未導入の検出器は自動スキップし `skipped` で報告。
+- `tests/test_pose_backends.py` に 3 テスト追加（list-backends CLI 実行・全 backend のパネル色・
+  動画不在時のエラー）。計 14 テスト。
+
+### Changed
+
+- `scripts/compare_pose_backends.py` を `compare_backends` を呼ぶ薄いラッパに簡素化。
+- README に `pose-compare` の使い方を追記。
+
 ## [0.84.0] - 2026-06-05
 
 pose 検出バックエンドのレジストリを「メタデータ」から「機能的」へ（pre-alpha）。

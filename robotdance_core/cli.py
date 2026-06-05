@@ -344,6 +344,22 @@ def _extract(video: Path, out: Path, model: Path | None, backend: str) -> int:
     return 0
 
 
+def _pose_compare(video: Path, out: Path | None, stride: int, width: int) -> int:
+    """available な全 pose backend を同一動画で比較（overlay GIF + 指標）。"""
+    from robotdance_perception.compare import compare_backends
+
+    r = compare_backends(video, out_gif=out, stride=stride, width=width)
+    if r["skipped"]:
+        print(f"⚠️ 未導入のためスキップ: {', '.join(r['skipped'])}")
+    if r["out_gif"]:
+        print(f"✓ overlay GIF: {r['out_gif']}（{r['n_frames']} frames）")
+    print(f"  {'backend':14s} {'det_rate':>8s} {'mean_conf':>10s} {'ms/frame':>9s}")
+    for k, m in r["metrics"].items():
+        print(f"  {k:14s} {m['det_rate']:8.2f} {m['mean_conf']:10.3f} {m['ms_per_frame']:9.0f}")
+    print("  ※ retarget に使えるのは 3D の mediapipe のみ（2D 検出器は lifting が必要）。")
+    return 0
+
+
 def _list_backends() -> int:
     """登録済み pose 検出バックエンドと能力（次元/形式/retarget 可否/導入状況）を一覧する。"""
     from robotdance_perception.backends import list_backends
@@ -1412,6 +1428,14 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("list-backends", help="登録済み pose 検出バックエンドと能力を一覧する")
 
+    p_pc = sub.add_parser("pose-compare",
+                          help="複数 pose 検出器を同一動画で比較（overlay GIF + 指標）")
+    p_pc.add_argument("video", type=Path, help="入力動画（ローカルファイル）")
+    p_pc.add_argument("-o", "--out", type=Path, default=None,
+                      help="overlay GIF 出力先（省略時は指標のみ）")
+    p_pc.add_argument("--stride", type=int, default=3, help="何フレームごとに処理するか")
+    p_pc.add_argument("--width", type=int, default=300, help="各パネルのリサイズ幅")
+
     p_bx = sub.add_parser("benchmark-extraction",
                           help="抽出 adapter（MediaPipe/HMR）を共通 GT に対し定量比較（§4.1）")
     p_bx.add_argument("--out-csv", type=Path, default=Path("extraction_benchmark.csv"))
@@ -1615,6 +1639,8 @@ def main(argv: list[str] | None = None) -> int:
         return _extract(args.video, args.out, args.model, args.backend)
     if args.command == "list-backends":
         return _list_backends()
+    if args.command == "pose-compare":
+        return _pose_compare(args.video, args.out, args.stride, args.width)
     if args.command == "import-humanml3d":
         return _import_humanml3d(args.joints, args.text, args.fps, args.out)
     if args.command == "import-babel":

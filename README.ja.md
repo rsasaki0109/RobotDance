@@ -91,7 +91,7 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 
 ### Pose 検出 — 色々な OSS 検出器を差し替え
 
-既定は MediaPipe Pose（retarget に要る **3D world landmarks** を返す）だが、抽出は差し替え可能なステージ。各バックエンドは能力付きで登録され、`robotdance list-backends` で一覧、`extract --backend <name>` で選択できる（2D-only 検出器は 3D が要るフル抽出では拒否される）。同一クリップに 3 つの OSS 2D 検出器を当て、COCO-17 に揃えて重ねた比較:
+既定は MediaPipe Pose（retarget に要る **3D world landmarks** を返す）だが、抽出は差し替え可能なステージ。各バックエンドは能力付きで登録され、`robotdance list-backends` で一覧、`robotdance pose-compare <clip> -o out.gif` で手元のクリップを横並び比較、`extract --backend <name>` で抽出器を選択できる（2D-only 検出器は 3D が要るフル抽出では拒否される）。同一クリップに 3 つの OSS 2D 検出器を当て、COCO-17 に揃えて重ねた比較:
 
 <img src="assets/readme/pose/pose_compare_squat.gif" width="640" alt="MediaPipe vs YOLO11-pose vs RTMPose on the same squat clip">
 

@@ -91,7 +91,7 @@ Recover 3D from a local video with MediaPipe Pose, then go end-to-end: RD-MIR �
 
 ### Pose detection — swap in different OSS detectors
 
-MediaPipe Pose is the default (it returns **3D world landmarks** needed for retargeting), but extraction is a pluggable stage. Backends are registered with their capabilities — list them with `robotdance list-backends`, and pick one with `extract --backend <name>` (2D-only detectors are rejected for full extraction, which needs 3D). Here are three OSS 2D detectors on the same clip, all normalized to COCO-17 for a fair overlay:
+MediaPipe Pose is the default (it returns **3D world landmarks** needed for retargeting), but extraction is a pluggable stage. Backends are registered with their capabilities — list them with `robotdance list-backends`, run a side-by-side comparison on your own clip with `robotdance pose-compare <clip> -o out.gif`, and pick one for extraction with `extract --backend <name>` (2D-only detectors are rejected for full extraction, which needs 3D). Here are three OSS 2D detectors on the same clip, all normalized to COCO-17 for a fair overlay:
 
 <img src="assets/readme/pose/pose_compare_squat.gif" width="640" alt="MediaPipe vs YOLO11-pose vs RTMPose on the same squat clip">
 

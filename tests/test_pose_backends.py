@@ -77,6 +77,29 @@ def test_make_runner_2d_unknown_backend_raises():
         make_runner_2d("openpose")
 
 
+def test_list_backends_cli_runs():
+    from robotdance_core.cli import main
+
+    assert main(["list-backends"]) == 0
+
+
+def test_compare_module_covers_all_backends_with_panel_colors():
+    from robotdance_perception.compare import PANEL_COLORS
+
+    names = {b.name for b in list_backends()}
+    assert names <= set(PANEL_COLORS), "全 backend に overlay パネル色を割り当てる"
+
+
+def test_compare_raises_on_missing_video_when_a_backend_available():
+    # mediapipe が居ればランナーは作れるが、動画が無ければ明示的に失敗する。
+    if not MEDIAPIPE.available():
+        pytest.skip("mediapipe 未導入")
+    from robotdance_perception.compare import compare_backends
+
+    with pytest.raises((FileNotFoundError, RuntimeError)):
+        compare_backends("does_not_exist_xyz.mp4")
+
+
 def test_mediapipe_runner_outputs_coco17_on_synthetic_frame():
     # mediapipe が導入済みなら、ランナーは (xy[17,2], conf[17]) | None を返す。
     if not MEDIAPIPE.available():
