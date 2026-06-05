@@ -5,6 +5,26 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.68.0] - 2026-06-05
+
+balance（ZMP×支持多角形）の可視化を追加（pre-alpha）。トルクを可読化した v0.64-66 と対に、これまで
+`balance_violation_ratio` の単一数値だった balance を「どのフレームで・どこで ZMP が支持を外れるか」まで
+診断可能にする。
+
+### Added
+- `simulate_certificate(..., return_trace=True)` で per-frame の **ZMP 軌跡・支持多角形・in/out 判定**を
+  `result["trace"]` に返す（可視化が再計算せず certificate と同じ値を使う single source of truth。既定は trace なし）。
+- `robotdance_viewer/balance_view.py` の `render_balance_plot`: trace を**上面図 PNG**に描く（支持多角形＝
+  接地足フットプリント、ZMP 軌跡、支持内=緑/支持外=赤×）。軸は足位置で固定し、準静的 ZMP の外れ値で
+  スケールが崩れないようにする。
+- CLI `validate-sim --balance-plot out.png`（mujoco backend）。trace は保存ファイルへ持ち込まない。
+- test: trace の長さ・支持外率が `balance_violation_ratio` と整合すること、PNG が生成されることを検証。
+
+### Notes
+- 実験的に確認した負の結果も記録（SIM_TO_REAL）: 広股機種の balance を**剛体並進**で救えない（支持足も
+  動く）し、**剛体全身傾斜の足首戦略は balance を一部下げるが torque を悪化**させる（真の足首戦略は足首
+  のみ屈曲し torso を低加速で保つ）。v0 はこの能動バランスを未モデルのまま正直に残す。
+
 ## [0.67.0] - 2026-06-05
 
 合成スイートに `march_gentle` を追加し、**march の feasibility が歩調＋形態＋能動バランスで決まる**ことを

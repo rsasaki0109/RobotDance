@@ -587,6 +587,26 @@ def test_gentle_march_lowers_torque_and_passes_on_narrow_stance() -> None:
     assert h1_gentle["metrics"]["balance_violation_ratio"] > 0.3
 
 
+def test_certificate_balance_trace_matches_verdict() -> None:
+    """return_trace=True で per-frame の ZMP/支持多角形/in-support を返し、可視化が certificate と
+    同じ値を使えること（single source of truth）。trace の支持外率は balance_violation_ratio と整合。"""
+    from robotdance_core.synthetic import generate_march
+
+    morph = get_morphology("unitree_g1")
+    cert = simulate_certificate(retarget(generate_march(), morph), morph, return_trace=True)
+    tr = cert["trace"]
+    n = len(tr["zmp_xy"])
+    assert n > 0
+    assert len(tr["support_polys"]) == n and len(tr["in_support"]) == n
+    # 滞空でないフレームは支持多角形が空でない（march は常に片足接地）。
+    assert all(len(p) > 0 for p in tr["support_polys"])
+    # trace の支持外率 = balance_violation_ratio（airborne 含む整合）。
+    out_ratio = 1.0 - sum(tr["in_support"]) / n
+    assert out_ratio == pytest.approx(cert["metrics"]["balance_violation_ratio"], abs=0.02)
+    # trace を返さない既定では trace キーは無い（肥大化させない）。
+    assert "trace" not in simulate_certificate(retarget(generate_march(), morph), morph)
+
+
 def test_certificate_no_rom_metric_without_per_joint_limits() -> None:
     """per_joint_limits が無い morphology では ROM 統合は無効（joint_flexion 指標も出ない）。"""
     import dataclasses

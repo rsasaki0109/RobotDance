@@ -40,6 +40,9 @@ RobotDance の `sim_certificate` は **"physically-informed feasibility"** — *
     重心を支持脚上へ載せるには**足首戦略（接地足を軸に上体を傾ける能動バランス）**が要るため。
     v0 はこの能動バランスを未モデル（剛体並進では支持足も動き COM-足の相対が変わらず無効）。
     つまり march の feasibility は **歩調（慣性）＋形態（股幅）＋能動バランスの有無**で決まる。
+  - `validate-sim --balance-plot out.png` で **ZMP 軌跡×支持多角形の上面図**を出力でき、どのフレームで
+    ZMP が支持を外れるか（赤×）を可視化できる（balance_violation_ratio の単一数値の内訳。`simulate_certificate(
+    return_trace=True)` の trace は certificate と同じ値＝図と verdict が必ず一致）。
 
 ### トルク
 - `torque_ratio` は Newton-Euler の関節トルク **`τ = dL_com/dt + r × m·(a_com − g)`**／実 per-joint effort

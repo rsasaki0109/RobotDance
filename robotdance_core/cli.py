@@ -1104,7 +1104,7 @@ def _sim_backends() -> int:
 
 def _validate_sim(
     path: Path, robot: str, out: Path | None, backend: str = "mujoco",
-    clamp_flexion: bool = False,
+    clamp_flexion: bool = False, balance_plot: Path | None = None,
 ) -> int:
     from .model_card import build_motion_card
     from .rd_mir import RdMir
@@ -1114,7 +1114,18 @@ def _validate_sim(
 
     morph = get_morphology(robot)
     motion = retarget(RdMir.load(path), morph, clamp_flexion=clamp_flexion)
-    certify(motion, morph, backend=backend)
+    if balance_plot is not None and backend == "mujoco":
+        # ZMP×支持多角形の可視化には per-frame trace が要るので mujoco backend を直接呼ぶ。
+        from robotdance_sim.mujoco_backend import simulate_certificate
+        from robotdance_viewer.balance_view import render_balance_plot
+
+        motion.sim_certificate = simulate_certificate(motion, morph, return_trace=True)
+        render_balance_plot(motion.sim_certificate["trace"], balance_plot,
+                            title=f"{robot}: {motion.source_motion_id}")
+        motion.sim_certificate.pop("trace", None)  # 保存ファイルを肥大化させない
+        print(f"  🖼  balance plot（ZMP×支持多角形）→ {balance_plot}")
+    else:
+        certify(motion, morph, backend=backend)
     cert = motion.sim_certificate or {}
     print(f"{'✅' if cert.get('passed') else '⛔'} {robot}: {cert.get('verdict')}"
           f"{'（clamp_flexion 補正後）' if clamp_flexion else ''}")
@@ -1443,6 +1454,8 @@ def main(argv: list[str] | None = None) -> int:
     p_vsim.add_argument("-o", "--out", type=Path, default=None, help="certificate 付き .rdmotion 保存先")
     p_vsim.add_argument("--clamp-flexion", action="store_true",
                         help="膝・肘を実機可動域へ補正してから検証（ROM 違反の remedy）")
+    p_vsim.add_argument("--balance-plot", type=Path, default=None,
+                        help="ZMP×支持多角形の上面図 PNG を出力（balance 違反を可視化, mujoco backend）")
 
     sub.add_parser("sim-backends", help="登録済み sim backend と利用可否を表示（§4.3）")
 
@@ -1505,7 +1518,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo-multi":
         return _demo_multi(args.out, args.robots, args.stride)
     if args.command == "validate-sim":
-        return _validate_sim(args.path, args.robot, args.out, args.backend, args.clamp_flexion)
+        return _validate_sim(args.path, args.robot, args.out, args.backend, args.clamp_flexion,
+                             args.balance_plot)
     if args.command == "sim-backends":
         return _sim_backends()
     if args.command == "demo-pipeline":

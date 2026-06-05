@@ -202,6 +202,7 @@ def simulate_certificate(
     torque_limit: float | None = None,
     support_margin: float = 0.05,
     real_inertia: bool = True,
+    return_trace: bool = False,
 ) -> dict[str, Any]:
     """RD-Motion を MuJoCo 物理で検証し sim_certificate dict を返す。
 
@@ -350,6 +351,10 @@ def simulate_certificate(
     contacts = motion.contact_schedule or {}
     airborne = 0
     unsupported = 0
+    # per-frame バランストレース（return_trace 時のみ蓄積。可視化が ZMP×支持多角形を再計算
+    # せず certificate と同じ値を使う single source of truth）。
+    trace_polys: list[list[list[float]]] = []
+    trace_in: list[bool] = []
     for f in range(n):
         corners: list[np.ndarray] = []
         for side, (ankle, toe) in FOOT_JOINTS.items():
@@ -358,9 +363,16 @@ def simulate_certificate(
         if not corners:
             airborne += 1
             unsupported += 1
+            if return_trace:
+                trace_polys.append([])
+                trace_in.append(False)
             continue
-        if not _zmp_in_support(zmp[f], np.array(corners), support_margin):
+        in_support = _zmp_in_support(zmp[f], np.array(corners), support_margin)
+        if not in_support:
             unsupported += 1
+        if return_trace:
+            trace_polys.append([c.tolist() for c in corners])
+            trace_in.append(bool(in_support))
 
     airborne_ratio = airborne / n
     balance_violation_ratio = unsupported / n
@@ -425,7 +437,7 @@ def simulate_certificate(
         metrics["joint_velocity_ratio"] = round(velocity_ratio, 3)
     if flexion_violation is not None:
         metrics["joint_flexion_violation_ratio"] = round(flexion_violation, 3)
-    return {
+    result: dict[str, Any] = {
         "backend": "mujoco",
         "mujoco_version": mujoco.__version__,
         "approximate_inertia": not used_real_inertia,
@@ -449,6 +461,15 @@ def simulate_certificate(
             "／実 actuator 上限（mj_inverse の ball-joint 特異性を回避した robust な解析法。回転慣性項は省く）。"
         ),
     }
+    if return_trace:
+        # 可視化用 per-frame バランストレース（certificate と同じ ZMP/支持多角形/判定）。
+        result["trace"] = {
+            "zmp_xy": zmp.tolist(),
+            "com_xy": com[:, :2].tolist(),
+            "support_polys": trace_polys,   # フレームごとの支持多角形隅 [[x,y],...]（滞空は []）
+            "in_support": trace_in,         # ZMP が支持内（margin 込み）か
+        }
+    return result
 
 
 def certify(motion: RdMotion, morphology: RobotMorphology, **kwargs: Any) -> RdMotion:

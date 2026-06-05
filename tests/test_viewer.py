@@ -60,3 +60,20 @@ def test_render_side_by_side_with_title(tmp_path: Path) -> None:
     out = render_side_by_side([(kp, "panel", "#1f77b4")], tmp_path / "t.gif",
                               fps=20.0, stride=2, title="🔎 query")
     assert out.exists() and out.stat().st_size > 0
+
+
+def test_render_balance_plot(tmp_path: Path) -> None:
+    """balance ビューア: certificate trace を ZMP×支持多角形の上面図 PNG に描く。"""
+    pytest.importorskip("matplotlib")
+    pytest.importorskip("mujoco")
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_sim.mujoco_backend import simulate_certificate
+    from robotdance_unitree import get_morphology
+    from robotdance_viewer.balance_view import render_balance_plot
+
+    morph = get_morphology("unitree_g1")
+    from robotdance_core.synthetic import generate_march
+
+    cert = simulate_certificate(retarget(generate_march(), morph), morph, return_trace=True)
+    out = render_balance_plot(cert["trace"], tmp_path / "balance.png", title="g1 march")
+    assert out.exists() and out.stat().st_size > 0
