@@ -69,23 +69,24 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 
 <table>
 <tr>
-<td align="center"><img src="assets/readme/real/squat_g1_overlay.gif" width="220" alt="2D skeleton overlay on source video"><br><sub>① 原動画 + 骨格 overlay</sub></td>
-<td align="center"><img src="assets/readme/real/squat_g1_skeleton.gif" width="170" alt="canonical skeleton"><br><sub>② RD-MIR スケルトン</sub></td>
-<td align="center"><img src="assets/readme/real/squat_g1_robot.gif" width="180" alt="G1 mesh performing the squat"><br><sub>③ 実 G1 が再現</sub></td>
+<td align="center"><img src="assets/readme/real/karate3_g1_overlay.gif" width="220" alt="2D skeleton overlay on a karate kata video"><br><sub>① 原動画 + 骨格 overlay</sub></td>
+<td align="center"><img src="assets/readme/real/karate3_g1_skeleton.gif" width="170" alt="canonical skeleton"><br><sub>② RD-MIR スケルトン</sub></td>
+<td align="center"><img src="assets/readme/real/karate3_g1_robot.gif" width="180" alt="G1 mesh performing the karate kata stance"><br><sub>③ 実 G1 が再現</sub></td>
 </tr>
 </table>
 
-**武道・ダンスの実クリップも → 実 G1 / H1:**
+<sub>3 段は同一 extract から生成 — 前屈立ちと腕の技が overlay・復元スケルトン・ロボットで揃う。ロボットは各フレームで動的に接地（最下点を床へ）するので、骨盤固定で浮かず人間と一緒に屈伸・踏み込みする。</sub>
+
+**ダンスの実クリップも → 実 G1 / H1:**
 
 <table>
 <tr>
-<td align="center"><img src="assets/readme/real/karate_g1_robot.gif" width="140" alt="G1 karate kata"><br><sub>karate → G1</sub></td>
-<td align="center"><img src="assets/readme/real/kathak_g1_robot.gif" width="140" alt="G1 kathak dance"><br><sub>kathak → G1</sub></td>
-<td align="center"><img src="assets/readme/real/kathak_h1_robot.gif" width="140" alt="H1 kathak dance"><br><sub>kathak → H1</sub></td>
+<td align="center"><img src="assets/readme/real/kathak3_g1_robot.gif" width="150" alt="G1 kathak dance"><br><sub>kathak → G1</sub></td>
+<td align="center"><img src="assets/readme/real/kathak3_h1_robot.gif" width="150" alt="H1 kathak dance"><br><sub>kathak → H1</sub></td>
 </tr>
 </table>
 
-<sub>※ **入力動画は repo に同梱しません。** overlay のみソース動画ピクセルを含む派生物（CC-BY 出典明記で可）、他は抽出 motion の可視化でピクセル非含有。Sources（Wikimedia Commons, CC-BY/-SA）: FitnessScape / Sdcsabac / Suyash Dwivedi。生成は [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py)。</sub>
+<sub>※ **入力動画は repo に同梱しません。** overlay のみソース動画ピクセルを含む派生物（CC-BY 出典明記で可）、他は抽出 motion の可視化でピクセル非含有。Sources（Wikimedia Commons）: karate kata — Sdcsabac (CC BY-SA 4.0) / kathak — Suyash Dwivedi (CC BY-SA 4.0) / squat（下の物理検証）— FitnessScape (CC BY 3.0)。生成は [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py)。</sub>
 
 ### 物理検証が安全弁 — 無理な運動は止める
 

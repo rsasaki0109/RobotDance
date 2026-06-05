@@ -5,6 +5,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.81.0] - 2026-06-05
+
+実動画→ロボットの動きの一致を改善（pre-alpha）。「人間とロボットの動きが合っていない」を 2 点で修正。
+
+### Fixed
+- **動的接地**: ロボット render が `useFixedBase` で骨盤を固定高さに置いていたため、しゃがむ動作で
+  体が沈まず足が浮いていた。`_render_mesh`（`render_real_video_gif.py`）に毎フレームの接地
+  （最下点の AABB を床へ合わせて base 高さを下げる）を追加。屈伸・踏み込みが人間と一致するように。
+
+### Changed
+- 実動画 3 段ヒーローを **squat → karate kata** に差し替え。squat は単眼で最も深度が不確実な動きで
+  retarget が脚を正しく復元できず人間と一致しなかった。karate は近接フレーム＋正面の型で overlay・
+  スケルトン・ロボットが明確に対応（同一 extract から生成, IK 0.071m, conf 0.92）。
+- 「実クリップ」行を kathak → G1 / H1（接地版）に整理。squat は物理検証セクションの例として継続。
+- 旧 floating 版の実動画ロボット GIF を接地版に置換し、孤立アセットを削除（assets/readme/real: 約7M）。
+
 ## [0.80.0] - 2026-06-05
 
 実動画 3 段デモの同期を修正（pre-alpha）。README の overlay が skeleton/robot と別トリム由来でズレていた

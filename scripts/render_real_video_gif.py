@@ -53,11 +53,26 @@ def _render_mesh(urdf: Path, robot: str, base_z: float, angles, names,
     proj = p.computeProjectionMatrixFOV(42, width / height, 0.1, 10)
     cam_target_z = base_z * 0.78
     cam_dist = base_z * 2.45
+    n_links = p.getNumJoints(rid)
+
+    def _lowest_z() -> float:
+        """現在の姿勢でロボット最下点の world z（メッシュ AABB の最小）を返す。"""
+        zmin = p.getAABB(rid, -1)[0][2]
+        for i in range(n_links):
+            zmin = min(zmin, p.getAABB(rid, i)[0][2])
+        return zmin
+
     frames = []
     t_len = angles.shape[0]
     for f in range(0, t_len, stride):
+        # base を一旦既定高さへ戻して関節を設定 → 最下点を地面へ合わせて base を下げる。
+        # これで「しゃがむ」と骨盤が沈み足が接地したままになり、人間の動きと一致する
+        # （base 固定だと膝を曲げた時に足が浮いてスクワットに見えない）。
+        p.resetBasePositionAndOrientation(rid, [0, 0, base_z], [0, 0, 0, 1])
         for ji, k in pairs:
             p.resetJointState(rid, ji, float(angles[f, k]))
+        p.performCollisionDetection()
+        p.resetBasePositionAndOrientation(rid, [0, 0, base_z - _lowest_z() + 0.005], [0, 0, 0, 1])
         yaw = 35 + 25 * np.sin(2 * np.pi * f / t_len)
         view = p.computeViewMatrixFromYawPitchRoll([0, 0, cam_target_z], cam_dist, yaw, -10, 0, 2)
         img = p.getCameraImage(width, height, view, proj, renderer=p.ER_TINY_RENDERER,

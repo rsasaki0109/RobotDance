@@ -69,23 +69,24 @@ Recover 3D from a local video with MediaPipe Pose, then go end-to-end: RD-MIR �
 
 <table>
 <tr>
-<td align="center"><img src="assets/readme/real/squat_g1_overlay.gif" width="220" alt="2D skeleton overlay on source video"><br><sub>① source video + skeleton overlay</sub></td>
-<td align="center"><img src="assets/readme/real/squat_g1_skeleton.gif" width="170" alt="canonical skeleton"><br><sub>② RD-MIR skeleton</sub></td>
-<td align="center"><img src="assets/readme/real/squat_g1_robot.gif" width="180" alt="G1 mesh performing the squat"><br><sub>③ real G1 reproduces it</sub></td>
+<td align="center"><img src="assets/readme/real/karate3_g1_overlay.gif" width="220" alt="2D skeleton overlay on a karate kata video"><br><sub>① source video + skeleton overlay</sub></td>
+<td align="center"><img src="assets/readme/real/karate3_g1_skeleton.gif" width="170" alt="canonical skeleton"><br><sub>② RD-MIR skeleton</sub></td>
+<td align="center"><img src="assets/readme/real/karate3_g1_robot.gif" width="180" alt="G1 mesh performing the karate kata stance"><br><sub>③ real G1 reproduces it</sub></td>
 </tr>
 </table>
 
-**Martial-arts and dance clips too → real G1 / H1:**
+<sub>All three stages come from one extract — the forward stance and arm techniques line up across the overlay, the recovered skeleton, and the robot. The robot is dynamically grounded each frame (lowest point on the floor), so it bends and steps with the human instead of floating at a fixed pelvis height.</sub>
+
+**A dance clip too → real G1 / H1:**
 
 <table>
 <tr>
-<td align="center"><img src="assets/readme/real/karate_g1_robot.gif" width="140" alt="G1 karate kata"><br><sub>karate → G1</sub></td>
-<td align="center"><img src="assets/readme/real/kathak_g1_robot.gif" width="140" alt="G1 kathak dance"><br><sub>kathak → G1</sub></td>
-<td align="center"><img src="assets/readme/real/kathak_h1_robot.gif" width="140" alt="H1 kathak dance"><br><sub>kathak → H1</sub></td>
+<td align="center"><img src="assets/readme/real/kathak3_g1_robot.gif" width="150" alt="G1 kathak dance"><br><sub>kathak → G1</sub></td>
+<td align="center"><img src="assets/readme/real/kathak3_h1_robot.gif" width="150" alt="H1 kathak dance"><br><sub>kathak → H1</sub></td>
 </tr>
 </table>
 
-<sub>※ **Source videos are not bundled in this repo.** Only the overlay is a derivative containing source pixels (allowed under CC-BY with attribution); the rest visualize the extracted motion and contain no source pixels. Sources (Wikimedia Commons, CC-BY/-SA): FitnessScape / Sdcsabac / Suyash Dwivedi. Generated with [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py).</sub>
+<sub>※ **Source videos are not bundled in this repo.** Only the overlay is a derivative containing source pixels (allowed under CC-BY with attribution); the rest visualize the extracted motion and contain no source pixels. Sources (Wikimedia Commons): karate kata — Sdcsabac (CC BY-SA 4.0); kathak — Suyash Dwivedi (CC BY-SA 4.0); squat (in the physics check below) — FitnessScape (CC BY 3.0). Generated with [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py).</sub>
 
 ### The physics check is the safety valve — it stops infeasible motion
 
