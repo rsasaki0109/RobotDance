@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.80.0] - 2026-06-05
+
+実動画 3 段デモの同期を修正（pre-alpha）。README の overlay が skeleton/robot と別トリム由来でズレていた
+（「全然違う」）のを、同一 extract・同一 stride から作り直して 3 段（overlay→skeleton→robot）を同期。
+
+### Fixed
+- `assets/readme/real/squat_g1_overlay.gif`: skeleton/robot と**同じ squat_30 フレーム・同じ mir・stride 3**から
+  再生成し、3 段が同一モーション・同一タイミングで対応するように修正。旧 `squat_overlay.gif`（別トリム）を削除。
+
+### Added
+- `scripts/render_real_video_gif.py --overlay`: 同一 extract から overlay GIF も出力し、3 段の同期を保証
+  （以後のクリップは 1 コマンドで overlay/skeleton/robot を揃えられる）。
+
 ## [0.79.0] - 2026-06-05
 
 README を英語化（pre-alpha, docs のみ）。OSS の裾野を広げるため英語を主 README に。

@@ -69,7 +69,7 @@ Recover 3D from a local video with MediaPipe Pose, then go end-to-end: RD-MIR �
 
 <table>
 <tr>
-<td align="center"><img src="assets/readme/real/squat_overlay.gif" width="220" alt="2D skeleton overlay on source video"><br><sub>① source video + skeleton overlay</sub></td>
+<td align="center"><img src="assets/readme/real/squat_g1_overlay.gif" width="220" alt="2D skeleton overlay on source video"><br><sub>① source video + skeleton overlay</sub></td>
 <td align="center"><img src="assets/readme/real/squat_g1_skeleton.gif" width="170" alt="canonical skeleton"><br><sub>② RD-MIR skeleton</sub></td>
 <td align="center"><img src="assets/readme/real/squat_g1_robot.gif" width="180" alt="G1 mesh performing the squat"><br><sub>③ real G1 reproduces it</sub></td>
 </tr>

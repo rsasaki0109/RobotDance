@@ -72,8 +72,10 @@ def main() -> None:
     ap.add_argument("urdf", type=Path, help="実 Unitree URDF（メッシュ付き, ローカル取得）")
     ap.add_argument("--robot", choices=["g1", "h1"], default="g1")
     ap.add_argument("-o", "--out", type=Path, default=Path("assets/readme/real_video"),
-                    help="出力 prefix（_skeleton.gif / _robot.gif を付与）")
+                    help="出力 prefix（_skeleton.gif / _robot.gif〔/ --overlay 時 _overlay.gif〕を付与）")
     ap.add_argument("--caption", default=None, help="スケルトン GIF に重ねる説明")
+    ap.add_argument("--overlay", action="store_true",
+                    help="原動画 + 2D 骨格 overlay GIF も出力（skeleton/robot と同期, 動画ピクセルを含む）")
     ap.add_argument("--base-z", type=float, default=None)
     ap.add_argument("--stride", type=int, default=3)
     ap.add_argument("--width", type=int, default=360)
@@ -100,6 +102,15 @@ def main() -> None:
         mir.semantics = {**(mir.semantics or {}), "action_label": args.caption}
     render_gif(mir, skel_out, stride=args.stride, show_meta=True)
     print(f"✓ skeleton → {skel_out} ({skel_out.stat().st_size // 1024} KB)")
+
+    # 2b. （任意）原動画 + 2D 骨格 overlay GIF。skeleton/robot と**同じ extract・同じ stride**から
+    #     描くので、3 段（overlay → skeleton → robot）が完全に同期する。
+    if args.overlay:
+        from robotdance_viewer.overlay import render_overlay
+
+        ov_out = Path(str(args.out) + "_overlay.gif")
+        render_overlay(args.video, mir, ov_out, stride=args.stride)
+        print(f"✓ overlay  → {ov_out} ({ov_out.stat().st_size // 1024} KB)")
 
     # 3. actuator-IK で実 Unitree の関節角へ → 実メッシュ render。
     link_map = H1_LINK_MAP if args.robot == "h1" else G1_LINK_MAP
