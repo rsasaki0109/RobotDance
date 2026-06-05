@@ -118,6 +118,12 @@ Quantifying it on a kata clip — native MediaPipe 3D (blue) vs YOLO11→planar 
 
 <sub>The lift drops all forward/back motion (depth std → 0), which accounts for ~0.16 m of the 0.27 m gap; the rest is in-plane disagreement (different detector, no perspective/yaw model). Recognisable but coarse — exactly the honest trade-off. Generated with [`scripts/compare_lift_vs_native.py`](scripts/compare_lift_vs_native.py).</sub>
 
+And it drives a real robot end-to-end — both paths retargeted onto the Unitree G1 mesh (left native, right lift-only):
+
+<img src="assets/readme/pose/lift_vs_native_robot.gif" width="460" alt="Unitree G1 driven by native MediaPipe 3D vs by a 2D detector + planar lift">
+
+<sub>A 2D detector alone (no native 3D) still produces a recognisable kata on the robot — retarget IK error 0.097 m vs 0.071 m for native, ~38 % worse. Good enough to prototype with a fast 2D model, with the depth cost made visible. Generated with [`scripts/render_lift_vs_native_robot.py`](scripts/render_lift_vs_native_robot.py).</sub>
+
 ### The physics check is the safety valve — it stops infeasible motion
 
 Feed the extracted real squat into the feasibility certificate (real URDF inertia) and it **REJECTs**. The reasons are diagnostic, by design stopping "drop a video, robot dances now". `--ground-clean` (locking the contact foot to z=0) removes contact artifacts, but **the remaining balance is limited by monocular depth error**:

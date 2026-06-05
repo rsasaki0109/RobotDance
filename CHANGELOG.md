@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.88.0] - 2026-06-05
+
+planar lift を実ロボットまで通し、native と横並びで実証（pre-alpha）。
+
+### Added
+
+- `scripts/render_lift_vs_native_robot.py`: 同一動画から native(MediaPipe 3D) と lift(2D→planar) を
+  両方 actuator-IK で実 Unitree G1 へ retarget し、実メッシュを横並びレンダリング（native | lift）。
+  ラベル付き GIF を出力。`_render_mesh`（render_real_video_gif）を再利用。
+- README に robot 横並び GIF を追加。**2D 検出器だけ（native 3D なし）でも G1 上で識別可能な型**になる
+  ことを実証。retarget IK 誤差 lift=0.097m vs native=0.071m（約 38% 悪い）と正直に併記。
+
 ## [0.87.0] - 2026-06-05
 
 planar lift を実 kata クリップで native 3D と定量比較し、スケールを堅牢化（pre-alpha）。

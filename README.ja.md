@@ -118,6 +118,12 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 
 <sub>lift は前後運動を全て捨てる（深度 std→0）ため 0.27m の差のうち約 0.16m を説明し、残りは面内のズレ（検出器違い・透視/ヨー未モデル化）。識別はできるが粗い——まさに正直なトレードオフ。生成は [`scripts/compare_lift_vs_native.py`](scripts/compare_lift_vs_native.py)。</sub>
 
+しかも実ロボットまで通る — 両経路を Unitree G1 メッシュに retarget（左 native, 右 lift のみ）:
+
+<img src="assets/readme/pose/lift_vs_native_robot.gif" width="460" alt="Unitree G1 driven by native MediaPipe 3D vs by a 2D detector + planar lift">
+
+<sub>2D 検出器だけ（native 3D なし）でも、ロボット上で識別可能な型になる——retarget IK 誤差 0.097m vs native 0.071m で約 38% 悪い。高速な 2D モデルで試作するには十分で、深度のコストも可視化されている。生成は [`scripts/render_lift_vs_native_robot.py`](scripts/render_lift_vs_native_robot.py)。</sub>
+
 ### 物理検証が安全弁 — 無理な運動は止める
 
 抽出した実 squat を feasibility certificate（実 URDF 慣性）にかけると **REJECT**。理由が診断的で「動画→即ロボット」を設計として防ぎます。`--ground-clean`（接地足を z=0 固定）で接地アーティファクトは消えるが、**残る balance は単眼の深度誤差律速**:
