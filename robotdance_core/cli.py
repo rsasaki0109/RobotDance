@@ -333,14 +333,24 @@ def _import_hmr(path: Path, source: str, fps: float | None, out: Path) -> int:
 
 
 def _extract(video: Path, out: Path, model: Path | None, backend: str) -> int:
-    from robotdance_perception.mediapipe_adapter import extract_motion
+    from robotdance_perception.backends import get_backend
 
-    mir = extract_motion(video, model_path=model, backend=backend)
+    b = get_backend(backend)
+    if b.lift_from:
+        # 2D 検出器 + 解析的 planar lift（coarse, 深度なし）で 3D 化。
+        from robotdance_perception.lifting import extract_via_lift
+
+        mir = extract_via_lift(video, detector=b.lift_from)
+    else:
+        from robotdance_perception.mediapipe_adapter import extract_motion
+
+        mir = extract_motion(video, model_path=model, backend=backend)
     mir.save(out)
     print(f"✓ {video.name} → RD-MIR: {out}")
+    q = mir.quality_metrics or {}
     print(f"  frames={mir.num_frames} fps={mir.fps:g} "
-          f"mean_confidence={(mir.quality_metrics or {}).get('mean_confidence')} "
-          f"license_state={mir.license_state}")
+          f"mean_confidence={q.get('mean_confidence')} "
+          f"lift={q.get('lift', 'none')} license_state={mir.license_state}")
     return 0
 
 
@@ -364,14 +374,15 @@ def _list_backends() -> int:
     """登録済み pose 検出バックエンドと能力（次元/形式/retarget 可否/導入状況）を一覧する。"""
     from robotdance_perception.backends import list_backends
 
-    print("pose 検出バックエンド（extract は retarget=✓ のみ・2D-only は比較スクリプト用）:")
-    print(f"  {'name':14s} {'dim':>3s} {'format':12s} {'retarget':8s} {'installed':9s} note")
+    print("pose 検出バックエンド（extract は retarget=✓ のみ・2D-only は比較/lift 用）:")
+    print(f"  {'name':18s} {'dim':>3s} {'format':12s} {'tier':13s} "
+          f"{'retarget':8s} {'installed':9s} note")
     for b in list_backends():
         rt = "✓" if b.retarget_capable else "—"
         inst = "✓" if b.available() else "—"
         dev = " [dev]" if "dev" in b.extras else ""
-        print(f"  {b.name:14s} {b.output_dim:3d}D {b.keypoint_format:12s} {rt:8s} "
-              f"{inst:9s} {b.description}{dev}")
+        print(f"  {b.name:18s} {b.output_dim:3d}D {b.keypoint_format:12s} {b.quality_tier:13s} "
+              f"{rt:8s} {inst:9s} {b.description}{dev}")
     return 0
 
 

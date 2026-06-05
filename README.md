@@ -103,6 +103,8 @@ MediaPipe Pose is the default (it returns **3D world landmarks** needed for reta
 
 <sub>On this clean single-person clip all three track well (YOLO11 is fastest). MediaPipe stays the default downstream because it also yields **3D world landmarks**; the 2D detectors would need a 2D→3D lifting stage to drive the robot. Generated with [`scripts/compare_pose_backends.py`](scripts/compare_pose_backends.py).</sub>
 
+For the 2D detectors there is a `*+lift` backend (`yolo11-pose+lift`, `rtmpose+lift`) that embeds the COCO-17 pose into a **frontal plane** with an analytic anthropometric scale (`extract --backend yolo11-pose+lift`). It is a deliberately **coarse baseline** — it recovers *no depth*, so sagittal moves (squats) collapse while coronal moves (kata) survive. MediaPipe's native 3D stays the default; the lift exists to make the trade-off explicit and quantifiable.
+
 ### The physics check is the safety valve — it stops infeasible motion
 
 Feed the extracted real squat into the feasibility certificate (real URDF inertia) and it **REJECTs**. The reasons are diagnostic, by design stopping "drop a video, robot dances now". `--ground-clean` (locking the contact foot to z=0) removes contact artifacts, but **the remaining balance is limited by monocular depth error**:

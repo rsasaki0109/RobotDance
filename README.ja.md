@@ -103,6 +103,8 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 
 <sub>この単一人物・近接クリップでは 3 者とも良好に追従（YOLO11 が最速）。下流では **3D world landmarks** も返す MediaPipe を既定にしている。2D 検出器でロボットを動かすには 2D→3D lifting が別途必要。生成は [`scripts/compare_pose_backends.py`](scripts/compare_pose_backends.py)。</sub>
 
+2D 検出器には `*+lift` backend（`yolo11-pose+lift` / `rtmpose+lift`）を用意した。COCO-17 を**正面平面**へ人体寸法プライアでメートル化して埋め込む（`extract --backend yolo11-pose+lift`）。これは意図的に**粗いベースライン**で、**深度を復元しない**ため矢状面（しゃがみ）は潰れ、冠状面（型）は残る。既定は MediaPipe の native 3D のまま——lift はトレードオフを明示・定量化するための位置づけ。
+
 ### 物理検証が安全弁 — 無理な運動は止める
 
 抽出した実 squat を feasibility certificate（実 URDF 慣性）にかけると **REJECT**。理由が診断的で「動画→即ロボット」を設計として防ぎます。`--ground-clean`（接地足を z=0 固定）で接地アーティファクトは消えるが、**残る balance は単眼の深度誤差律速**:

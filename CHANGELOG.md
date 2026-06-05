@@ -5,6 +5,27 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.86.0] - 2026-06-05
+
+2D 検出器を 3D 化する解析的 planar lift backend を追加（pre-alpha・coarse baseline）。
+
+### Added
+
+- `robotdance_perception/lifting.py`: 2D COCO-17 → canonical 19-joint 3D の解析的 planar lift。
+  `lift_coco17_to_canonical(xy[17,2], conf[17])` は**深度を復元せず**正面平面（x=0）へ埋め込み、
+  hip 幅の人体寸法プライアでメートル化、足を z=0 接地する。`extract_via_lift(video, detector=...)` で
+  2D 検出器 + lift から RD-MIR を生成（quality_metrics に `lift="planar-no-depth"` を記録）。
+- レジストリに lift 派生 backend `yolo11-pose+lift` / `rtmpose+lift`（output_dim=3,
+  retarget_capable=True, quality_tier="coarse-planar"）を登録。`extract --backend <name>+lift` で利用。
+- `tests/test_lifting.py`（planar/接地/metric スケール/左右/不正形状/0 割の 7 テスト）と
+  `tests/test_pose_backends.py` の lift 関連テスト。計 293 → 全 green。
+
+### Changed
+
+- `PoseBackend` に `quality_tier`（native / coarse-planar）と `lift_from` フィールドを追加。
+- CLI `extract` が lift 派生 backend を `extract_via_lift` に振り分け、`list-backends` に tier 列を追加。
+- README に `*+lift` backend の位置づけ（**深度なし・冠状面向けの coarse baseline**）を明記。
+
 ## [0.85.0] - 2026-06-05
 
 pose 検出器の比較を CLI の正規コマンドに昇格（pre-alpha）。

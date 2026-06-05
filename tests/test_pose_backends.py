@@ -65,11 +65,29 @@ def test_coco_constants_are_centralized():
     assert all(0 <= a < 17 and 0 <= b < 17 for ab in COCO_EDGES for a, b in [ab])
 
 
-def test_every_backend_has_a_2d_runner_factory():
-    # レジストリの全バックエンドに 2D ランナー生成器が紐づく（生成は遅延 import なので呼ばない）。
+def test_every_2d_backend_has_a_runner_factory():
+    # 2D COCO-17 を出す検出器（lift 派生でない）に 2D ランナー生成器が紐づく。
     from robotdance_perception.backends import _RUNNER_FACTORIES
 
-    assert set(_RUNNER_FACTORIES) == {b.name for b in list_backends()}
+    assert set(_RUNNER_FACTORIES) == {b.name for b in list_backends() if not b.lift_from}
+
+
+def test_lift_backends_are_coarse_3d_and_extract_capable():
+    lifted = [b for b in list_backends() if b.lift_from]
+    assert {b.name for b in lifted} == {"yolo11-pose+lift", "rtmpose+lift"}
+    for b in lifted:
+        assert b.output_dim == 3
+        assert b.retarget_capable is True
+        assert b.quality_tier == "coarse-planar"
+        # lift 元の 2D backend は実在する。
+        assert get_backend(b.lift_from).output_dim == 2
+        # extract 解決は通る（3D とみなす）が 2D ランナーは持たない。
+        assert resolve_extract_backend(b.name) is b
+
+
+def test_make_runner_2d_rejects_lift_backend():
+    with pytest.raises(ValueError, match="extract 専用"):
+        make_runner_2d("yolo11-pose+lift")
 
 
 def test_make_runner_2d_unknown_backend_raises():
@@ -86,8 +104,9 @@ def test_list_backends_cli_runs():
 def test_compare_module_covers_all_backends_with_panel_colors():
     from robotdance_perception.compare import PANEL_COLORS
 
-    names = {b.name for b in list_backends()}
-    assert names <= set(PANEL_COLORS), "全 backend に overlay パネル色を割り当てる"
+    # 比較は lift 派生でない 2D 検出器のみ。それらに overlay パネル色を割り当てる。
+    names = {b.name for b in list_backends() if not b.lift_from}
+    assert names <= set(PANEL_COLORS), "比較対象 backend に overlay パネル色を割り当てる"
 
 
 def test_compare_raises_on_missing_video_when_a_backend_available():

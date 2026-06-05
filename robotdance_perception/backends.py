@@ -31,6 +31,8 @@ class PoseBackend:
     modules: tuple[str, ...]  # 必要な import モジュール名（遅延チェック用）
     description: str = ""
     extras: tuple[str, ...] = field(default_factory=tuple)  # 公開 PyPI 由来でない dev 専用なら ("dev",)
+    quality_tier: str = "native"  # "native"（実 3D）/ "coarse-planar"（2D→平面 lift・深度なし）
+    lift_from: str = ""  # 値があれば「この 2D 検出器 + planar lift」で 3D 化する派生 backend
 
     def available(self) -> bool:
         """必要モジュールが import 可能か（heavy 依存を実際には読み込まずに判定）。"""
@@ -67,8 +69,33 @@ RTMPOSE = PoseBackend(
     extras=("dev",),
 )
 
+# 2D 検出器 + 解析的 planar lift で 3D 化する派生 backend（coarse baseline・深度なし）。
+# native（mediapipe）より明確に粗く、矢状面の動きは潰れる。冠状面の動き向け。
+YOLO11_POSE_LIFT = PoseBackend(
+    name="yolo11-pose+lift",
+    output_dim=3,
+    keypoint_format="canonical19",
+    retarget_capable=True,
+    modules=("ultralytics", "cv2"),
+    description="YOLO11-pose 2D を解析的 planar lift で 3D 化（coarse, 深度なし・冠状面向け）。",
+    extras=("dev",),
+    quality_tier="coarse-planar",
+    lift_from="yolo11-pose",
+)
+RTMPOSE_LIFT = PoseBackend(
+    name="rtmpose+lift",
+    output_dim=3,
+    keypoint_format="canonical19",
+    retarget_capable=True,
+    modules=("rtmlib", "cv2"),
+    description="RTMPose 2D を解析的 planar lift で 3D 化（coarse, 深度なし・冠状面向け）。",
+    extras=("dev",),
+    quality_tier="coarse-planar",
+    lift_from="rtmpose",
+)
+
 _REGISTRY: dict[str, PoseBackend] = {
-    b.name: b for b in (MEDIAPIPE, YOLO11_POSE, RTMPOSE)
+    b.name: b for b in (MEDIAPIPE, YOLO11_POSE, YOLO11_POSE_LIFT, RTMPOSE, RTMPOSE_LIFT)
 }
 
 
@@ -199,8 +226,10 @@ def make_runner_2d(name: str):
     """
     get_backend(name)  # 未知名なら ValueError
     factory = _RUNNER_FACTORIES.get(name)
-    if factory is None:  # pragma: no cover - レジストリと辞書は同期している
-        raise ValueError(f"backend '{name}' に 2D ランナーがありません")
+    if factory is None:
+        raise ValueError(
+            f"backend '{name}' に 2D ランナーがありません"
+            "（lift 派生 backend は extract 専用。比較は元の 2D 検出器を使う）。")
     return factory()
 
 

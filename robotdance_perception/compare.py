@@ -62,8 +62,11 @@ def compare_backends(
 
     warnings.filterwarnings("ignore")
 
+    # 比較は 2D COCO-17 を出す検出器のみ（lift 派生 backend は extract 専用なので除外）。
     runners, skipped = {}, []
     for b in list_backends():
+        if b.lift_from:
+            continue
         (runners.__setitem__(b.name, make_runner_2d(b.name)) if b.available()
          else skipped.append(b.name))
     if not runners:
