@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.90.1] - 2026-06-05
+
+### Fixed
+
+- "More clips" の squat → G1 が不自然（脚が交差・腕が頭上）だった問題を、**より単眼向きの
+  squat クリップに差し替え**て改善。旧クリップは**背面のバーベル squat**で、単眼が左右を取り違え
+  （hip 幅 y が負＝ミラー）腕もバーベルで頭上に張り付いていた。新クリップは**正面のゴブレット
+  squat**（Taco Fleur, CC BY-SA 4.0）で、ミラー解消（hip 幅 y +0.06）・脚が左右対称・腕も自然な前方に。
+- 出典表記を更新（squat の clips デモ = Taco Fleur / 検出器・物理デモ = FitnessScape の 2 ソースを明記）。
+  検出器比較（pose_compare）と物理 certificate は、深度律速 REJECT のストーリーが綺麗な旧 rear-view
+  squat のまま据え置き（新クリップは腕スイングで torque 律速になり物理デモの主旨が薄れるため）。
+
 ## [0.90.0] - 2026-06-05
 
 多人数シーンの被写体取り違えを抽出側で根治（pre-alpha）。

@@ -87,7 +87,7 @@ Recover 3D from a local video with MediaPipe Pose, then go end-to-end: RD-MIR �
 </tr>
 </table>
 
-<sub>※ **Source videos are not bundled in this repo.** Only the overlay is a derivative containing source pixels (allowed under CC-BY with attribution); the rest visualize the extracted motion and contain no source pixels. Sources (Wikimedia Commons): karate kata — Sdcsabac (CC BY-SA 4.0); kathak — Suyash Dwivedi (CC BY-SA 4.0); squat — FitnessScape (CC BY 3.0). Generated with [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py).</sub>
+<sub>※ **Source videos are not bundled in this repo.** Only the overlay is a derivative containing source pixels (allowed under CC-BY with attribution); the rest visualize the extracted motion and contain no source pixels. Sources (Wikimedia Commons): karate kata — Sdcsabac (CC BY-SA 4.0); kathak — Suyash Dwivedi (CC BY-SA 4.0); squat (clip above) — Taco Fleur (CC BY-SA 4.0); squat (detector & physics demos below) — FitnessScape (CC BY 3.0). Generated with [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py).</sub>
 
 ### Pose detection — swap in different OSS detectors
 

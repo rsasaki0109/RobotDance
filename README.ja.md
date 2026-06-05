@@ -87,7 +87,7 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 </tr>
 </table>
 
-<sub>※ **入力動画は repo に同梱しません。** overlay のみソース動画ピクセルを含む派生物（CC-BY 出典明記で可）、他は抽出 motion の可視化でピクセル非含有。Sources（Wikimedia Commons）: karate kata — Sdcsabac (CC BY-SA 4.0) / kathak — Suyash Dwivedi (CC BY-SA 4.0) / squat — FitnessScape (CC BY 3.0)。生成は [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py)。</sub>
+<sub>※ **入力動画は repo に同梱しません。** overlay のみソース動画ピクセルを含む派生物（CC-BY 出典明記で可）、他は抽出 motion の可視化でピクセル非含有。Sources（Wikimedia Commons）: karate kata — Sdcsabac (CC BY-SA 4.0) / kathak — Suyash Dwivedi (CC BY-SA 4.0) / squat（上のクリップ）— Taco Fleur (CC BY-SA 4.0) / squat（下の検出器・物理デモ）— FitnessScape (CC BY 3.0)。生成は [`scripts/render_real_video_gif.py`](scripts/render_real_video_gif.py)。</sub>
 
 ### Pose 検出 — 色々な OSS 検出器を差し替え
 
