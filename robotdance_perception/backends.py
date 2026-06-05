@@ -100,3 +100,113 @@ def resolve_extract_backend(name: str) -> PoseBackend:
             f" 2D 検出器の比較は scripts/compare_pose_backends.py を使ってください。"
         )
     return b
+
+
+# ---------------------------------------------------------------------------
+# 共通 COCO-17 表現と 2D ランナー（検出器を横並び比較する際の単一情報源）
+# ---------------------------------------------------------------------------
+
+# COCO-17 の骨格エッジ（overlay 描画用）。
+COCO_EDGES: tuple[tuple[int, int], ...] = (
+    (5, 7), (7, 9), (6, 8), (8, 10), (5, 6), (5, 11), (6, 12), (11, 12),
+    (11, 13), (13, 15), (12, 14), (14, 16), (0, 5), (0, 6), (0, 1), (0, 2), (1, 3), (2, 4),
+)
+# MediaPipe BlazePose 33 → COCO 17 の対応 index。
+MP33_TO_COCO: tuple[int, ...] = (0, 2, 5, 7, 8, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28)
+
+
+def _largest_person(kxy, kconf):
+    """多人数検出から bbox 面積が最大の人物（前景被写体）を選ぶ。"""
+    import numpy as np
+
+    best, area = 0, -1.0
+    for i in range(len(kxy)):
+        pts = kxy[i][kconf[i] > 0.2]
+        if len(pts) < 4:
+            continue
+        a = (pts[:, 0].max() - pts[:, 0].min()) * (pts[:, 1].max() - pts[:, 1].min())
+        if a > area:
+            area, best = a, i
+    return np.asarray(kxy[best]), np.asarray(kconf[best])
+
+
+def _mediapipe_runner():
+    import numpy as np
+    import mediapipe as mp
+    from mediapipe.tasks.python import BaseOptions, vision
+
+    opt = vision.PoseLandmarkerOptions(
+        base_options=BaseOptions(model_asset_path=str(ensure_model())),
+        running_mode=vision.RunningMode.VIDEO, num_poses=1)
+    lm = vision.PoseLandmarker.create_from_options(opt)
+
+    def run(frame_bgr, idx, fps):
+        import cv2
+
+        h, w = frame_bgr.shape[:2]
+        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        res = lm.detect_for_video(
+            mp.Image(image_format=mp.ImageFormat.SRGB, data=np.ascontiguousarray(rgb)),
+            int(idx * 1000.0 / fps))
+        if not res.pose_landmarks:
+            return None
+        nl = res.pose_landmarks[0]
+        full = np.array([[p.x * w, p.y * h] for p in nl])
+        vis = np.array([p.visibility for p in nl])
+        return full[list(MP33_TO_COCO)], vis[list(MP33_TO_COCO)]
+    return run
+
+
+def _yolo_runner():
+    from ultralytics import YOLO
+
+    yolo = YOLO("yolo11n-pose.pt")
+
+    def run(frame_bgr, idx, fps):
+        kp = yolo(frame_bgr, verbose=False)[0].keypoints
+        if kp is None or not len(kp.data):
+            return None
+        return _largest_person(kp.xy.cpu().numpy(), kp.conf.cpu().numpy())
+    return run
+
+
+def _rtmpose_runner():
+    import numpy as np
+    from rtmlib import Body
+
+    body = Body(mode="lightweight", backend="onnxruntime", device="cpu")
+
+    def run(frame_bgr, idx, fps):
+        kxy, ksc = body(frame_bgr)
+        if not len(kxy):
+            return None
+        return _largest_person(np.array(kxy), np.array(ksc))
+    return run
+
+
+_RUNNER_FACTORIES = {
+    "mediapipe": _mediapipe_runner,
+    "yolo11-pose": _yolo_runner,
+    "rtmpose": _rtmpose_runner,
+}
+
+
+def make_runner_2d(name: str):
+    """バックエンドの 2D 検出ランナー `run(frame_bgr, idx, fps) -> (xy[17,2], conf[17]) | None` を返す。
+
+    出力は全バックエンド共通の COCO-17。heavy 依存はこの呼び出し時にのみ遅延 import される。
+    検出器が未導入なら ImportError を投げる（available() で事前判定可能）。
+    """
+    get_backend(name)  # 未知名なら ValueError
+    factory = _RUNNER_FACTORIES.get(name)
+    if factory is None:  # pragma: no cover - レジストリと辞書は同期している
+        raise ValueError(f"backend '{name}' に 2D ランナーがありません")
+    return factory()
+
+
+# 遅延 import の循環を避けるため、ensure_model はここで局所 import する。
+def ensure_model(*a, **k):
+    """MediaPipe pose model を用意する（mediapipe_adapter.ensure_model への薄い委譲）。"""
+    from robotdance_perception.mediapipe_adapter import ensure_model as _em
+
+    return _em(*a, **k)

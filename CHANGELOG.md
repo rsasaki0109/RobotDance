@@ -5,6 +5,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.84.0] - 2026-06-05
+
+pose 検出バックエンドのレジストリを「メタデータ」から「機能的」へ（pre-alpha）。
+
+### Added
+
+- `robotdance_perception.backends` に共通 COCO-17 表現（`COCO_EDGES` / `MP33_TO_COCO`）と
+  2D ランナー生成器 `make_runner_2d(name)` を追加。全バックエンドを統一シグネチャ
+  `run(frame_bgr, idx, fps) -> (xy[17,2], conf[17]) | None` で呼べる。heavy 依存は生成時のみ遅延 import。
+- `tests/test_pose_backends.py` に 4 テスト追加（COCO 定数の妥当性・全 backend にランナー紐付け・
+  未知名エラー・MediaPipe ランナーの COCO-17 出力形状）。計 11 テスト。
+
+### Changed
+
+- `scripts/compare_pose_backends.py` を全面リファクタ。3 検出器のランナー・COCO エッジ・人物選択を
+  レジストリ（`make_runner_2d` / `COCO_EDGES`）から取得する単一情報源方式に統一。未導入の検出器は
+  自動スキップし、飛ばした検出器を明示表示する（silent cap を回避）。
+
 ## [0.83.0] - 2026-06-05
 
 pose 検出バックエンドを能力付きレジストリで抽象化（pre-alpha）。
