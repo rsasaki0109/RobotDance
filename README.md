@@ -131,6 +131,7 @@ pip install -e ".[demo,sim,perception]"
 
 robotdance video-to-robot my_clip.mp4 --robot unitree_g1 -o out.gif      # video → check → side-by-side
 robotdance extract my_clip.mp4 -o clip.rdmir.json                        # video → RD-MIR
+robotdance motion-doctor clip.rdmir.json                                 # health check (mirror/depth/grounding)
 robotdance overlay my_clip.mp4 clip.rdmir.json -o overlay.gif            # skeleton overlay
 robotdance validate-sim clip.rdmir.json --robot unitree_g1 --ground-clean --balance-plot b.png  # physics check
 ```

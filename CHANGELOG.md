@@ -5,6 +5,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.91.0] - 2026-06-06
+
+単眼抽出のデバッグ知見を再利用可能な健全性チェックに製品化（pre-alpha）。
+
+### Added
+
+- `robotdance_motion/doctor.py`: `diagnose_motion(mir)` が RD-MIR のよくある破綻を診断する純関数群。
+  **mirror**（左右反転＝hip 幅 y の符号, 背面撮影で発生）、**depth_collapse**（前後 x の分散; lift では
+  info）、**grounding**（足最下点の振れ＝foot skate）、**multi_subject**（n_subjects_max>1）、
+  **low_confidence / jitter** を ok/warn/info と対処ヒント付きで返す。
+- CLI `motion-doctor <rdmir>`: 上記を表示し、warn が 1 つでもあれば exit 1。README quickstart に追記。
+- `tests/test_doctor.py`（healthy/mirror/depth(lift 区別)/foot skate/低 conf・多人数/総合の 6 テスト）。
+
+これは v0.89.1（overlay ズレ＝多人数取り違え）・v0.90.1（squat ミラー）で手作業で当てた診断を、
+誰でも `motion-doctor` 一発で得られるようにしたもの。
+
 ## [0.90.1] - 2026-06-05
 
 ### Fixed

@@ -373,6 +373,24 @@ def _pose_compare(video: Path, out: Path | None, stride: int, width: int) -> int
     return 0
 
 
+def _motion_doctor(path: Path) -> int:
+    """RD-MIR の健全性チェック（単眼抽出のよくある破綻を指摘）。"""
+    from .rd_mir import RdMir
+    from robotdance_motion.doctor import diagnose_motion, overall_status
+
+    mir = RdMir.load(path)
+    checks = diagnose_motion(mir)
+    icon = {"ok": "✅", "warn": "⚠️", "info": "ℹ️"}
+    print(f"🩺 motion-doctor: {path.name}（frames={mir.num_frames} fps={mir.fps:g}）")
+    for c in checks:
+        print(f"  {icon.get(c.status, '?')} {c.name}: {c.message}")
+        if c.hint and c.status == "warn":
+            print(f"      → {c.hint}")
+    status = overall_status(checks)
+    print(f"  総合: {icon[status]} {status.upper()}")
+    return 1 if status == "warn" else 0
+
+
 def _list_backends() -> int:
     """登録済み pose 検出バックエンドと能力（次元/形式/retarget 可否/導入状況）を一覧する。"""
     from robotdance_perception.backends import list_backends
@@ -1442,6 +1460,10 @@ def main(argv: list[str] | None = None) -> int:
     p_extract.add_argument("--num-poses", type=int, default=4,
                            help="検出させる最大人数（多人数シーンで前景被写体を追跡）")
 
+    p_doc = sub.add_parser("motion-doctor",
+                           help="RD-MIR の健全性チェック（mirror/深度/接地/多人数 等を診断）")
+    p_doc.add_argument("rdmir", type=Path, help="診断する RD-MIR (.json)")
+
     sub.add_parser("list-backends", help="登録済み pose 検出バックエンドと能力を一覧する")
 
     p_pc = sub.add_parser("pose-compare",
@@ -1653,6 +1675,8 @@ def main(argv: list[str] | None = None) -> int:
         return _overlay(args.video, args.mir, args.out, args.stride)
     if args.command == "extract":
         return _extract(args.video, args.out, args.model, args.backend, args.num_poses)
+    if args.command == "motion-doctor":
+        return _motion_doctor(args.rdmir)
     if args.command == "list-backends":
         return _list_backends()
     if args.command == "pose-compare":
