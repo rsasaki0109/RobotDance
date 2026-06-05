@@ -41,7 +41,9 @@ RobotDance の `sim_certificate` は **"physically-informed feasibility"** — *
   a_com・dL_com/dt は ZMP と同じ中心差分（subtree_angmom は `mj_subtreeVel`）。mj_inverse は本 ball-joint
   浮遊モデルで特異性により非物理値（数千 N·m）を出すため使わず、剛体 subtree 近似の解析法で算出。
 - ⚠️ **衝撃・接触トルク**、関節摩擦/ゲア比/バックラッシュは未モデル。**重力保持**（準静的）成分は
-  `gravity_torque_nm`、重力＋並進＋回転慣性の合計は `dynamic_torque_nm` として別途報告。
+  `gravity_torque_nm`、重力＋並進＋回転慣性の合計は `dynamic_torque_nm` として別途報告。負荷率が最大の
+  **律速関節**は `torque_limiting_joint`（PASS でも最も上限に近い関節）として出し、REJECT 理由には
+  「{関節名} {動的tq}>{上限} N·m」を併記する（どの関節が effort 上限を律速するかを明示）。
 
 ### 速度
 - 関節速度を **実 per-joint velocity 上限**（v0.38/v0.50）と比較。実値の無い機種（Apollo）は generic

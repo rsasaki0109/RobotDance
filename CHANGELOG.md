@@ -5,6 +5,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.65.0] - 2026-06-05
+
+実データ深掘り（トルクの律速関節を certificate に明示, pre-alpha）。v0.64 でトルク大きさを可視化したのに
+続き、**どの関節が effort 上限を律速するか**を出して REJECT 理由を診断可能にする。
+
+### Added
+- `simulate_certificate` の metrics に `torque_limiting_joint`（per-joint 負荷率 `dynamic_torque/実 effort
+  上限` が最大の canonical 関節。PASS でも最も上限に近い関節として出す）。
+- torque REJECT 理由に律速関節を併記: 「{関節名} {動的tq}>{上限} N·m, 重力＋慣性, 実 actuator 限界超過」。
+  実例: H1 dance_fast は **right_shoulder 31>18 N·m**（速い腕振りで肩が律速）。velocity reason と同流儀。
+
+### Notes
+- 律速関節は body subtree 負荷率の argmax で、剛体 subtree 近似に基づく（衝撃・接触・摩擦は未モデル）。
+
 ## [0.64.0] - 2026-06-05
 
 実データ深掘り（重力 vs 動的トルクを leaderboard に分離露出, pre-alpha）。v0.62/v0.63 で実装した

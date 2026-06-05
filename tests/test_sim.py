@@ -525,6 +525,8 @@ def test_dynamic_torque_exceeds_static_for_fast_motion() -> None:
     H1 の速いダンスは静的トルクでは actuator 上限内（過小評価）だが、慣性トルクを含めると上限を
     超え torque で REJECT する（v0.62）。遅い同型運動では動的≈静的で PASS。
     """
+    from robotdance_core.skeleton import JOINT_NAMES
+
     morph = get_morphology("unitree_h1")
     fast = simulate_certificate(retarget(generate_dance(duration=2.0, beats_per_second=1.6), morph), morph)
     slow = simulate_certificate(retarget(generate_dance(duration=2.0, beats_per_second=0.5), morph), morph)
@@ -534,6 +536,13 @@ def test_dynamic_torque_exceeds_static_for_fast_motion() -> None:
     assert fast["metrics"]["torque_ratio"] > 1.0
     assert fast["verdict"] == "REJECT"
     assert any("トルク" in r for r in fast["reasons"])
+    # 律速関節（どの関節が effort 上限を律速するか）が metric・reason に出る。
+    limiting = fast["metrics"]["torque_limiting_joint"]
+    assert limiting in JOINT_NAMES
+    torque_reason = next(r for r in fast["reasons"] if "トルク" in r)
+    assert limiting in torque_reason and "N·m" in torque_reason
+    # PASS の遅い運動でも律速関節は情報として出る（最も上限に近い関節）。
+    assert slow["metrics"]["torque_limiting_joint"] in JOINT_NAMES
     # 遅い運動は動的≈静的で torque は上限内。
     assert slow["metrics"]["torque_ratio"] < 1.0
 

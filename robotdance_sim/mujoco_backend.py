@@ -257,6 +257,9 @@ def simulate_certificate(
     toe_joints = {JOINT_NAMES.index("left_foot"), JOINT_NAMES.index("right_foot")}
     grav_bodies = [model.body(f"body_{j}").id for j in range(1, len(JOINT_NAMES))
                    if j not in toe_joints]
+    # grav_bodies と同順の canonical joint 名（律速関節を reason に出すため）。
+    grav_joint_names = [JOINT_NAMES[j] for j in range(1, len(JOINT_NAMES))
+                        if j not in toe_joints]
     sub_mass = {bid: float(model.body_subtreemass[bid]) for bid in grav_bodies}
     # 各 joint の **実 actuator トルク上限**（per-joint。実値が無ければ sim 既定スカラー）。
     # 強い関節（膝~139）と弱い関節（足首~35）を区別して負荷率を判定するため。
@@ -314,7 +317,19 @@ def simulate_certificate(
     tau_dyn = np.linalg.norm(dL + np.cross(r_arm, f_dyn), axis=2)  # [n, B]
     gravity_torque = float(tau_stat.max()) if tau_stat.size else 0.0
     dynamic_torque = float(tau_dyn.max()) if tau_dyn.size else 0.0
-    torque_ratio = float((tau_dyn / limits[None, :]).max()) if tau_dyn.size else 0.0
+    # 律速関節: per-joint 負荷率 tau_dyn/limit が最大の body（＝どの関節が effort 上限を律速するか）。
+    torque_joint = None       # canonical joint 名
+    torque_joint_nm = 0.0     # その関節のピーク動的トルク
+    torque_joint_lim = 0.0    # その関節の実 effort 上限
+    if tau_dyn.size:
+        ratio_mat = tau_dyn / limits[None, :]            # [n, B]
+        torque_ratio = float(ratio_mat.max())
+        col = int(ratio_mat.max(axis=0).argmax())        # 最大負荷率の body 列
+        torque_joint = grav_joint_names[col]
+        torque_joint_nm = float(tau_dyn[:, col].max())
+        torque_joint_lim = float(limits[col])
+    else:
+        torque_ratio = 0.0
 
     # joint 角速度: bone 方向の変化率（twist-free, _max_bone_angular_speed 参照）。
     # 旧来は再構成 qpos の差分だったが、leaf joint の未拘束 twist が偽スパイクを生んでいた。
@@ -375,7 +390,10 @@ def simulate_certificate(
     if balance_violation_ratio > 0.3:
         reasons.append(f"ZMP が支持多角形外 {balance_violation_ratio:.0%}（転倒リスク）")
     if torque_ratio > 1.0:
-        reasons.append(f"関節トルク ×{torque_ratio:.2f}（重力＋慣性, 実 actuator 限界超過）")
+        reasons.append(
+            f"関節トルク ×{torque_ratio:.2f}（{torque_joint} {torque_joint_nm:.0f}>"
+            f"{torque_joint_lim:.0f} N·m, 重力＋慣性, 実 actuator 限界超過）"
+        )
     if velocity_ratio is not None:
         if velocity_ratio > 1.0:
             jn, sp, lim = velocity_detail
@@ -400,6 +418,9 @@ def simulate_certificate(
         "torque_ratio": round(torque_ratio, 3),
         "max_joint_ang_speed_rad_s": round(max_joint_ang_speed, 2),
     }
+    # 律速関節（PASS でも情報として出す: どの関節が effort 上限に最も近いか）。
+    if torque_joint is not None:
+        metrics["torque_limiting_joint"] = torque_joint
     if velocity_ratio is not None:
         metrics["joint_velocity_ratio"] = round(velocity_ratio, 3)
     if flexion_violation is not None:
