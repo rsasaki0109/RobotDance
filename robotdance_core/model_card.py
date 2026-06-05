@@ -135,20 +135,27 @@ def _executability(cert: dict[str, Any], flexion: Optional[dict[str, Any]]) -> d
     - joint_velocity: 関節速度が実 per-joint 速度上限内か（v0.50, per_joint_limits があるとき）。
     - joint_rom: 関節角が実機 ROM 内か（v0.44, joint_flexion）。
     速度・ROM 違反も sim_certificate.verdict に統合済み（v0.44/v0.50）なので、verdict が権威。
-    - sim_certificate あり: その verdict が権威。
+    - sim_certificate あり: その verdict が権威。律速関節（torque_limiting_joint）と余裕を
+      `tightest_torque` に出す（PASS でも「どの関節が effort 上限に最も近いか」を設計者へ, v0.65）。
     - sim_certificate なし: 動的 feasibility 未検証なので executable=null（不明）。可動域だけは
       joint_flexion があれば報告する（kinematic 経路でも実機可動域超過は分かる）。
     """
     blockers: list[str] = []
     axes: list[str] = []
+    tightest_torque: Optional[dict[str, Any]] = None
     if cert:
         axes.append("dynamics")
-        if cert.get("metrics", {}).get("joint_velocity_ratio") is not None:
+        m = cert.get("metrics", {})
+        if m.get("joint_velocity_ratio") is not None:
             axes.append("joint_velocity")
         if flexion is not None:
             axes.append("joint_rom")
         if cert.get("verdict") == "REJECT":
             blockers = list(cert.get("reasons", []))
+        # 律速関節（PASS でも「どの関節が effort 上限に最も近いか＝余裕」を設計者に示す）。
+        tj, tr = m.get("torque_limiting_joint"), m.get("torque_ratio")
+        if tj is not None and tr is not None:
+            tightest_torque = {"joint": tj, "ratio": tr, "headroom": round(1.0 - tr, 3)}
         executable: Optional[bool] = cert.get("verdict") == "PASS"
     else:
         executable = None  # 動的 feasibility 未検証 → 実行可否は確定できない
@@ -163,6 +170,8 @@ def _executability(cert: dict[str, Any], flexion: Optional[dict[str, Any]]) -> d
         "checked_axes": axes,
         "blockers": blockers,
     }
+    if tightest_torque is not None:
+        out["tightest_torque"] = tightest_torque
     if any("可動域" in b or "ROM" in b for b in blockers):
         out["remedy"] = "retarget(..., clamp_flexion=True) で可動域内へ補正可"
     if not cert:
@@ -396,6 +405,13 @@ def render_markdown(card: dict[str, Any]) -> str:
         lines += ["", "## Executability", f"- **executable**: {flag}"]
         if ex.get("checked_axes"):
             lines.append(f"- **checked axes**: {', '.join(ex['checked_axes'])}")
+        tt = ex.get("tightest_torque")
+        if tt is not None:
+            margin = "余裕" if tt["headroom"] >= 0 else "超過"
+            lines.append(
+                f"- **律速関節（トルク）**: {tt['joint']} ×{tt['ratio']:.2f}"
+                f"（余裕 {tt['headroom']:+.2f}, {margin}）"
+            )
         for b in ex.get("blockers", []):
             lines.append(f"- ⛔ {b}")
         if ex.get("remedy"):

@@ -5,6 +5,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.66.0] - 2026-06-05
+
+実データ深掘り（律速関節を Model Card の executability に集約, pre-alpha）。v0.65 で certificate に出した
+律速関節を、設計者が見る **Model Card** まで伝播し、診断チェーン（cert→card）を完成させる。
+
+### Added
+- Model Card の `executability` に `tightest_torque`（律速関節・負荷率 `ratio`・余裕 `headroom = 1 − ratio`）。
+  **PASS でも**「どの関節が effort 上限に最も近いか」を設計者へ示す（REJECT のときは blocker と併せて表示）。
+- Markdown 描画に「**律速関節（トルク）**: {関節} ×{ratio}（余裕 {±headroom}, 余裕/超過）」行を追加。
+  実例: H1 dance_fast は left_shoulder ×1.77（余裕 −0.77, 超過）、安全運動は余裕 > 0 で表示。
+
+### Notes
+- `tightest_torque` は sim_certificate の `torque_limiting_joint`/`torque_ratio` 由来（剛体 subtree 近似, v0.65）。
+
 ## [0.65.0] - 2026-06-05
 
 実データ深掘り（トルクの律速関節を certificate に明示, pre-alpha）。v0.64 でトルク大きさを可視化したのに

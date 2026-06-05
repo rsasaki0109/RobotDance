@@ -102,16 +102,23 @@ def test_executability_summary_pass_reject_and_remedy() -> None:
 
     pytest.importorskip("mujoco")
     from robotdance_core.synthetic import generate_dance, generate_overbend
+    from robotdance_core.skeleton import JOINT_NAMES
 
     g1 = get_morphology("unitree_g1")
 
     # 安全なダンス → executable: true。
     safe = certify(retarget(generate_dance(duration=1.0), g1), g1)
-    ex_safe = build_motion_card(safe)["executability"]
+    card_safe = build_motion_card(safe)
+    ex_safe = card_safe["executability"]
     assert ex_safe["executable"] is True
     assert ex_safe["blockers"] == []
     # 実 URDF feasibility 三軸（dynamics + 速度 + ROM）を検証したことを表出（v0.53）。
     assert set(ex_safe["checked_axes"]) == {"dynamics", "joint_velocity", "joint_rom"}
+    # PASS でも律速関節と余裕を出す（設計者が effort 上限に最も近い関節を把握, v0.65）。
+    tt = ex_safe["tightest_torque"]
+    assert tt["joint"] in JOINT_NAMES
+    assert tt["ratio"] < 1.0 and tt["headroom"] > 0.0  # PASS は余裕 > 0
+    assert "律速関節" in render_markdown(card_safe)
 
     # 過屈曲 → ROM 超過で executable: false、clamp の remedy を示す。
     bad = certify(retarget(generate_overbend(), g1), g1)
