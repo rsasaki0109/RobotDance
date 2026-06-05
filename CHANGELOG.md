@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.78.0] - 2026-06-05
+
+未参照アセットの整理（pre-alpha, repo 軽量化）。v0.77 の README 簡潔化で表示されなくなった GIF/PNG を削除。
+
+### Removed
+- README から表示が外れ、かつ docs/各パッケージ README で画像埋め込みされていない 9 アセットを削除
+  （`g1_dance` `many_humanoids` `many_humanoids_mesh` `smoothing` `safety_check` `pose_overlay_astronaut`
+  `motion_map_learned` `real/karate_g1_skeleton` `real/kathak_g1_skeleton`）。assets/readme: 17M → 12M。
+- いずれもコマンド出力例のファイル名（実行で再生成可）か完全孤立で、表示中の 19 枚（README 参照）は不変。
+
 ## [0.77.0] - 2026-06-05
 
 README を簡潔化（pre-alpha, docs のみ）。521 → 203 行。
