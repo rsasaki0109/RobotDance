@@ -30,6 +30,6 @@ keywords:
   - motion-generation
   - smpl
   - mujoco
-version: 0.93.0
+version: 0.94.0
 date-released: "2026-06-05"
 license: Apache-2.0

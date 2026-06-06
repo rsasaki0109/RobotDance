@@ -31,8 +31,10 @@ class PoseBackend:
     modules: tuple[str, ...]  # 必要な import モジュール名（遅延チェック用）
     description: str = ""
     extras: tuple[str, ...] = field(default_factory=tuple)  # 公開 PyPI 由来でない dev 専用なら ("dev",)
-    quality_tier: str = "native"  # "native"（実 3D）/ "coarse-planar"（2D→平面 lift・深度なし）
+    quality_tier: str = "native"  # "native"(実3D) / "coarse-planar"(2D→平面lift) / "world-grounded"(世界座標)
     lift_from: str = ""  # 値があれば「この 2D 検出器 + planar lift」で 3D 化する派生 backend
+    extract_mode: str = "video"  # "video"(動画をフレーム処理) / "import"(外部ツール→SMPL を import-hmr で取込)
+    via: str = ""  # extract_mode="import" の取込 CLI（例 "import-hmr"）
 
     def available(self) -> bool:
         """必要モジュールが import 可能か（heavy 依存を実際には読み込まずに判定）。"""
@@ -94,8 +96,37 @@ RTMPOSE_LIFT = PoseBackend(
     lift_from="rtmpose",
 )
 
+# 世界座標（world-grounded）抽出バックエンド。RobotDance 自身は推論せず、外部ツールが出力する
+# SMPL を `import-hmr` で取り込む（深度・グローバル軌跡が入り、単眼の深度律速を緩和する本命経路）。
+# 重い weights/repo を要するため CI/pip 依存には含めない（modules=() で available は常に True 扱い）。
+GVHMR = PoseBackend(
+    name="gvhmr",
+    output_dim=3,
+    keypoint_format="smpl",
+    retarget_capable=True,
+    modules=(),
+    description="GVHMR (世界座標 SMPL, gravity-view)。外部ツールで推論し import-hmr で取込。",
+    extras=("external",),
+    quality_tier="world-grounded",
+    extract_mode="import",
+    via="import-hmr",
+)
+WHAM = PoseBackend(
+    name="wham",
+    output_dim=3,
+    keypoint_format="smpl",
+    retarget_capable=True,
+    modules=(),
+    description="WHAM (世界座標 SMPL, SLAM併用)。外部ツールで推論し import-hmr で取込。",
+    extras=("external",),
+    quality_tier="world-grounded",
+    extract_mode="import",
+    via="import-hmr",
+)
+
 _REGISTRY: dict[str, PoseBackend] = {
-    b.name: b for b in (MEDIAPIPE, YOLO11_POSE, YOLO11_POSE_LIFT, RTMPOSE, RTMPOSE_LIFT)
+    b.name: b for b in (MEDIAPIPE, YOLO11_POSE, YOLO11_POSE_LIFT, RTMPOSE, RTMPOSE_LIFT,
+                        GVHMR, WHAM)
 }
 
 
@@ -119,11 +150,17 @@ def resolve_extract_backend(name: str) -> PoseBackend:
     retarget 非対応（2D-only）の指定は、3D が必要な旨を明示して拒否する。
     """
     b = get_backend(name)
+    if b.extract_mode == "import":
+        raise ValueError(
+            f"backend '{name}' は外部ツールで推論する world-grounded 抽出です。"
+            f" 動画から直接は走りません。外部ツールで SMPL を出力し "
+            f"`robotdance {b.via} <smpl>` で取り込んでください。"
+        )
     if not b.retarget_capable:
         raise ValueError(
             f"backend '{name}' は 2D（{b.keypoint_format}）で、RD-MIR フル抽出には 3D が必要です。"
             f" 現状 retarget 可能なのは: "
-            f"{', '.join(x.name for x in list_backends() if x.retarget_capable)}。"
+            f"{', '.join(x.name for x in list_backends() if x.retarget_capable and x.extract_mode == 'video')}。"
             f" 2D 検出器の比較は scripts/compare_pose_backends.py を使ってください。"
         )
     return b

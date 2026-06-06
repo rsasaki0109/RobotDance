@@ -5,6 +5,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.94.0] - 2026-06-06
+
+世界座標（world-grounded）抽出をレジストリの一級バックエンドに（pre-alpha）。
+
+### Added
+
+- pose レジストリに **`gvhmr` / `wham`**（quality_tier="world-grounded", output_dim=3,
+  retarget_capable, extract_mode="import"）を登録。深度・グローバル軌跡が入り単眼の深度律速を緩和する
+  本命経路。`PoseBackend` に `extract_mode`（"video"/"import"）と `via` フィールドを追加。
+- `extract --backend gvhmr`（import 系）は、外部ツールで SMPL を出力し `import-hmr` で取り込む
+  ワークフローへ誘導する（RobotDance 内では推論しない＝重い weights/repo を依存に持ち込まない）。
+- `list-backends` に mode（video/import）列を追加。`tests/test_pose_backends.py` に world-grounded
+  backend のテスト 3 件（登録/extract 誘導/2D ランナー拒否）。
+
+### Changed
+
+- `compare_backends` と関連テストの「比較対象」フィルタを **video-mode の 2D 検出器のみ**に明確化
+  （import 系は 2D ランナーを持たないため除外）。docs/POSE_BACKENDS.md・RELATED_WORK.md に反映。
+
 ## [0.93.0] - 2026-06-06
 
 ### Added

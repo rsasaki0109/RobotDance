@@ -15,6 +15,13 @@ robotdance extract <clip> --backend yolo11-pose+lift   # 2D detector + analytic 
 2D-only detectors are rejected for full `extract` (which needs 3D) unless you use their `*+lift`
 variant. See [`robotdance_perception/backends.py`](../robotdance_perception/backends.py) for the registry.
 
+Backends come in two **modes**: `video` (run a detector on frames — MediaPipe, YOLO11-pose,
+RTMPose, and the `*+lift` variants) and `import` (a **world-grounded** external tool — `gvhmr`,
+`wham` — that you run yourself, then ingest its SMPL output with `import-hmr`). The import-mode
+backends recover depth and a global trajectory, which is the most reliable way to relax the
+monocular depth limit; `extract --backend gvhmr` prints the redirect to that workflow. See
+[`docs/RELATED_WORK.md`](RELATED_WORK.md) for how these relate to the wider landscape.
+
 ## Detector comparison
 
 Three OSS 2D detectors on the same clip, all normalized to COCO-17 for a fair overlay:

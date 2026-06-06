@@ -20,10 +20,12 @@ state of the art recovers **world-grounded** SMPL from monocular video:
 - **WHAM** (CVPR 2024) and **TRAM** (ECCV 2024) — combine human mesh recovery with SLAM-based
   camera tracking to place SMPL in world coordinates.
 
-**Relevance:** these directly attack RobotDance's "depth-limited" frontier. RobotDance already
-ingests their output via `import-hmr` (4DHumans / GVHMR SMPL → RD-MIR). A natural next step is a
-first-class GVHMR/WHAM extraction backend in the pose-backend registry
-([POSE_BACKENDS.md](POSE_BACKENDS.md)) alongside MediaPipe and the 2D detectors.
+**Relevance:** these directly attack RobotDance's "depth-limited" frontier. RobotDance ingests
+their output via `import-hmr` (4DHumans / GVHMR SMPL → RD-MIR), and as of v0.94 **`gvhmr` and
+`wham` are registered `import`-mode backends** in the pose registry
+([POSE_BACKENDS.md](POSE_BACKENDS.md)) — `list-backends` shows them as `world-grounded`, and
+`extract --backend gvhmr` redirects to the run-tool-then-`import-hmr` workflow. Running their
+inference inside RobotDance (rather than redirecting) remains future work.
 
 ## 2. Retargeting (human / SMPL → robot joint angles)
 
@@ -89,7 +91,8 @@ certificate and adds license/provenance discipline on top.
 ## Gaps to close (borrow from the neighbours)
 
 - **World-grounded extraction backend** (GVHMR / WHAM / TRAM) to relax the depth-limited frontier
-  — `import-hmr` already ingests their output; promote it to a registered extraction backend.
+  — done as registered `import`-mode backends (v0.94); the open part is running their inference
+  in-process instead of redirecting to `import-hmr`.
 - **GMR as an optional retarget backend** and a shared-clip benchmark against actuator-space IK.
 - **Certificate vs. learned-filter study** — compare the analytic certificate's REJECT set
   against H2O's privileged-policy filtering and PHUMA's rule thresholds.

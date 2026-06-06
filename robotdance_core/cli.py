@@ -337,6 +337,12 @@ def _extract(video: Path, out: Path, model: Path | None, backend: str, num_poses
     from robotdance_perception.backends import get_backend
 
     b = get_backend(backend)
+    if b.extract_mode == "import":
+        # 世界座標抽出（GVHMR/WHAM 等）は外部ツールで推論 → SMPL を import-hmr で取込。
+        print(f"ℹ️ backend '{backend}'（{b.quality_tier}）は外部ツールで推論する world-grounded 抽出です。")
+        print(f"   {backend} で SMPL を出力し → `robotdance {b.via} <smpl_file> -o out.rdmir.json` で取り込んでください。")
+        print("   （深度・グローバル軌跡が入り、単眼 MediaPipe の深度律速を緩和します）")
+        return 2
     if b.lift_from:
         # 2D 検出器 + 解析的 planar lift（coarse, 深度なし）で 3D 化。
         from robotdance_perception.lifting import extract_via_lift
@@ -405,15 +411,14 @@ def _list_backends() -> int:
     """登録済み pose 検出バックエンドと能力（次元/形式/retarget 可否/導入状況）を一覧する。"""
     from robotdance_perception.backends import list_backends
 
-    print("pose 検出バックエンド（extract は retarget=✓ のみ・2D-only は比較/lift 用）:")
+    print("pose / 抽出バックエンド（video=動画処理 / import=外部ツール→import-hmr 取込）:")
     print(f"  {'name':18s} {'dim':>3s} {'format':12s} {'tier':13s} "
-          f"{'retarget':8s} {'installed':9s} note")
+          f"{'mode':7s} {'retarget':8s} note")
     for b in list_backends():
         rt = "✓" if b.retarget_capable else "—"
-        inst = "✓" if b.available() else "—"
-        dev = " [dev]" if "dev" in b.extras else ""
+        tag = " [dev]" if "dev" in b.extras else (" [external]" if "external" in b.extras else "")
         print(f"  {b.name:18s} {b.output_dim:3d}D {b.keypoint_format:12s} {b.quality_tier:13s} "
-              f"{rt:8s} {inst:9s} {b.description}{dev}")
+              f"{b.extract_mode:7s} {rt:8s} {b.description}{tag}")
     return 0
 
 

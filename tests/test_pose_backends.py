@@ -69,7 +69,9 @@ def test_every_2d_backend_has_a_runner_factory():
     # 2D COCO-17 を出す検出器（lift 派生でない）に 2D ランナー生成器が紐づく。
     from robotdance_perception.backends import _RUNNER_FACTORIES
 
-    assert set(_RUNNER_FACTORIES) == {b.name for b in list_backends() if not b.lift_from}
+    assert set(_RUNNER_FACTORIES) == {
+        b.name for b in list_backends() if not b.lift_from and b.extract_mode == "video"
+    }
 
 
 def test_lift_backends_are_coarse_3d_and_extract_capable():
@@ -90,6 +92,30 @@ def test_make_runner_2d_rejects_lift_backend():
         make_runner_2d("yolo11-pose+lift")
 
 
+def test_world_grounded_import_backends_registered():
+    for name in ("gvhmr", "wham"):
+        b = get_backend(name)
+        assert b.output_dim == 3
+        assert b.retarget_capable is True
+        assert b.quality_tier == "world-grounded"
+        assert b.extract_mode == "import"
+        assert b.via == "import-hmr"
+        assert "external" in b.extras
+        # 重い依存は宣言しない（available は常に判定可能で True 扱い）。
+        assert b.modules == ()
+        assert b.available() is True
+
+
+def test_resolve_extract_redirects_import_backend_to_import_hmr():
+    with pytest.raises(ValueError, match="import-hmr"):
+        resolve_extract_backend("gvhmr")
+
+
+def test_make_runner_2d_rejects_import_backend():
+    with pytest.raises(ValueError, match="extract 専用"):
+        make_runner_2d("gvhmr")
+
+
 def test_make_runner_2d_unknown_backend_raises():
     with pytest.raises(ValueError, match="未知の pose backend"):
         make_runner_2d("openpose")
@@ -104,8 +130,8 @@ def test_list_backends_cli_runs():
 def test_compare_module_covers_all_backends_with_panel_colors():
     from robotdance_perception.compare import PANEL_COLORS
 
-    # 比較は lift 派生でない 2D 検出器のみ。それらに overlay パネル色を割り当てる。
-    names = {b.name for b in list_backends() if not b.lift_from}
+    # 比較は video-mode の 2D 検出器のみ。それらに overlay パネル色を割り当てる。
+    names = {b.name for b in list_backends() if not b.lift_from and b.extract_mode == "video"}
     assert names <= set(PANEL_COLORS), "比較対象 backend に overlay パネル色を割り当てる"
 
 
