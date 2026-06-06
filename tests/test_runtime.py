@@ -406,3 +406,44 @@ def test_ros2_node_publishes_joint_states() -> None:
         listener.destroy_node()
     finally:
         rclpy.shutdown()
+
+
+# --- MotionServer 再生制御（pause / seek） ---
+
+def test_server_pause_holds_frame_then_resume_advances() -> None:
+    server = MotionServer(_certified(True))
+    gen = server.stream()
+    seen = [next(gen)[0].index for _ in range(2)]  # 0, 1（cursor は 2 へ）
+    assert seen == [0, 1]
+    server.pause()
+    held = [next(gen)[0].index for _ in range(3)]
+    assert len(set(held)) == 1, f"pause 中は同一フレーム保持のはず: {held}"
+    server.resume()
+    nxt = [next(gen)[0].index for _ in range(2)]
+    assert nxt[0] == held[0] + 1, f"resume 直後は保持フレームの次へ: held={held[0]} nxt={nxt}"
+    assert nxt[1] == nxt[0] + 1, "以降も前進する"
+
+
+def test_server_seek_frame_jumps_and_clamps() -> None:
+    server = MotionServer(_certified(True))
+    gen = server.stream()
+    next(gen)  # index 0
+    server.seek_frame(5)
+    assert next(gen)[0].index == 5
+    # 範囲外はクランプ。
+    n = server._kps.shape[0]
+    assert server.seek_frame(10_000) == n - 1
+    assert server.seek_frame(-3) == 0
+
+
+def test_server_seek_phase_maps_0_1_to_frames() -> None:
+    server = MotionServer(_certified(True))
+    n = server._kps.shape[0]
+    assert server.seek_phase(0.0) == 0
+    assert server.seek_phase(1.0) == n - 1
+    gen = server.stream()
+    next(gen)
+    server.seek_phase(1.0)
+    last, _ = next(gen)
+    assert last.index == n - 1
+    assert last.phase == 1.0

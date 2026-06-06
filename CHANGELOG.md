@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.104.0] - 2026-06-07
+
+ROS2 runtime のコア MotionServer に pause / seek 制御を実装（ROADMAP Phase 5）。
+
+### Fixed
+
+- `MotionServer.stream()` が docstring で謳う **pause を実装していなかった**（`self.paused` を未参照で、
+  常に最後まで再生）バグを修正。pause 中は cursor を進めず最後のフレームを保持し続ける。
+
+### Added
+
+- `MotionServer` に `pause()` / `resume()` / `seek_frame(i)` / `seek_phase(p)` を追加。stream の yield 間に
+  呼んで対話的に再生位置を操作できる（scrubbing）。seek は自然前進の +1 と区別（`_seeked` フラグ）。
+- `tests/test_runtime.py` に pause 保持・resume 前進・seek_frame クランプ・seek_phase の 3 テスト。計 334。
+
 ## [0.103.0] - 2026-06-07
 
 model↔schema 同期チェックを全 spec に拡大（Stable Specs）。
