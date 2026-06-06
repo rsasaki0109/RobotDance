@@ -389,14 +389,24 @@ def _pose_compare(video: Path, out: Path | None, stride: int, width: int) -> int
     return 0
 
 
-def _search_motion(query_path: Path, corpus: Path, k: int, healthy_only: bool) -> int:
-    """query RD-MIR に似た motion を corpus ディレクトリから検索する（quality-aware 可）。"""
+def _search_motion(query_path: Path, corpus: Path, k: int, healthy_only: bool,
+                   encoder: Path | None = None) -> int:
+    """query RD-MIR に似た motion を corpus ディレクトリから検索する（quality-aware / 学習encoder可）。"""
     from .rd_mir import RdMir
     from robotdance_motion.embeddings import MotionIndex, embed
 
+    embed_fn = embed
+    enc_tag = "handcrafted"
+    if encoder is not None:
+        # 学習済み motion encoder（masked 再構成）で索引・検索する。
+        from robotdance_models.train import LearnedMotionEncoder
+
+        embed_fn = LearnedMotionEncoder(encoder).embed
+        enc_tag = f"learned({encoder.name})"
+
     files = sorted(p for p in corpus.rglob("*.json")
                    if not p.name.endswith((".schema.json", ".manifest.json")))
-    idx = MotionIndex()
+    idx = MotionIndex(embed_fn=embed_fn)
     loaded = 0
     for p in files:
         try:
@@ -410,9 +420,10 @@ def _search_motion(query_path: Path, corpus: Path, k: int, healthy_only: bool) -
 
     qmir = RdMir.load(query_path)
     where = (lambda m: m.get("health") == "ok") if healthy_only else None
-    hits = idx.query(embed(qmir), k=k, where=where)
+    hits = idx.query(embed_fn(qmir), k=k, where=where)
     tag = "（healthy のみ）" if healthy_only else ""
-    print(f"🔎 search-motion: '{query_path.name}' に近い {len(hits)} 件{tag}（索引 {loaded} 本）")
+    print(f"🔎 search-motion: '{query_path.name}' に近い {len(hits)} 件{tag}"
+          f"（索引 {loaded} 本・encoder={enc_tag}）")
     for mid, sim in hits:
         label = idx.meta_of(mid).get("action_label") or "-"
         print(f"  {sim:6.3f}  {mid:28s} [{label}]")
@@ -1611,6 +1622,8 @@ def main(argv: list[str] | None = None) -> int:
     p_sm.add_argument("-k", type=int, default=5, help="返す件数")
     p_sm.add_argument("--healthy-only", action="store_true",
                       help="motion-doctor で健全（warn 無し）な motion のみ返す")
+    p_sm.add_argument("--encoder", type=Path, default=None,
+                      help="学習済み motion encoder の checkpoint（train-encoder 出力）。未指定は手作り特徴")
 
     p_pc = sub.add_parser("pose-compare",
                           help="複数 pose 検出器を同一動画で比較（overlay GIF + 指標）")
@@ -1834,7 +1847,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "specs":
         return _list_specs()
     if args.command == "search-motion":
-        return _search_motion(args.query, args.corpus, args.k, args.healthy_only)
+        return _search_motion(args.query, args.corpus, args.k, args.healthy_only, args.encoder)
     if args.command == "pose-compare":
         return _pose_compare(args.video, args.out, args.stride, args.width)
     if args.command == "import-humanml3d":

@@ -136,3 +136,25 @@ def test_cli_search_motion_healthy_only(tmp_path) -> None:
     assert main(["search-motion", str(tmp_path / "q.json"), str(corpus), "-k", "2"]) == 0
     assert main(["search-motion", str(tmp_path / "q.json"), str(corpus),
                  "--healthy-only"]) == 0
+
+
+def test_cli_search_motion_with_learned_encoder(tmp_path) -> None:
+    """search-motion --encoder で学習済み encoder を使って検索できる。"""
+    from robotdance_core.cli import main
+    from robotdance_core.synthetic import generate_dance
+    from robotdance_models.train import train_encoder
+
+    ckpt = tmp_path / "enc.pt"
+    train_encoder(out_path=ckpt, epochs=15, seed=0)
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for i in range(3):
+        m = generate_dance(beats_per_second=1.0 + 0.2 * i)
+        m.motion_id = f"d{i}"
+        m.save(corpus / f"d{i}.json")
+    q = generate_dance(beats_per_second=1.1)
+    q.save(tmp_path / "q.json")
+
+    assert main(["search-motion", str(tmp_path / "q.json"), str(corpus),
+                 "--encoder", str(ckpt), "-k", "2"]) == 0

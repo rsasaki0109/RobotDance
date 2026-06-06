@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.105.0] - 2026-06-07
+
+### Added
+
+- `search-motion --encoder <checkpoint>`: 手作り特徴の代わりに**学習済み motion encoder**
+  （`train-encoder` の masked 再構成 checkpoint, `LearnedMotionEncoder`）で索引・検索する。
+  `MotionIndex(embed_fn=...)` を差し替えるだけで quality-aware フィルタ（`--healthy-only`）とも併用可。
+  出力に encoder 種別（handcrafted / learned(...)）を表示。`tests/test_embeddings.py` に 1 テスト。計 335。
+
 ## [0.104.0] - 2026-06-07
 
 ROS2 runtime のコア MotionServer に pause / seek 制御を実装（ROADMAP Phase 5）。
