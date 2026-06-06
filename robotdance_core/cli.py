@@ -390,7 +390,10 @@ def _pose_compare(video: Path, out: Path | None, stride: int, width: int) -> int
 
 
 def _motion_doctor(path: Path) -> int:
-    """RD-MIR の健全性チェック（単眼抽出のよくある破綻を指摘）。"""
+    """RD-MIR の健全性チェック。path がディレクトリなら配下の RD-MIR を一括診断する。"""
+    if path.is_dir():
+        return _motion_doctor_corpus(path)
+
     from .rd_mir import RdMir
     from robotdance_motion.doctor import diagnose_motion, overall_status
 
@@ -405,6 +408,44 @@ def _motion_doctor(path: Path) -> int:
     status = overall_status(checks)
     print(f"  総合: {icon[status]} {status.upper()}")
     return 1 if status == "warn" else 0
+
+
+def _motion_doctor_corpus(d: Path) -> int:
+    """ディレクトリ配下の RD-MIR を一括診断し、per-file 状態と warn 種別の集計を出す。"""
+    from collections import Counter
+
+    from .rd_mir import RdMir
+    from robotdance_motion.doctor import diagnose_motion, overall_status, warn_names
+
+    files = sorted(p for p in d.rglob("*.json")
+                   if not p.name.endswith((".schema.json", ".manifest.json")))
+    if not files:
+        print(f"🩺 motion-doctor: {d} に RD-MIR(.json) が見つかりません")
+        return 0
+
+    icon = {"ok": "✅", "warn": "⚠️"}
+    counts: Counter[str] = Counter()
+    n_warn = n_err = 0
+    print(f"🩺 motion-doctor corpus: {d}（{len(files)} files）")
+    for p in files:
+        try:
+            checks = diagnose_motion(RdMir.load(p))
+        except Exception as e:  # noqa: BLE001 - RD-MIR でない/壊れたファイルは skip 表示
+            n_err += 1
+            print(f"  ⛔ {p.relative_to(d)}: 読み込み/診断不可（{type(e).__name__}）")
+            continue
+        ws = warn_names(checks)
+        counts.update(ws)
+        if overall_status(checks) == "warn":
+            n_warn += 1
+            print(f"  {icon['warn']} {p.relative_to(d)}: {', '.join(ws)}")
+        else:
+            print(f"  {icon['ok']} {p.relative_to(d)}")
+    healthy = len(files) - n_warn - n_err
+    print(f"  ── 集計: {healthy}/{len(files)} healthy, {n_warn} warn, {n_err} error")
+    if counts:
+        print("     warn 内訳: " + ", ".join(f"{k}×{v}" for k, v in counts.most_common()))
+    return 1 if (n_warn or n_err) else 0
 
 
 def _list_retargeters() -> int:
@@ -1497,8 +1538,8 @@ def main(argv: list[str] | None = None) -> int:
                            help="抽出直後の健全性チェック（motion-doctor）をスキップ")
 
     p_doc = sub.add_parser("motion-doctor",
-                           help="RD-MIR の健全性チェック（mirror/深度/接地/多人数 等を診断）")
-    p_doc.add_argument("rdmir", type=Path, help="診断する RD-MIR (.json)")
+                           help="RD-MIR の健全性チェック（mirror/深度/接地/多人数 等）。ディレクトリで一括診断")
+    p_doc.add_argument("rdmir", type=Path, help="診断する RD-MIR (.json) または RD-MIR を含むディレクトリ")
 
     sub.add_parser("list-backends", help="登録済み pose 検出バックエンドと能力を一覧する")
     sub.add_parser("list-retargeters", help="登録済み retarget バックエンド（builtin/GMR等）を一覧する")

@@ -126,3 +126,8 @@ def diagnose_motion(mir: "RdMir") -> list[Check]:
 def overall_status(checks: list[Check]) -> str:
     """全 Check から総合 status（warn が 1 つでもあれば "warn"）。"""
     return "warn" if any(c.status == "warn" for c in checks) else "ok"
+
+
+def warn_names(checks: list[Check]) -> list[str]:
+    """warn 状態の Check 名のリスト（コーパス集計用）。"""
+    return [c.name for c in checks if c.status == "warn"]

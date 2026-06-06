@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.97.0] - 2026-06-06
+
+### Added
+
+- CLI `motion-doctor <dir>`: ディレクトリを渡すと配下の RD-MIR(.json) を**一括診断**し、per-file の
+  warn 種別と「healthy/warn/error」集計・warn 内訳（mirror×N 等）を出す。warn/error が 1 件でも exit 1。
+  データセット curation の QC に有用（schema/manifest.json は除外、壊れたファイルは error として継続）。
+- `robotdance_motion.doctor.warn_names(checks)` ヘルパ。`tests/test_doctor.py` に corpus テスト 3 件。
+
 ## [0.96.0] - 2026-06-06
 
 接地クリーンアップに foot-skate（接地足の水平滑り）除去を追加（pre-alpha, ROADMAP の contact-preserving 一歩）。

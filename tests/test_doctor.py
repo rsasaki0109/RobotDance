@@ -90,3 +90,35 @@ def test_low_confidence_and_multi_subject_warn():
 
 def test_overall_status_warn_if_any():
     assert overall_status(diagnose_motion(_mir(_standing_kps(mirror=True)))) == "warn"
+
+
+def test_warn_names_lists_failing_checks():
+    from robotdance_motion.doctor import warn_names
+
+    names = warn_names(diagnose_motion(_mir(_standing_kps(mirror=True))))
+    assert "mirror" in names
+    assert "depth_collapse" not in names  # 健全な軸は含まない
+
+
+def test_cli_motion_doctor_corpus(tmp_path, capsys):
+    """ディレクトリ一括診断: healthy/warn を集計し、warn があれば exit 1。"""
+    from robotdance_core.cli import main
+
+    _mir(_standing_kps()).save(tmp_path / "good.json")
+    _mir(_standing_kps(mirror=True)).save(tmp_path / "bad.json")
+
+    rc = main(["motion-doctor", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert "corpus" in out
+    assert "good.json" in out and "bad.json" in out
+    assert "mirror" in out  # warn 内訳
+    assert "1/2 healthy" in out or "1 warn" in out
+    assert rc == 1  # warn が 1 件以上 → 非ゼロ
+
+
+def test_cli_motion_doctor_corpus_all_healthy(tmp_path):
+    from robotdance_core.cli import main
+
+    _mir(_standing_kps()).save(tmp_path / "a.json")
+    _mir(_standing_kps()).save(tmp_path / "b.json")
+    assert main(["motion-doctor", str(tmp_path)]) == 0
