@@ -37,8 +37,10 @@ inference inside RobotDance (rather than redirecting) remains future work.
   ("Make Tracking Easy") — learned alternatives to per-joint IK.
 
 **Relevance:** GMR overlaps RobotDance's `retarget` / `retarget-ik` and targets the same robots.
-Worth integrating as an optional retarget backend and/or benchmarking RobotDance's actuator-space
-IK against it on shared clips.
+As of v0.95 it is a **registered `external` retarget backend** (`robotdance list-retargeters`
+shows `kinematic` / `actuator-ik` builtin alongside `gmr`); the open part is wiring GMR's
+`mink`-based IK as a runnable backend and benchmarking it against RobotDance's actuator-space IK
+on shared clips.
 
 ## 3. Whole-body control / imitation / teleoperation (RL policies, sim→real on hardware)
 
@@ -93,7 +95,8 @@ certificate and adds license/provenance discipline on top.
 - **World-grounded extraction backend** (GVHMR / WHAM / TRAM) to relax the depth-limited frontier
   — done as registered `import`-mode backends (v0.94); the open part is running their inference
   in-process instead of redirecting to `import-hmr`.
-- **GMR as an optional retarget backend** and a shared-clip benchmark against actuator-space IK.
+- **GMR as an optional retarget backend** — registered in the retarget registry (v0.95); the open
+  part is making it runnable (wire its `mink` IK) and a shared-clip benchmark vs actuator-space IK.
 - **Certificate vs. learned-filter study** — compare the analytic certificate's REJECT set
   against H2O's privileged-policy filtering and PHUMA's rule thresholds.
 - **Curation interop** — align RD-MIR quality fields with PHUMA / OpenT2M conventions.

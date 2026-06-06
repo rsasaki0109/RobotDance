@@ -407,6 +407,21 @@ def _motion_doctor(path: Path) -> int:
     return 1 if status == "warn" else 0
 
 
+def _list_retargeters() -> int:
+    """登録済み retarget バックエンドと能力（手法/実URDF/CLI/導入状況）を一覧する。"""
+    from robotdance_retarget.backends import list_retarget_backends
+
+    print("retarget バックエンド（builtin=RobotDance同梱 / external=外部OSS）:")
+    print(f"  {'name':12s} {'method':12s} {'real_urdf':9s} {'installed':9s} note")
+    for b in list_retarget_backends():
+        urdf = "✓" if b.real_urdf else "—"
+        inst = "✓" if b.available() else "—"
+        via = f" → CLI `{b.cli}`" if b.cli else (f" → {b.url}" if b.url else "")
+        tag = " [external]" if "external" in b.extras else ""
+        print(f"  {b.name:12s} {b.method:12s} {urdf:9s} {inst:9s} {b.description}{via}{tag}")
+    return 0
+
+
 def _list_backends() -> int:
     """登録済み pose 検出バックエンドと能力（次元/形式/retarget 可否/導入状況）を一覧する。"""
     from robotdance_perception.backends import list_backends
@@ -1482,6 +1497,7 @@ def main(argv: list[str] | None = None) -> int:
     p_doc.add_argument("rdmir", type=Path, help="診断する RD-MIR (.json)")
 
     sub.add_parser("list-backends", help="登録済み pose 検出バックエンドと能力を一覧する")
+    sub.add_parser("list-retargeters", help="登録済み retarget バックエンド（builtin/GMR等）を一覧する")
 
     p_pc = sub.add_parser("pose-compare",
                           help="複数 pose 検出器を同一動画で比較（overlay GIF + 指標）")
@@ -1697,6 +1713,8 @@ def main(argv: list[str] | None = None) -> int:
         return _motion_doctor(args.rdmir)
     if args.command == "list-backends":
         return _list_backends()
+    if args.command == "list-retargeters":
+        return _list_retargeters()
     if args.command == "pose-compare":
         return _pose_compare(args.video, args.out, args.stride, args.width)
     if args.command == "import-humanml3d":

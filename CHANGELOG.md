@@ -5,6 +5,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.95.0] - 2026-06-06
+
+retarget バックエンドをレジストリ化し、GMR を一級の外部バックエンドとして登録（pre-alpha）。
+
+### Added
+
+- `robotdance_retarget/backends.py`: retarget バックエンドのレジストリ（pose レジストリと同作法）。
+  builtin **kinematic**（速い直接マップ, CLI `retarget`）/ **actuator-ik**（実 URDF へ IK, 実機向け既定,
+  CLI `retarget-ik`）と、外部 OSS **gmr**（General Motion Retargeting, MIT, 18 機種, CPU 実時間）を
+  能力メタデータ（method / real_urdf / modules / cli / url）付きで登録。`available()` は遅延 spec チェック。
+- CLI `list-retargeters`: 上記を手法・実 URDF 要否・導入状況付きで一覧。
+- `tests/test_retarget_backends.py` 6 テスト。RELATED_WORK.md の GMR ギャップを「登録済み・残りは実行配線」に更新。
+
 ## [0.94.1] - 2026-06-06
 
 ### Added
