@@ -139,7 +139,8 @@ def test_cli_search_motion_healthy_only(tmp_path) -> None:
 
 
 def test_cli_search_motion_with_learned_encoder(tmp_path) -> None:
-    """search-motion --encoder で学習済み encoder を使って検索できる。"""
+    """search-motion --encoder で学習済み encoder を使って検索できる。torch 無しは skip。"""
+    pytest.importorskip("torch")
     from robotdance_core.cli import main
     from robotdance_core.synthetic import generate_dance
     from robotdance_models.train import train_encoder

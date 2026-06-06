@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.105.1] - 2026-06-07
+
+### Fixed
+
+- `test_cli_search_motion_with_learned_encoder` が torch 未導入の CI で失敗していた問題を修正
+  （`pytest.importorskip("torch")` を追加。torch は optional dep なので他の encoder 系テストと同様に skip）。
+
 ## [0.105.0] - 2026-06-07
 
 ### Added
