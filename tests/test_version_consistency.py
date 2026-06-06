@@ -60,3 +60,16 @@ def test_all_spec_schemas_present_and_valid() -> None:
         schema = json.loads(p.read_text(encoding="utf-8"))
         # メタスキーマに対して妥当（壊れた JSON Schema を弾く）。
         jsonschema.Draft202012Validator.check_schema(schema)
+
+
+def test_spec_schemas_declare_version_matching_id() -> None:
+    """各 spec が $schema / $id / title / version を宣言し、version が $id の /vN/ と一致する。"""
+    names = ["rd-mir", "rd-manifest", "rd-embodiment", "rd-motion", "rd-policy"]
+    for n in names:
+        schema = json.loads((_ROOT / "specs" / n / f"{n}.schema.json").read_text("utf-8"))
+        for key in ("$schema", "$id", "title", "version"):
+            assert key in schema, f"{n}: '{key}' が無い"
+        m = re.search(r"/v([^/]+)/", schema["$id"])
+        assert m, f"{n}: $id に /vN/ が無い: {schema['$id']}"
+        assert str(schema["version"]) == m.group(1), (
+            f"{n}: version={schema['version']} が $id の v{m.group(1)} と不一致")

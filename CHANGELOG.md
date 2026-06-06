@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.101.0] - 2026-06-07
+
+spec の machine-readable バージョン整備と一覧 CLI（v1.0/Stable Specs に向けて）。
+
+### Added
+
+- 5 つの spec schema（rd-mir / rd-manifest / rd-embodiment / rd-motion / rd-policy）に
+  トップレベル `"version": "0"` を追加（`$id` の `/v0/` と整合）。
+- CLI `specs`: 各 spec の title / version / properties 数 / required 数 / `$id` を一覧表示。
+- `tests/test_version_consistency.py` に「各 spec が $schema/$id/title/version を宣言し version が
+  $id の vN と一致する」テストを追加。README 機能表に `specs` / `validate`（spec 行）を追記。
+
 ## [0.100.0] - 2026-06-07
 
 リリースメタデータの整合性チェックを追加（v1.0/Stable Specs に向けた release hygiene）。

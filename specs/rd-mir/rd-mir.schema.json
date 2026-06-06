@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://robotdance.dev/specs/rd-mir/v0/rd-mir.schema.json",
+  "version": "0",
   "title": "RD-MIR",
   "description": "RobotDance Motion Intermediate Representation (v0, draft). RobotDance の中核標準。人間動画・mocap・合成データを一つの canonical な運動表現に集約する。skeleton-first: canonical skeleton + contacts + root trajectory を第一級表現とし、SMPL は optional。",
   "type": "object",

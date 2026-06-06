@@ -478,6 +478,24 @@ def _motion_doctor_corpus(d: Path) -> int:
     return 1 if (n_warn or n_err) else 0
 
 
+def _list_specs() -> int:
+    """RobotDance の標準 spec（schema）一覧: title / version / フィールド数 / $id。"""
+    import json
+    from pathlib import Path as _P
+
+    root = _P(__file__).resolve().parent.parent / "specs"
+    names = ["rd-mir", "rd-manifest", "rd-embodiment", "rd-motion", "rd-policy"]
+    print("RobotDance 標準 spec（JSON Schema, Draft 2020-12）:")
+    print(f"  {'spec':14s} {'title':14s} {'ver':4s} {'props':>5s} {'required':>8s}  $id")
+    for n in names:
+        d = json.loads((root / n / f"{n}.schema.json").read_text(encoding="utf-8"))
+        props = len(d.get("properties", {}))
+        req = len(d.get("required", []))
+        print(f"  {n:14s} {d.get('title', '-'):14s} {str(d.get('version', '-')):4s} "
+              f"{props:5d} {req:8d}  {d.get('$id', '-')}")
+    return 0
+
+
 def _list_retargeters() -> int:
     """登録済み retarget バックエンドと能力（手法/実URDF/CLI/導入状況）を一覧する。"""
     from robotdance_retarget.backends import list_retarget_backends
@@ -1584,6 +1602,7 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("list-backends", help="登録済み pose 検出バックエンドと能力を一覧する")
     sub.add_parser("list-retargeters", help="登録済み retarget バックエンド（builtin/GMR等）を一覧する")
+    sub.add_parser("specs", help="RobotDance 標準 spec（RD-MIR 等の schema）一覧と version を表示")
 
     p_sm = sub.add_parser("search-motion",
                           help="query RD-MIR に似た motion を corpus から検索（--healthy-only で品質絞り込み）")
@@ -1812,6 +1831,8 @@ def main(argv: list[str] | None = None) -> int:
         return _list_backends()
     if args.command == "list-retargeters":
         return _list_retargeters()
+    if args.command == "specs":
+        return _list_specs()
     if args.command == "search-motion":
         return _search_motion(args.query, args.corpus, args.k, args.healthy_only)
     if args.command == "pose-compare":

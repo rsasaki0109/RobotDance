@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://robotdance.dev/specs/rd-motion/v0/rd-motion.schema.json",
+  "version": "0",
   "title": "RD-Motion",
   "description": "robot-specific な実行可能モーション artifact (.rdmotion, v0 draft)。RD-MIR を特定の RD-Embodiment へ retarget した結果。v0 は kinematic retarget の link 位置を保持し、sim_certificate は Phase 2 で埋める。",
   "type": "object",

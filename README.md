@@ -167,6 +167,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 | cards | `model-card` `cards-index` (lineage/license/failure/safety) |
 | ROS2 runtime | `serve --ros2` `demo-runtime` (safety guard) `demo-joint-safety` |
 | integration | `demo-pipeline` (RD-MIR→retarget→sim→policy→cards in one command) |
+| specs | `validate` (RD-MIR/Manifest/… schema 検証) `specs` (spec registry + versions) |
 
 </details>
 

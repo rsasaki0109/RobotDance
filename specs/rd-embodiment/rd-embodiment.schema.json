@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://robotdance.dev/specs/rd-embodiment/v0/rd-embodiment.schema.json",
+  "version": "0",
   "title": "RD-Embodiment",
   "description": "ロボット形態の記述 (v0, draft)。retarget の対象となる embodiment（joint, limits, morphology, contact surface, runtime adapter）を定義する。",
   "type": "object",

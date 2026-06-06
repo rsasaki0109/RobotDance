@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://robotdance.dev/specs/rd-policy/v0/rd-policy.schema.json",
+  "version": "0",
   "title": "RD-Policy",
   "description": "学習済み motion policy の配布 artifact (.rdpolicy, v0 draft)。policy の I/O 規約・アーキテクチャ・学習来歴・安全制約・weights 参照を記述する。weights 本体は埋め込まず参照する（license/容量 safe）。tracking policy（参照追従）/ skill policy（VLA 補完）を対象。",
   "type": "object",
