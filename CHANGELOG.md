@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.100.0] - 2026-06-07
+
+リリースメタデータの整合性チェックを追加（v1.0/Stable Specs に向けた release hygiene）。
+
+### Added
+
+- `tests/test_version_consistency.py`: pyproject / CITATION / CHANGELOG の **version 一致**、
+  **CITATION date-released と CHANGELOG 最新エントリの日付一致**、5 つの spec schema（rd-mir /
+  rd-manifest / rd-embodiment / rd-motion / rd-policy）の存在と JSON Schema 妥当性を CI で検証。
+
+### Fixed
+
+- CITATION.cff の `date-released` が 2026-06-05 のまま古かった（0.99.0 は 06-07）ドリフトを修正。
+  以後は上記テストがドリフトを検出する。
+
 ## [0.99.0] - 2026-06-07
 
 quality-aware retrieval（ROADMAP Phase 3）— motion 検索を motion-doctor の健全性と接続。
