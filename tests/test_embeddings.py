@@ -90,3 +90,49 @@ def test_render_motion_map(tmp_path) -> None:
     out = render_motion_map(pts, ["a", "b", "c"], tmp_path / "map.png",
                             groups=["x", "x", "y"])
     assert out.exists() and out.stat().st_size > 0
+
+
+def test_query_where_filters_by_metadata() -> None:
+    """where 述語でメタデータ絞り込み（quality-aware / label-aware retrieval）。"""
+    idx = MotionIndex()
+    for mid, hp in [("good_a", "ok"), ("good_b", "ok"), ("bad", "warn")]:
+        mir = generate_dance(beats_per_second=1.2)
+        mir.motion_id = mid
+        idx.add(mid, embed(mir), meta={"health": hp})
+    q = embed(generate_dance(beats_per_second=1.2))
+    healthy = idx.query(q, k=5, where=lambda m: m.get("health") == "ok")
+    ids = [r[0] for r in healthy]
+    assert "bad" not in ids
+    assert set(ids) == {"good_a", "good_b"}
+    # フィルタ無しなら bad も候補に入る。
+    assert "bad" in [r[0] for r in idx.query(q, k=5)]
+
+
+def test_add_mir_diagnose_stores_health() -> None:
+    from robotdance_core.synthetic import generate_squat
+
+    idx = MotionIndex()
+    mir = generate_squat(duration=1.5)
+    mir.motion_id = "sq"
+    idx.add_mir(mir, diagnose=True)
+    meta = idx.meta_of("sq")
+    assert meta["health"] in ("ok", "warn", "unknown")
+    assert "action_label" in meta
+
+
+def test_cli_search_motion_healthy_only(tmp_path) -> None:
+    from robotdance_core.cli import main
+    from robotdance_core.synthetic import generate_dance
+
+    corpus = tmp_path / "corpus"
+    corpus.mkdir()
+    for i in range(3):
+        m = generate_dance(beats_per_second=1.0 + 0.2 * i)
+        m.motion_id = f"d{i}"
+        m.save(corpus / f"d{i}.json")
+    q = generate_dance(beats_per_second=1.1)
+    q.save(tmp_path / "q.json")
+
+    assert main(["search-motion", str(tmp_path / "q.json"), str(corpus), "-k", "2"]) == 0
+    assert main(["search-motion", str(tmp_path / "q.json"), str(corpus),
+                 "--healthy-only"]) == 0

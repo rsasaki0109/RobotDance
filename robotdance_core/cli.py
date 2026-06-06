@@ -389,6 +389,36 @@ def _pose_compare(video: Path, out: Path | None, stride: int, width: int) -> int
     return 0
 
 
+def _search_motion(query_path: Path, corpus: Path, k: int, healthy_only: bool) -> int:
+    """query RD-MIR に似た motion を corpus ディレクトリから検索する（quality-aware 可）。"""
+    from .rd_mir import RdMir
+    from robotdance_motion.embeddings import MotionIndex, embed
+
+    files = sorted(p for p in corpus.rglob("*.json")
+                   if not p.name.endswith((".schema.json", ".manifest.json")))
+    idx = MotionIndex()
+    loaded = 0
+    for p in files:
+        try:
+            idx.add_mir(RdMir.load(p), diagnose=healthy_only, meta={"path": str(p)})
+            loaded += 1
+        except Exception:  # noqa: BLE001 - RD-MIR でない/壊れたファイルは skip
+            continue
+    if not loaded:
+        print(f"🔎 search-motion: {corpus} に索引可能な RD-MIR がありません")
+        return 0
+
+    qmir = RdMir.load(query_path)
+    where = (lambda m: m.get("health") == "ok") if healthy_only else None
+    hits = idx.query(embed(qmir), k=k, where=where)
+    tag = "（healthy のみ）" if healthy_only else ""
+    print(f"🔎 search-motion: '{query_path.name}' に近い {len(hits)} 件{tag}（索引 {loaded} 本）")
+    for mid, sim in hits:
+        label = idx.meta_of(mid).get("action_label") or "-"
+        print(f"  {sim:6.3f}  {mid:28s} [{label}]")
+    return 0
+
+
 def _motion_doctor(path: Path) -> int:
     """RD-MIR の健全性チェック。path がディレクトリなら配下の RD-MIR を一括診断する。"""
     if path.is_dir():
@@ -1555,6 +1585,14 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("list-backends", help="登録済み pose 検出バックエンドと能力を一覧する")
     sub.add_parser("list-retargeters", help="登録済み retarget バックエンド（builtin/GMR等）を一覧する")
 
+    p_sm = sub.add_parser("search-motion",
+                          help="query RD-MIR に似た motion を corpus から検索（--healthy-only で品質絞り込み）")
+    p_sm.add_argument("query", type=Path, help="クエリ RD-MIR (.json)")
+    p_sm.add_argument("corpus", type=Path, help="検索対象の RD-MIR を含むディレクトリ")
+    p_sm.add_argument("-k", type=int, default=5, help="返す件数")
+    p_sm.add_argument("--healthy-only", action="store_true",
+                      help="motion-doctor で健全（warn 無し）な motion のみ返す")
+
     p_pc = sub.add_parser("pose-compare",
                           help="複数 pose 検出器を同一動画で比較（overlay GIF + 指標）")
     p_pc.add_argument("video", type=Path, help="入力動画（ローカルファイル）")
@@ -1774,6 +1812,8 @@ def main(argv: list[str] | None = None) -> int:
         return _list_backends()
     if args.command == "list-retargeters":
         return _list_retargeters()
+    if args.command == "search-motion":
+        return _search_motion(args.query, args.corpus, args.k, args.healthy_only)
     if args.command == "pose-compare":
         return _pose_compare(args.video, args.out, args.stride, args.width)
     if args.command == "import-humanml3d":

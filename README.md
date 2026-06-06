@@ -160,7 +160,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 | dataset | `build-dataset` (RD-Manifest + license firewall / Data BOM) `dedupe-dir` |
 | retarget | `retarget` `retarget-ik` (real G1 23 joint angles) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/T1/Apollo) |
 | physics check | `validate-sim` (sim_certificate, MuJoCo) `--ground-clean` `--balance-plot` `sim-backends` |
-| embedding & search | `demo-motion-map` `train-encoder` `train-text-motion` `search-text` |
+| embedding & search | `demo-motion-map` `train-encoder` `train-text-motion` `search-text` `search-motion` (`--healthy-only`, quality-aware) |
 | generation | `train-tokenizer` (VQ-VAE) `train-prior` `demo-generate` `train-text2motion` `generate-text` `train-denoiser` |
 | learned policy | `train-tracking` (PPO) `demo-track` `demo-track-multi` `export-policy` (RD-Policy + ONNX) |
 | benchmark | `benchmark` (motion×robot leaderboard) `benchmark-extraction` |

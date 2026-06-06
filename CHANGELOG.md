@@ -5,6 +5,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.99.0] - 2026-06-07
+
+quality-aware retrieval（ROADMAP Phase 3）— motion 検索を motion-doctor の健全性と接続。
+
+### Added
+
+- `MotionIndex` にエントリ単位のメタデータと述語フィルタを追加: `add(..., meta=)` / `add_mir(..., meta=,
+  diagnose=)` / `meta_of(id)` / `query(..., where=lambda meta: ...)`。`diagnose=True` で health（ok/warn）と
+  warns をメタに格納し、`where` で **quality-aware / action-label 絞り込み**ができる。後方互換（meta 任意）。
+- CLI `search-motion <query.rdmir> <corpus_dir> [-k] [--healthy-only]`: query に似た motion を corpus から
+  検索。`--healthy-only` は motion-doctor で warn の無い motion のみ返す。`tests/test_embeddings.py` に 3 テスト。
+
 ## [0.98.0] - 2026-06-07
 
 ### Added

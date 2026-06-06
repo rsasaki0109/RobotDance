@@ -85,17 +85,40 @@ class MotionIndex:
         `LearnedMotionEncoder().embed` を渡すと学習表現で索引できる。"""
         self.ids: list[str] = []
         self._raw: list[np.ndarray] = []
+        self._meta: list[dict] = []
         self._mean: np.ndarray | None = None
         self._std: np.ndarray | None = None
         self._embed_fn = embed_fn
 
-    def add(self, motion_id: str, embedding: np.ndarray) -> None:
+    def add(self, motion_id: str, embedding: np.ndarray, meta: dict | None = None) -> None:
         self.ids.append(motion_id)
         self._raw.append(np.asarray(embedding, dtype=np.float64))
+        self._meta.append(dict(meta or {}))
         self._mean = None  # 統計を無効化（次回 query 時に再計算）
 
-    def add_mir(self, mir: RdMir) -> None:
-        self.add(mir.motion_id, self._embed_fn(mir))
+    def add_mir(self, mir: RdMir, *, meta: dict | None = None, diagnose: bool = False) -> None:
+        """RdMir を索引に追加。meta に action_label を自動付与し、diagnose=True なら
+        motion-doctor の健全性（health: "ok"|"warn", warns: [...]）も付ける（quality-aware 検索用）。"""
+        m = {"action_label": (mir.semantics or {}).get("action_label")}
+        if diagnose:
+            from robotdance_motion.doctor import diagnose_motion, overall_status, warn_names
+
+            try:
+                checks = diagnose_motion(mir)
+                m["health"] = overall_status(checks)
+                m["warns"] = warn_names(checks)
+            except Exception:  # noqa: BLE001 - keypoints 無し等は診断不能
+                m["health"] = "unknown"
+        if meta:
+            m.update(meta)
+        self.add(mir.motion_id, self._embed_fn(mir), meta=m)
+
+    def meta_of(self, motion_id: str) -> dict:
+        """motion_id のメタデータを返す（無ければ空 dict）。"""
+        try:
+            return self._meta[self.ids.index(motion_id)]
+        except ValueError:
+            return {}
 
     def _matrix(self) -> np.ndarray:
         return np.stack(self._raw) if self._raw else np.zeros((0, EMBEDDING_DIM))
@@ -109,8 +132,13 @@ class MotionIndex:
             self._std[self._std < _EPS] = 1.0
         return (m - self._mean) / self._std
 
-    def query(self, embedding: np.ndarray, k: int = 5) -> list[tuple[str, float]]:
-        """embedding に近い順に (id, cosine 類似度) を最大 k 件返す。"""
+    def query(self, embedding: np.ndarray, k: int = 5,
+              where: "callable | None" = None) -> list[tuple[str, float]]:
+        """embedding に近い順に (id, cosine 類似度) を最大 k 件返す。
+
+        where: メタデータ dict を受け取り bool を返す述語。True の候補のみ対象（quality-aware /
+        action-label 絞り込み）。例 `where=lambda m: m.get("health") == "ok"`。
+        """
         if not self._raw:
             return []
         z = self._standardized()
@@ -118,8 +146,15 @@ class MotionIndex:
         zn = z / np.maximum(np.linalg.norm(z, axis=1, keepdims=True), _EPS)
         qn = q / max(np.linalg.norm(q), _EPS)
         sims = zn @ qn
-        order = np.argsort(sims)[::-1][:k]
-        return [(self.ids[i], float(sims[i])) for i in order]
+        order = np.argsort(sims)[::-1]
+        out: list[tuple[str, float]] = []
+        for i in order:
+            if where is not None and not where(self._meta[i]):
+                continue
+            out.append((self.ids[i], float(sims[i])))
+            if len(out) >= k:
+                break
+        return out
 
     def duplicates(self, threshold: float = 0.98) -> list[tuple[str, str, float]]:
         """cosine 類似度が threshold 以上のペア（near-duplicate）を返す。"""
