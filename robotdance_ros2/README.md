@@ -23,6 +23,8 @@ ROS2 topic（`--ros2`）:
 - `/robotdance/skeleton` `visualization_msgs/MarkerArray`（canonical bone, RViz 可視化）
 - `/robotdance/safety` `std_msgs/String`（SafetyState JSON）
 - `/robotdance/estop` `std_msgs/Bool`（True で緊急停止）
+- `/robotdance/pause` `std_msgs/Bool`（True で一時停止 / False で再開・subscribe）
+- `/robotdance/seek` `std_msgs/Float32`（phase 0..1 へシーク・subscribe）
 
 ### 実 G1 メッシュを RViz で動かす
 

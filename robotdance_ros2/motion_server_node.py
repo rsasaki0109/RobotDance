@@ -8,6 +8,8 @@ publish:
   /robotdance/safety    std_msgs/String                 （SafetyState の JSON）
 subscribe:
   /robotdance/estop     std_msgs/Bool                   （True で緊急停止）
+  /robotdance/pause     std_msgs/Bool                   （True で一時停止 / False で再開）
+  /robotdance/seek      std_msgs/Float32                （phase 0..1 へシーク）
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ import rclpy
 from geometry_msgs.msg import Point
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Bool, String
+from std_msgs.msg import Bool, Float32, String
 from visualization_msgs.msg import Marker, MarkerArray
 
 from robotdance_core.rd_motion import RdMotion
@@ -60,6 +62,8 @@ class MotionServerNode(Node):
         # 実 G1 関節角があれば /joint_states へ配信（robot_state_publisher + 実 URDF で RViz 表示）。
         self._joint_pub = self.create_publisher(JointState, "/joint_states", 10)
         self.create_subscription(Bool, "/robotdance/estop", self._on_estop, 10)
+        self.create_subscription(Bool, "/robotdance/pause", self._on_pause, 10)
+        self.create_subscription(Float32, "/robotdance/seek", self._on_seek, 10)
 
         pre = self.server.precheck()
         self._publish_safety(pre)
@@ -77,6 +81,15 @@ class MotionServerNode(Node):
         if msg.data:
             self.server.guard.estop()
             self.get_logger().warn("E-stop 受信 → 停止")
+
+    def _on_pause(self, msg: Bool) -> None:
+        # pause 中は stream が同じフレームを保持し続ける（timer は回り続ける）。
+        self.server.pause() if msg.data else self.server.resume()
+        self.get_logger().info("一時停止" if msg.data else "再開")
+
+    def _on_seek(self, msg: Float32) -> None:
+        idx = self.server.seek_phase(float(msg.data))
+        self.get_logger().info(f"seek → phase {float(msg.data):.3f}（frame {idx}）")
 
     def _publish_safety(self, state: SafetyState) -> None:
         self._safety_pub.publish(String(data=json.dumps(

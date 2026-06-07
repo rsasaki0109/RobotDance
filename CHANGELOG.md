@@ -5,6 +5,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.108.0] - 2026-06-07
+
+### Added
+
+- ROS2 ノード（`motion_server_node`）に **pause / seek を配線**: subscribe `/robotdance/pause`
+  (`std_msgs/Bool`, True で一時停止/False で再開) と `/robotdance/seek` (`std_msgs/Float32`, phase 0..1)。
+  v0.104 でコアに入れた `MotionServer.pause/resume/seek_phase` を ROS2 トピックから駆動する薄い配線
+  （ROS2 は CI 非対象なので py_compile + ruff で検証、制御ロジック本体は core 側でテスト済み）。
+
+### Changed
+
+- README/docs 見直し: `robotdance_ros2/README.md` のトピック一覧に pause/seek を追記、README（en/ja）の
+  ROS2 runtime 行に estop/pause/seek topics を明記。内部リンク切れ・機能表コマンドの実在を点検（問題なし）。
+
 ## [0.107.0] - 2026-06-07
 
 ### Added

@@ -165,7 +165,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 | learned policy | `train-tracking` (PPO) `demo-track` `demo-track-multi` `export-policy` (RD-Policy + ONNX) |
 | benchmark | `benchmark` (motion×robot leaderboard) `benchmark-extraction` |
 | cards | `model-card` `cards-index` (lineage/license/failure/safety) |
-| ROS2 runtime | `serve --ros2` `demo-runtime` (safety guard) `demo-joint-safety` |
+| ROS2 runtime | `serve --ros2` (estop / pause / seek topics) `demo-runtime` (safety guard) `demo-joint-safety` |
 | integration | `demo-pipeline` (RD-MIR→retarget→sim→policy→cards in one command) |
 | specs | `validate` (RD-MIR/Manifest/… schema 検証) `specs` (spec registry + versions) |
 
