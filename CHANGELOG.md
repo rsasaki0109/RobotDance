@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.122.0] - 2026-06-07
+
+### Changed
+
+- README（en/ja）の retarget 記述を現状に総括。karate hero のキャプションに、actuator-IK が
+  **end-effector（手先・足先）を準剛体の肩・股より重く重み付け**して突き・蹴りを伸ばす点（v0.115）と、
+  単眼の遮蔽で手足の検出が落ちたフレームを hold する **遮蔽ガード `--conf-gate`**（v0.117/0.118）を明記。
+  CLI 一覧表の retarget 行も `retarget-ik`（end-effector 重み付け / `--conf-gate`）に更新。
+
 ## [0.121.0] - 2026-06-07
 
 ### Added

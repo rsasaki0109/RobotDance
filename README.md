@@ -83,7 +83,7 @@ Recover 3D from a local video with MediaPipe Pose, then go end-to-end: RD-MIR �
 </tr>
 </table>
 
-<sub>All three stages come from one extract — the forward stance and arm techniques line up across the overlay, the recovered skeleton, and the robot. The robot is dynamically grounded each frame (lowest point on the floor), so it bends and steps with the human instead of floating at a fixed pelvis height.</sub>
+<sub>All three stages come from one extract — the forward stance and arm techniques line up across the overlay, the recovered skeleton, and the robot. The robot is dynamically grounded each frame (lowest point on the floor), so it bends and steps with the human instead of floating at a fixed pelvis height. The actuator-IK retarget weights **end-effectors (hands/feet) over the near-rigid shoulders/hips**, so strikes extend instead of collapsing into a crouch, and an optional **occlusion guard** (`retarget-ik --conf-gate`) holds a limb's last confident direction when monocular detection drops out (e.g. the far arm in a side view).</sub>
 
 **More clips → real G1 / H1:**
 
@@ -174,7 +174,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 | extraction | `extract` (`--backend`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `smooth` `overlay` |
 | pose backends & QC | `list-backends` (mediapipe / 2D+lift / gvhmr·wham) `pose-compare` `motion-doctor` (mirror/depth/grounding) |
 | dataset | `build-dataset` (RD-Manifest + license firewall / Data BOM) `dedupe-dir` |
-| retarget | `retarget` `retarget-ik` (real G1 23 joint angles) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/T1/Apollo) |
+| retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/T1/Apollo) |
 | physics check | `validate-sim` (sim_certificate, MuJoCo) `--ground-clean` `--balance-plot` `sim-backends` |
 | embedding & search | `demo-motion-map` `train-encoder` `train-text-motion` `search-text` `search-motion` (`--text` zero-dep concept search, `--healthy-only` quality-aware) |
 | generation | `train-tokenizer` (VQ-VAE) `train-prior` `demo-generate` `train-text2motion` `generate-text` `train-denoiser` |
