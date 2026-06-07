@@ -235,6 +235,10 @@ Generated outputs are schema-conformant RD-MIR, so they flow straight into retar
 
 Retarget + physics check onto **Unitree G1 · H1 · H2 / Booster T1 / Apptronik Apollo / Fourier N1** with morphology (mass/inertia/joint limits) derived from real URDFs/MJCFs. Provenance in [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md).
 
+<img src="assets/readme/six_embodiments.gif" width="900" alt="One dance retargeted to six embodiments side by side: human, Unitree G1/H1/H2, Booster T1, Apptronik Apollo, Fourier N1">
+
+<sub>The same canonical motion retargeted to all six embodiments. Limb proportions differ — H1/H2/Apollo are full-size, G1/T1/N1 compact — which is exactly what the reach-error table above quantifies (N1's human-like proportions give the smallest error). `demo-multi` (kinematic preview).</sub>
+
 ## Repository layout
 
 ```

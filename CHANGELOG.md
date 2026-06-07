@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.126.0] - 2026-06-07
+### Added
+- README（en/ja）の "Supported robots" に **6機種横並び skeleton 図**（`assets/readme/six_embodiments.gif`）を追加。同一の canonical 動作を human + Unitree G1/H1/H2 · Booster T1 · Apptronik Apollo · Fourier N1 に retarget し、体格差（H1/H2/Apollo は full-size、G1/T1/N1 は compact）を可視化——reach error 表を絵で裏付ける。`demo-multi` 生成・license-safe（合成動作由来、ソース動画ピクセルなし）。
+
 ## [0.125.0] - 2026-06-07
 ### Added
 - 6 機種目 **Fourier N1**（Fourier Intelligence、compact 1.145 m / 39.7 kg）を実 MJCF から追加。MuJoCo Menagerie `fourier_n1`（Apache-2.0）の n1.xml を MuJoCo でロードし、各 body を canonical 19-joint へ手動マッピング → world 軸慣性を平行軸合成。rest pose・位置 ROM・質量分布・慣性テンソルは実値（**torque/velocity は menagerie MJCF 未収載のため feasibility の該当軸は generic fallback**）。`benchmark` 既定が6機種化、reach error 表で N1 が最小（0.075 m、人間に近い四肢比率）。`robotdance_unitree/fourier_n1.py`、EMBODIMENTS/EMBODIMENT_INERTIA 登録、README（en/ja）・docs/EMBODIMENTS.md 反映。feasibility 散布図は torque 未収載のため5機種維持（N1 除外を注記）。

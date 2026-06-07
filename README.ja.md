@@ -235,6 +235,10 @@ robotdance generate-text "a person doing a backflip" -o bf.rdmir.json --gif bf.g
 
 実 URDF/MJCF 由来の morphology（質量/慣性/可動域）で **Unitree G1・H1・H2 / Booster T1 / Apptronik Apollo / Fourier N1** に retarget + 物理検証。provenance は [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md)。
 
+<img src="assets/readme/six_embodiments.gif" width="900" alt="同一ダンスを6機種に retarget: human, Unitree G1/H1/H2, Booster T1, Apptronik Apollo, Fourier N1">
+
+<sub>同一の canonical 動作を6機種すべてに retarget。四肢比率が異なる——H1/H2/Apollo は full-size、G1/T1/N1 はコンパクト——上の reach error 表が定量化したそのもの（N1 は人間に近い比率で誤差最小）。`demo-multi`（kinematic preview）。</sub>
+
 ## リポジトリ構成
 
 ```
