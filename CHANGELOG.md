@@ -5,6 +5,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.117.0] - 2026-06-07
+
+### Added
+
+- **confidence-aware retarget（遮蔽ガード）**: `retarget` / `actuator_retarget` の新 `conf_gate`
+  （0..1, 既定 None=off）。`mir.confidence["joint"]` が gate 未満の (frame, joint) の bone 方向を
+  直近の高信頼フレームへ hold（先頭の連続低信頼は back-fill）する。単眼推定では遮蔽された手足
+  （側面視の奥側の腕など）の信頼度が一気に落ちて bone 方向が暴れ、retarget でロボットの腕が
+  暴発する。これを抑える汎用ロバスト性機能。`retarget_metrics.confidence_gate`（gate /
+  gated_direction_ratio）を記録。confidence の無い MIR では no-op。
+- `tests/test_retarget.py` に `_gate_directions` のユニット検証 + 遮蔽窓の方向 hold 回帰テスト
+  （numpy のみ・CI 実行）。
+
+### Notes
+
+- v0.115 の end-effector 重み付けが karate の奥側腕アーティファクトを既に抑えているため、
+  現行 karate hero に conf_gate を足しても出力はほぼ不変（hero アセットは再生成せず据え置き）。
+  conf_gate はより遮蔽の強いクリップ向けの補完的ガード。
+
 ## [0.116.0] - 2026-06-07
 
 ### Changed

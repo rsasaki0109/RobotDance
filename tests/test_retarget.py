@@ -55,6 +55,83 @@ def test_bone_directions_preserved() -> None:
     assert motion.retarget_metrics["bone_direction_cosine"] > 0.99
 
 
+def test_gate_directions_holds_low_confidence_frames() -> None:
+    """_gate_directions: 低信頼フレームの方向を直近の高信頼方向へ hold（先頭は back-fill）。"""
+    import numpy as np
+
+    from robotdance_retarget.kinematic import _gate_directions
+
+    t, j = 8, 2
+    dirs = np.zeros((t, j, 3))
+    # joint 0: 各フレーム別方向。conf は frame 3,4 が低信頼。
+    for f in range(t):
+        dirs[f, 0] = [float(f), 0.0, 0.0]
+    dirs[:, 1] = [0.0, 1.0, 0.0]
+    conf = np.ones((t, j))
+    conf[3, 0] = conf[4, 0] = 0.1                   # 中間の遮蔽窓
+    conf[0, 0] = conf[1, 0] = 0.1                   # 先頭の連続低信頼（back-fill 対象）
+
+    gated = _gate_directions(dirs, conf, gate=0.5)
+    # 中間窓 3,4 は共に直前の高信頼 frame 2 の方向で hold。
+    assert np.allclose(gated[3, 0], dirs[2, 0])
+    assert np.allclose(gated[4, 0], dirs[2, 0])
+    # 先頭 0,1 は最初の高信頼 frame 2 の方向に back-fill。
+    assert np.allclose(gated[0, 0], dirs[2, 0])
+    assert np.allclose(gated[1, 0], dirs[2, 0])
+    # 高信頼フレームは不変、別 joint も不変。
+    assert np.allclose(gated[5, 0], dirs[5, 0])
+    assert np.allclose(gated[:, 1], dirs[:, 1])
+
+
+def test_confidence_gate_suppresses_occluded_joint_spike() -> None:
+    """低信頼（遮蔽）フレームの手首を破損させても、conf_gate が暴れを直近の高信頼方向へ
+    hold して retarget 後の前腕方向スパイクを抑える。off では暴れが残る（回帰ガード）。"""
+    import numpy as np
+
+    from robotdance_core.skeleton import index_of
+    from robotdance_retarget.kinematic import retarget
+
+    clean = generate_dance(duration=1.5, fps=30.0)
+    kp = np.array(clean.keypoints_3d)               # [T, J, 3]
+    t, j = kp.shape[0], kp.shape[1]
+    wj, elbow = index_of("left_wrist"), index_of("left_elbow")
+    bad = range(t // 3, t // 3 + 5)                 # 連続する遮蔽窓
+
+    conf = np.ones((t, j))
+    corrupted = kp.copy()
+    for f in bad:                                   # 遮蔽時の誤検出を模擬: 肘の反対側へ飛ばす
+        corrupted[f, wj] = corrupted[f, elbow] + np.array([-0.8, 0.0, 0.8])
+        conf[f, wj] = 0.05                          # その窓だけ低信頼
+
+    mir = clean.model_copy(update={
+        "keypoints_3d": corrupted.tolist(),
+        "confidence": {"joint": conf.tolist()},
+    })
+
+    f0 = list(bad)[0]
+    pre = f0 - 1                                             # 窓直前の高信頼フレーム
+
+    def forearm_dir(motion, frame):
+        r = motion.keypoints_3d_array()
+        v = r[frame, wj] - r[frame, elbow]
+        return v / np.maximum(np.linalg.norm(v), 1e-9)
+
+    off = retarget(mir, g1.MORPHOLOGY)                       # gating なし → garbage 方向のまま
+    on = retarget(mir, g1.MORPHOLOGY, conf_gate=0.5)         # gating あり → 窓直前の方向を hold
+
+    garbage = np.array([-0.8, 0.0, 0.8])
+    garbage = garbage / np.linalg.norm(garbage)
+    # off: 窓内の前腕は破損方向（garbage）に一致してしまう。
+    assert float(forearm_dir(off, f0) @ garbage) > 0.97
+    # on: 窓内の前腕は窓直前の高信頼方向へ hold され、garbage からは離れる。
+    assert float(forearm_dir(on, f0) @ garbage) < 0.8
+    assert float(forearm_dir(on, f0) @ forearm_dir(off, pre)) > 0.97   # 直前方向を保持
+    # メトリクスに gate 情報が記録される（off では付かない）。
+    cg = on.retarget_metrics["confidence_gate"]
+    assert cg["gate"] == 0.5 and cg["gated_direction_ratio"] > 0.0
+    assert "confidence_gate" not in off.retarget_metrics
+
+
 def test_roundtrip(tmp_path: Path) -> None:
     mir = generate_dance(duration=1.0, fps=30.0)
     p = retarget_to_g1(mir).save(tmp_path / "g1.rdmotion.json")

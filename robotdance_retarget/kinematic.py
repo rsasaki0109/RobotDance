@@ -56,12 +56,39 @@ def _bone_directions(kps: np.ndarray) -> np.ndarray:
     return dirs
 
 
+def _gate_directions(dirs: np.ndarray, conf: np.ndarray, gate: float) -> np.ndarray:
+    """信頼度が gate 未満の (frame, joint) の bone 方向を、直近の高信頼フレームの方向で hold する。
+
+    単眼推定では遮蔽された手足（例: 側面視で奥側の腕）の信頼度が一気に落ち、bone 方向が暴れて
+    retarget でロボットの腕が暴発する。低信頼フレームの方向を**最後に確信を持って見えた方向**へ
+    時間方向に forward-fill（先頭の連続低信頼は最初の高信頼方向で back-fill）し、暴れを抑える。
+    どの joint も全フレーム低信頼なら、その joint はそのまま（hold 元が無い）。
+    """
+    dirs = dirs.copy()
+    t, j = conf.shape
+    for jj in range(j):
+        good = conf[:, jj] >= gate
+        if good.all() or not good.any():
+            continue  # 全部高信頼 or 全部低信頼（hold 元なし）はそのまま
+        last = None
+        for f in range(t):  # forward-fill: 低信頼は直前の高信頼方向で hold
+            if good[f]:
+                last = dirs[f, jj].copy()
+            elif last is not None:
+                dirs[f, jj] = last
+        first_good = int(np.argmax(good))  # back-fill: 先頭の連続低信頼を最初の高信頼方向に
+        if first_good > 0:
+            dirs[:first_good, jj] = dirs[first_good, jj]
+    return dirs
+
+
 def _height(kps_frame: np.ndarray) -> float:
     return float(kps_frame[:, 2].max() - kps_frame[:, 2].min())
 
 
 def retarget(
-    mir: RdMir, morphology: RobotMorphology, *, clamp_flexion: bool = False
+    mir: RdMir, morphology: RobotMorphology, *, clamp_flexion: bool = False,
+    conf_gate: float | None = None,
 ) -> RdMotion:
     """RD-MIR を任意 robot 形態へ kinematic retarget して RD-Motion を返す。
 
@@ -69,6 +96,10 @@ def retarget(
     遠位サブチェーンを hinge 中心に回して上限ちょうどへ収める（検出→補正）。補正量は
     `retarget_metrics.joint_flexion.clamp` に記録し、補正後の違反率は ~0 になる。
     per_joint_limits が無い morphology では no-op。
+
+    conf_gate（0..1, 既定 None=off）を与えると、`mir.confidence["joint"]` が gate 未満の
+    (frame, joint) の bone 方向を直近の高信頼フレームへ hold する。単眼推定で遮蔽された手足
+    （側面視の奥側の腕など）の暴れを抑える occlusion ガード。confidence が無い MIR では no-op。
     """
     human = mir.keypoints_3d_array()  # [T, J, 3]
     n_frames = human.shape[0]
@@ -76,6 +107,12 @@ def retarget(
         raise ValueError(f"想定 joint 数 {NUM_JOINTS} と不一致: {human.shape[1]}")
 
     dirs = _bone_directions(human)
+    gated_ratio = None
+    if conf_gate is not None and mir.confidence and "joint" in mir.confidence:
+        conf = np.asarray(mir.confidence["joint"], dtype=float)
+        if conf.shape == (n_frames, NUM_JOINTS):
+            gated_ratio = float((conf < conf_gate).mean())
+            dirs = _gate_directions(dirs, conf, conf_gate)
     bone_len = morphology.bone_lengths
 
     # 人間 root の水平移動はそのまま、垂直は morphology に合わせて height 比でスケール。
@@ -105,6 +142,12 @@ def retarget(
 
     contacts = mir.contacts or {}
     metrics = _retarget_metrics(human, robot, contacts, height_scale)
+    if gated_ratio is not None:
+        metrics["confidence_gate"] = {
+            "gate": conf_gate,
+            "gated_direction_ratio": round(gated_ratio, 4),
+            "note": "信頼度 gate 未満の bone 方向を直近の高信頼フレームへ hold（遮蔽ガード）。",
+        }
     flexion = _joint_flexion_metrics(robot, morphology)
     if flexion is not None:
         if clamp_info is not None:

@@ -137,6 +137,7 @@ def actuator_retarget(
     link_map: Optional[dict[str, str]] = None,
     robot_name: str = "unitree_g1",
     target_weights: Optional[dict[str, float]] = None,
+    conf_gate: Optional[float] = None,
 ) -> RdMotion:
     """RD-MIR を実 URDF のアクチュエータ関節角へ IK retarget して RD-Motion を返す。
 
@@ -145,6 +146,9 @@ def actuator_retarget(
     target_weights（canonical joint → 重み）で IK ターゲットごとの重要度を変えられる（既定
     `_DEFAULT_IK_WEIGHTS`: 手先・足先を重く, 肩・股を軽く）。準剛体の近位ターゲットに引っ張られて
     手先追従や腕の向きが歪むのを防ぐ。未指定 joint は 1.0。
+
+    conf_gate（0..1, 既定 None=off）は内部の kinematic retarget へ渡され、低信頼（遮蔽）フレームの
+    bone 方向を直近の高信頼フレームへ hold する（単眼の奥側手足の暴れ対策）。
     """
     from robotdance_retarget.kinematic import retarget
     from robotdance_unitree.urdf_import import urdf_to_morphology
@@ -155,7 +159,7 @@ def actuator_retarget(
     morph = urdf_to_morphology(urdf_path, name=robot_name, link_map=lmap)
 
     # kinematic retarget の link 位置を IK target にする（pelvis 相対）。
-    kin = retarget(mir, morph)
+    kin = retarget(mir, morph, conf_gate=conf_gate)
     kp = kin.keypoints_3d_array()  # [T, 19, 3]
     pelvis = kp[:, index_of("pelvis"):index_of("pelvis") + 1, :]
     target_rel = kp - pelvis
