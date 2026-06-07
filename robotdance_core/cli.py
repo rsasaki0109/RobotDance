@@ -668,7 +668,8 @@ def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_
             print("  ⚠️ chart: verdict が無い（--no-sim では描けません。mujoco 必要）")
     for a in aggregate_by_robot(report):
         print(f"  {a['robot']:12s} PASS率={a['pass_rate']} "
-              f"bone_cos={a['mean_bone_dir_cos']} foot_sliding={a['mean_foot_sliding']}")
+              f"bone_cos={a['mean_bone_dir_cos']} foot_sliding={a['mean_foot_sliding']} "
+              f"reach_err={a['mean_endeffector_reach_error']}m")
     return 0
 
 

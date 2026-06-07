@@ -8,7 +8,7 @@ from typing import Any, Optional
 
 _COLUMNS = [
     "motion_id", "motion_class", "robot", "height_scale", "bone_direction_cosine",
-    "foot_sliding", "joint_flexion_violation", "verdict", "airborne_ratio",
+    "foot_sliding", "endeffector_reach_error", "joint_flexion_violation", "verdict", "airborne_ratio",
     "balance_violation_ratio", "torque_ratio", "gravity_torque_nm",
     "dynamic_torque_nm", "max_joint_ang_speed", "binding_axis", "binding_util",
     "source_confidence", "jitter",
@@ -44,6 +44,7 @@ def aggregate_by_robot(report: dict) -> list[dict]:
             "pass_rate": round(passed / len(verdicts), 3) if verdicts else None,
             "mean_bone_dir_cos": _mean([r["bone_direction_cosine"] for r in rows]),
             "mean_foot_sliding": _mean([r["foot_sliding"] for r in rows]),
+            "mean_endeffector_reach_error": _mean([r.get("endeffector_reach_error") for r in rows]),
             "mean_height_scale": _mean([r["height_scale"] for r in rows]),
             "mean_flexion_violation": _mean([r.get("joint_flexion_violation") for r in rows]),
             "mean_dynamic_torque_nm": _mean([r.get("dynamic_torque_nm") for r in rows]),

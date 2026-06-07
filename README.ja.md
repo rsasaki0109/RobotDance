@@ -142,6 +142,18 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 
 <sub>40 run（8 動作 × 5 機種）。PASS（緑）は実行可能領域（torque ≤ 1.0・balance 違反小）に集まる。失敗は原因で分かれ、`backflip`/`march` は**バランス律速**（上）、`dance_fast` は**トルク律速**（右）。マーカー=機種（G1/H1/H2/T1/Apollo）——同じ動作でも機種で可否が変わる。生成は `benchmark --chart`（MuJoCo）。motion 別/robot 別の表は `LEADERBOARD.md`。</sub>
 
+**機種別の到達忠実度** — bone *方向* は全機種で保たれる（cos ≈ 1.0）が、身長正規化後の手先・足先**到達誤差**は機種で異なる。四肢比率が人間と違うため。物理を含まない純幾何指標なので `benchmark --no-sim` で全動作に対し算出される:
+
+| robot | bone-dir cos | reach error（身長正規化） |
+| --- | --- | --- |
+| Booster T1 | 1.00 | **0.116 m** |
+| Unitree H2 | 1.00 | 0.117 m |
+| Unitree G1 | 1.00 | 0.121 m |
+| Apptronik Apollo | 1.00 | 0.139 m |
+| Unitree H1 | 1.00 | **0.146 m** |
+
+<sub>40 run（8 動作 × 5 機種）、`benchmark --no-sim`。方向忠実度だけだと「全機種完璧」に見えるが、reach error は cos が隠す四肢比率差を露わにする——H1 は四肢が長く最大、T1 はコンパクトで最小。上の物理 feasibility とは独立な、direction-preserving retarget の幾何的上限。</sub>
+
 ```bash
 pip install -e ".[demo,sim,perception]"
 

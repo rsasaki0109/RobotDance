@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.124.0] - 2026-06-07
+### Added
+- benchmark に手先・足先 **到達誤差** 指標 `endeffector_reach_error_m` を追加: 身長正規化後に人間と robot の手先・足先位置を比較する純幾何メトリクス（四肢比率差による忠実度）。bone 方向 cos（全機種 ≈1.0）が隠す multi-embodiment の体格差を露わにする（5機種で 0.116〜0.146 m、H1 最大・T1 最小）。kinematic retarget 由来で torch/mujoco 非依存（`benchmark --no-sim` でも算出）。`benchmark` CLI 出力・`benchmark.csv`・robot 集計・README（en/ja）の benchmark 節に反映。`robotdance_retarget/kinematic.py` / `robotdance_benchmarks/{suite,report}.py`。
+
 ## [0.123.0] - 2026-06-07
 ### Added
 - `export-joints` CLI: retarget-ik 出力（`.rdmotion`）を実機/シム SDK 向けの関節角軌道に書き出す「出口」。CSV（`time_s` + 関節角列、コメントなしで最大互換）/ JSON（`fps`・`joint_names`・`units`・`control_mode` 付きメタ）の 2 形式。motor index = 列 index（実 URDF 定義順 = Unitree LowCmd の慣例）。参照軌道のため base/接地/バランスは含まず、実機投入前に `sim_certificate` 等で別途検証。`robotdance_retarget/sdk_export.py`。

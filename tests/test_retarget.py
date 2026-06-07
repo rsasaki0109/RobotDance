@@ -55,6 +55,25 @@ def test_bone_directions_preserved() -> None:
     assert motion.retarget_metrics["bone_direction_cosine"] > 0.99
 
 
+def test_endeffector_reach_error_reported_and_nonneg() -> None:
+    """身長正規化後の手先・足先 到達誤差が metrics に出る（非負）。"""
+    mir = generate_dance(duration=1.0, fps=30.0)
+    motion = retarget_to_g1(mir)
+    assert motion.retarget_metrics["endeffector_reach_error_m"] >= 0.0
+
+
+def test_endeffector_reach_error_height_invariant() -> None:
+    """人間の身長を 2 倍にしても reach error は不変（height 正規化で四肢比率差のみを測る）。"""
+    import numpy as np
+
+    mir = generate_dance(duration=1.0, fps=30.0)
+    e1 = retarget_to_g1(mir).retarget_metrics["endeffector_reach_error_m"]
+    kp2 = (np.array(mir.keypoints_3d) * 2.0).tolist()
+    mir2 = mir.model_copy(update={"keypoints_3d": kp2})
+    e2 = retarget_to_g1(mir2).retarget_metrics["endeffector_reach_error_m"]
+    assert e2 == pytest.approx(e1, rel=1e-2)
+
+
 def test_gate_directions_holds_low_confidence_frames() -> None:
     """_gate_directions: 低信頼フレームの方向を直近の高信頼方向へ hold（先頭は back-fill）。"""
     import numpy as np

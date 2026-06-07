@@ -142,6 +142,18 @@ Feed the extracted real squat into the feasibility certificate (real URDF inerti
 
 <sub>40 runs (8 motions × 5 robots). PASS (green) cluster in the feasible region (torque ≤ 1.0, low balance violation). Failures split by cause: `backflip` / `march` are **balance-limited** (top), `dance_fast` is **torque-limited** (right). Marker = embodiment (G1/H1/H2/T1/Apollo) — the same motion has different feasibility per robot. Generated with `benchmark --chart` (MuJoCo). Per-motion / per-robot tables: `LEADERBOARD.md`.</sub>
 
+**Embodiment reach fidelity** — even when bone *directions* are preserved (cos ≈ 1.0 for every robot), the height-normalized hand/foot **reach error** differs by embodiment because limb proportions don't match the human. It is purely geometric (no physics), so `benchmark --no-sim` reports it for any motion:
+
+| robot | bone-dir cos | reach error (height-normalized) |
+| --- | --- | --- |
+| Booster T1 | 1.00 | **0.116 m** |
+| Unitree H2 | 1.00 | 0.117 m |
+| Unitree G1 | 1.00 | 0.121 m |
+| Apptronik Apollo | 1.00 | 0.139 m |
+| Unitree H1 | 1.00 | **0.146 m** |
+
+<sub>40 runs (8 motions × 5 robots), `benchmark --no-sim`. Direction fidelity alone says "every robot is perfect"; reach error exposes the limb-proportion gap the cosine hides — H1's long limbs drift most, T1's compact build least. This is the geometric ceiling of direction-preserving retarget, independent of physics feasibility above.</sub>
+
 ```bash
 pip install -e ".[demo,sim,perception]"
 

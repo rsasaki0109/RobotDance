@@ -200,11 +200,21 @@ def _retarget_metrics(
             sliding.append(float(step[in_contact].mean()))
     foot_sliding = float(np.mean(sliding)) if sliding else None
 
+    # end-effector reach error: 身長を robot に合わせて正規化した手先・足先の到達誤差。
+    # 人間を height_scale で robot 身長へスケールし、root 相対で手先足先位置を比較する。
+    # bone 方向（cos）とは独立に「四肢比率の違いで手先・足先がどれだけズレるか」を測る
+    # 幾何指標。腕・脚の比率が人間と違う機種ほど大きくなる（multi-embodiment の忠実度）。
+    ee_idx = [index_of(n) for n in ("left_wrist", "right_wrist", "left_ankle", "right_ankle")]
+    h_rel = (human - human[:, :1, :]) * height_scale
+    r_rel = robot - robot[:, :1, :]
+    reach_err = float(np.linalg.norm(h_rel[:, ee_idx] - r_rel[:, ee_idx], axis=2).mean())
+
     return {
         "method": "direction_preserving_fk + morphology_normalization + ground_clamp",
         "height_scale": round(height_scale, 4),
         "bone_direction_cosine": round(direction_cos, 4),
         "foot_sliding_m_per_frame": round(foot_sliding, 5) if foot_sliding is not None else None,
+        "endeffector_reach_error_m": round(reach_err, 4),
         "physically_validated": False,
         "note": "kinematic preview only — sim/torque/balance は未検証（Phase 2）",
     }
