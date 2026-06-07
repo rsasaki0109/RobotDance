@@ -209,7 +209,7 @@ robotdance generate-text "a person doing a backflip" -o bf.rdmir.json --gif bf.g
 
 ## 対応ロボット
 
-実 URDF 由来の morphology（質量/慣性/可動域）で **Unitree G1・H1 / Booster T1 / Apptronik Apollo** に retarget + 物理検証。provenance は [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md)。
+実 URDF 由来の morphology（質量/慣性/可動域）で **Unitree G1・H1・H2 / Booster T1 / Apptronik Apollo** に retarget + 物理検証。provenance は [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md)。
 
 ## リポジトリ構成
 

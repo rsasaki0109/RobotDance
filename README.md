@@ -209,7 +209,7 @@ Generated outputs are schema-conformant RD-MIR, so they flow straight into retar
 
 ## Supported robots
 
-Retarget + physics check onto **Unitree G1 · H1 / Booster T1 / Apptronik Apollo** with morphology (mass/inertia/joint limits) derived from real URDFs. Provenance in [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md).
+Retarget + physics check onto **Unitree G1 · H1 · H2 / Booster T1 / Apptronik Apollo** with morphology (mass/inertia/joint limits) derived from real URDFs. Provenance in [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md).
 
 ## Repository layout
 

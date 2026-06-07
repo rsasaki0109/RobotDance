@@ -7,12 +7,13 @@ import dataclasses
 
 from robotdance_retarget.embodiment import RobotMorphology
 
-from . import apptronik_apollo, booster_t1, g1, h1
+from . import apptronik_apollo, booster_t1, g1, h1, h2
 
 # robot 名 → 形態 の registry。新しい機種はここに追加する（Unitree 以外も可）。
 EMBODIMENTS: dict[str, RobotMorphology] = {
     g1.ROBOT_NAME: g1.MORPHOLOGY,
     h1.ROBOT_NAME: h1.MORPHOLOGY,
+    h2.ROBOT_NAME: h2.MORPHOLOGY,
     booster_t1.ROBOT_NAME: booster_t1.MORPHOLOGY,
     apptronik_apollo.ROBOT_NAME: apptronik_apollo.MORPHOLOGY,
 }
@@ -22,6 +23,7 @@ EMBODIMENTS: dict[str, RobotMorphology] = {
 EMBODIMENT_INERTIA: dict[str, dict] = {
     g1.ROBOT_NAME: g1.G1_INERTIA_TENSORS,
     h1.ROBOT_NAME: h1.H1_INERTIA_TENSORS,
+    h2.ROBOT_NAME: h2.H2_INERTIA_TENSORS,
     booster_t1.ROBOT_NAME: booster_t1.T1_INERTIA_TENSORS,
     apptronik_apollo.ROBOT_NAME: apptronik_apollo.APOLLO_INERTIA_TENSORS,
 }
@@ -43,5 +45,5 @@ def get_morphology(name: str, *, real_inertia: bool = False) -> RobotMorphology:
     return morph
 
 
-__all__ = ["EMBODIMENTS", "EMBODIMENT_INERTIA", "get_morphology", "g1", "h1", "booster_t1",
-           "apptronik_apollo"]
+__all__ = ["EMBODIMENTS", "EMBODIMENT_INERTIA", "get_morphology", "g1", "h1", "h2",
+           "booster_t1", "apptronik_apollo"]

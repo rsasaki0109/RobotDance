@@ -22,8 +22,9 @@ _MOTION_SCHEMA = json.loads(
 )
 
 
-def test_registry_has_four_embodiments() -> None:
-    assert set(EMBODIMENTS) == {"unitree_g1", "unitree_h1", "booster_t1", "apptronik_apollo"}
+def test_registry_has_five_embodiments() -> None:
+    assert set(EMBODIMENTS) == {"unitree_g1", "unitree_h1", "unitree_h2", "booster_t1",
+                                "apptronik_apollo"}
     assert get_morphology("unitree_g1").name == "unitree_g1"
     with pytest.raises(KeyError):
         get_morphology("nonexistent_robot")

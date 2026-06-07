@@ -5,6 +5,17 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.112.0] - 2026-06-07
+
+### Added
+
+- **新ロボット Unitree H2** を 5 機種目として追加（`robotdance_unitree/h2.py`）。公式 H2.urdf 実寸から
+  `urdf_to_morphology` で導出した rest pose / 関節 limit / per-bone 慣性テンソル / 質量分布を数値定数として
+  commit（nominal 1.76m / 75.6kg、wrist・waist・head 完備のフル humanoid）。`get_morphology("unitree_h2")`
+  と `real_inertia=True` に対応。registry（EMBODIMENTS / EMBODIMENT_INERTIA）に登録。
+- `tests/test_real_h2_urdf.py`: registry/寸法の sanity（URDF 不要）＋ URDF 在時の committed定数↔再導出一致・
+  retarget/certify。既存の multi_embodiment テストを 5 機種に更新。README・docs/EMBODIMENTS.md の対応ロボットに H2 を追記。**mesh/URDF 本体は非同梱**（数値のみ）。
+
 ## [0.111.0] - 2026-06-07
 
 ### Added
