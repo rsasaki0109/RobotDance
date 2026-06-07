@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.113.0] - 2026-06-07
+
+### Changed
+
+- benchmark の既定ロボットに **unitree_h2** を追加し 5 機種化（`benchmark` で 8 motions × 5 robots = 40 runs）。
+  README の feasibility 散布図を 5 機種で再生成（H2 は大型のため PASS率 0.375 と最も厳しい）。robot 色に H2 を追加。
+
 ## [0.112.0] - 2026-06-07
 
 ### Added

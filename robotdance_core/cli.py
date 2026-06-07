@@ -1397,7 +1397,7 @@ def _demo_safety(out: Path, robot: str, stride: int) -> int:
 
 
 # multi-embodiment デモで描き分ける色。
-_ROBOT_COLORS = {"unitree_g1": "#ff7f0e", "unitree_h1": "#2ca02c", "booster_t1": "#9467bd", "apptronik_apollo": "#8c564b"}
+_ROBOT_COLORS = {"unitree_g1": "#ff7f0e", "unitree_h1": "#2ca02c", "unitree_h2": "#17becf", "booster_t1": "#9467bd", "apptronik_apollo": "#8c564b"}
 
 
 def _demo_multi(out: Path, robots: list[str], stride: int) -> int:
@@ -1473,7 +1473,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("demo-runtime", help="safety guard の PASS/REJECT 遮断を実演")
 
     p_bench = sub.add_parser("benchmark", help="motion × robot を回し CSV + leaderboard を出力")
-    p_bench.add_argument("--robots", nargs="+", default=["unitree_g1", "unitree_h1", "booster_t1", "apptronik_apollo"])
+    p_bench.add_argument("--robots", nargs="+",
+                         default=["unitree_g1", "unitree_h1", "unitree_h2", "booster_t1",
+                                  "apptronik_apollo"])
     p_bench.add_argument("--motions-dir", type=Path, default=None, help="*.rdmir.json のディレクトリ（既定: 合成スイート）")
     p_bench.add_argument("--no-sim", action="store_true", help="MuJoCo 物理検証を行わない")
     p_bench.add_argument("--chart", action="store_true",

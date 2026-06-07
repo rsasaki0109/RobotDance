@@ -132,7 +132,7 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 
 <img src="assets/readme/benchmark_feasibility.png" width="560" alt="Feasibility scatter: torque ratio vs balance violation, PASS/REJECT per motion and robot">
 
-<sub>PASS（緑）は実行可能領域（torque ≤ 1.0・balance 違反小）に集まる。失敗は原因で分かれ、`backflip`/`march` は**バランス律速**（上）、`dance_fast` は**トルク律速**（右）。G1=○ / H1=□ — 同じ動作でも機種で可否が変わる。生成は `benchmark --chart`（MuJoCo）。motion 別/robot 別の表は `LEADERBOARD.md`。</sub>
+<sub>40 run（8 動作 × 5 機種）。PASS（緑）は実行可能領域（torque ≤ 1.0・balance 違反小）に集まる。失敗は原因で分かれ、`backflip`/`march` は**バランス律速**（上）、`dance_fast` は**トルク律速**（右）。マーカー=機種（G1/H1/H2/T1/Apollo）——同じ動作でも機種で可否が変わる。生成は `benchmark --chart`（MuJoCo）。motion 別/robot 別の表は `LEADERBOARD.md`。</sub>
 
 ```bash
 pip install -e ".[demo,sim,perception]"

@@ -132,7 +132,7 @@ Feed the extracted real squat into the feasibility certificate (real URDF inerti
 
 <img src="assets/readme/benchmark_feasibility.png" width="560" alt="Feasibility scatter: torque ratio vs balance violation, PASS/REJECT per motion and robot">
 
-<sub>PASS (green) cluster in the feasible region (torque ≤ 1.0, low balance violation). Failures split by cause: `backflip` / `march` are **balance-limited** (top), `dance_fast` is **torque-limited** (right). G1 = circle, H1 = square — same motion, different feasibility per embodiment. Generated with `benchmark --chart` (MuJoCo). Per-motion / per-robot tables: `LEADERBOARD.md`.</sub>
+<sub>40 runs (8 motions × 5 robots). PASS (green) cluster in the feasible region (torque ≤ 1.0, low balance violation). Failures split by cause: `backflip` / `march` are **balance-limited** (top), `dance_fast` is **torque-limited** (right). Marker = embodiment (G1/H1/H2/T1/Apollo) — the same motion has different feasibility per robot. Generated with `benchmark --chart` (MuJoCo). Per-motion / per-robot tables: `LEADERBOARD.md`.</sub>
 
 ```bash
 pip install -e ".[demo,sim,perception]"
