@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.125.0] - 2026-06-07
+### Added
+- 6 機種目 **Fourier N1**（Fourier Intelligence、compact 1.145 m / 39.7 kg）を実 MJCF から追加。MuJoCo Menagerie `fourier_n1`（Apache-2.0）の n1.xml を MuJoCo でロードし、各 body を canonical 19-joint へ手動マッピング → world 軸慣性を平行軸合成。rest pose・位置 ROM・質量分布・慣性テンソルは実値（**torque/velocity は menagerie MJCF 未収載のため feasibility の該当軸は generic fallback**）。`benchmark` 既定が6機種化、reach error 表で N1 が最小（0.075 m、人間に近い四肢比率）。`robotdance_unitree/fourier_n1.py`、EMBODIMENTS/EMBODIMENT_INERTIA 登録、README（en/ja）・docs/EMBODIMENTS.md 反映。feasibility 散布図は torque 未収載のため5機種維持（N1 除外を注記）。
+
 ## [0.124.0] - 2026-06-07
 ### Added
 - benchmark に手先・足先 **到達誤差** 指標 `endeffector_reach_error_m` を追加: 身長正規化後に人間と robot の手先・足先位置を比較する純幾何メトリクス（四肢比率差による忠実度）。bone 方向 cos（全機種 ≈1.0）が隠す multi-embodiment の体格差を露わにする（5機種で 0.116〜0.146 m、H1 最大・T1 最小）。kinematic retarget 由来で torch/mujoco 非依存（`benchmark --no-sim` でも算出）。`benchmark` CLI 出力・`benchmark.csv`・robot 集計・README（en/ja）の benchmark 節に反映。`robotdance_retarget/kinematic.py` / `robotdance_benchmarks/{suite,report}.py`。

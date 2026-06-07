@@ -140,19 +140,20 @@ Feed the extracted real squat into the feasibility certificate (real URDF inerti
 
 <img src="assets/readme/benchmark_feasibility.png" width="560" alt="Feasibility scatter: torque ratio vs balance violation, PASS/REJECT per motion and robot">
 
-<sub>40 runs (8 motions × 5 robots). PASS (green) cluster in the feasible region (torque ≤ 1.0, low balance violation). Failures split by cause: `backflip` / `march` are **balance-limited** (top), `dance_fast` is **torque-limited** (right). Marker = embodiment (G1/H1/H2/T1/Apollo) — the same motion has different feasibility per robot. Generated with `benchmark --chart` (MuJoCo). Per-motion / per-robot tables: `LEADERBOARD.md`.</sub>
+<sub>40 runs (8 motions × 5 robots). PASS (green) cluster in the feasible region (torque ≤ 1.0, low balance violation). Failures split by cause: `backflip` / `march` are **balance-limited** (top), `dance_fast` is **torque-limited** (right). Marker = embodiment (G1/H1/H2/T1/Apollo) — the same motion has different feasibility per robot. Generated with `benchmark --chart` (MuJoCo). Per-motion / per-robot tables: `LEADERBOARD.md`. (Fourier N1 is omitted from this physics plot — its MJCF publishes no torque limits — but is included in the geometric reach table below.)</sub>
 
 **Embodiment reach fidelity** — even when bone *directions* are preserved (cos ≈ 1.0 for every robot), the height-normalized hand/foot **reach error** differs by embodiment because limb proportions don't match the human. It is purely geometric (no physics), so `benchmark --no-sim` reports it for any motion:
 
 | robot | bone-dir cos | reach error (height-normalized) |
 | --- | --- | --- |
-| Booster T1 | 1.00 | **0.116 m** |
+| Fourier N1 | 1.00 | **0.075 m** |
+| Booster T1 | 1.00 | 0.116 m |
 | Unitree H2 | 1.00 | 0.117 m |
 | Unitree G1 | 1.00 | 0.121 m |
 | Apptronik Apollo | 1.00 | 0.139 m |
 | Unitree H1 | 1.00 | **0.146 m** |
 
-<sub>40 runs (8 motions × 5 robots), `benchmark --no-sim`. Direction fidelity alone says "every robot is perfect"; reach error exposes the limb-proportion gap the cosine hides — H1's long limbs drift most, T1's compact build least. This is the geometric ceiling of direction-preserving retarget, independent of physics feasibility above.</sub>
+<sub>48 runs (8 motions × 6 robots), `benchmark --no-sim`. Direction fidelity alone says "every robot is perfect"; reach error exposes the limb-proportion gap the cosine hides — H1's long limbs drift most, compact Fourier N1 (human-like proportions) least. This is the geometric ceiling of direction-preserving retarget, independent of physics feasibility above.</sub>
 
 ```bash
 pip install -e ".[demo,sim,perception]"
@@ -186,7 +187,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 | extraction | `extract` (`--backend`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `smooth` `overlay` |
 | pose backends & QC | `list-backends` (mediapipe / 2D+lift / gvhmr·wham) `pose-compare` `motion-doctor` (mirror/depth/grounding) |
 | dataset | `build-dataset` (RD-Manifest + license firewall / Data BOM) `dedupe-dir` |
-| retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/T1/Apollo) |
+| retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/H2/T1/Apollo/N1) |
 | physics check | `validate-sim` (sim_certificate, MuJoCo) `--ground-clean` `--balance-plot` `sim-backends` |
 | embedding & search | `demo-motion-map` `train-encoder` `train-text-motion` `search-text` `search-motion` (`--text` zero-dep concept search, `--healthy-only` quality-aware) |
 | generation | `train-tokenizer` (VQ-VAE) `train-prior` `demo-generate` `train-text2motion` `generate-text` `train-denoiser` |
@@ -232,7 +233,7 @@ Generated outputs are schema-conformant RD-MIR, so they flow straight into retar
 
 ## Supported robots
 
-Retarget + physics check onto **Unitree G1 · H1 · H2 / Booster T1 / Apptronik Apollo** with morphology (mass/inertia/joint limits) derived from real URDFs. Provenance in [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md).
+Retarget + physics check onto **Unitree G1 · H1 · H2 / Booster T1 / Apptronik Apollo / Fourier N1** with morphology (mass/inertia/joint limits) derived from real URDFs/MJCFs. Provenance in [`docs/EMBODIMENTS.md`](docs/EMBODIMENTS.md).
 
 ## Repository layout
 

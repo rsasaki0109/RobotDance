@@ -7,7 +7,7 @@ import dataclasses
 
 from robotdance_retarget.embodiment import RobotMorphology
 
-from . import apptronik_apollo, booster_t1, g1, h1, h2
+from . import apptronik_apollo, booster_t1, fourier_n1, g1, h1, h2
 
 # robot 名 → 形態 の registry。新しい機種はここに追加する（Unitree 以外も可）。
 EMBODIMENTS: dict[str, RobotMorphology] = {
@@ -16,6 +16,7 @@ EMBODIMENTS: dict[str, RobotMorphology] = {
     h2.ROBOT_NAME: h2.MORPHOLOGY,
     booster_t1.ROBOT_NAME: booster_t1.MORPHOLOGY,
     apptronik_apollo.ROBOT_NAME: apptronik_apollo.MORPHOLOGY,
+    fourier_n1.ROBOT_NAME: fourier_n1.MORPHOLOGY,
 }
 
 # robot 名 → 実 URDF <inertial> 由来の per-bone 慣性テンソル（opt-in）。
@@ -26,6 +27,7 @@ EMBODIMENT_INERTIA: dict[str, dict] = {
     h2.ROBOT_NAME: h2.H2_INERTIA_TENSORS,
     booster_t1.ROBOT_NAME: booster_t1.T1_INERTIA_TENSORS,
     apptronik_apollo.ROBOT_NAME: apptronik_apollo.APOLLO_INERTIA_TENSORS,
+    fourier_n1.ROBOT_NAME: fourier_n1.N1_INERTIA_TENSORS,
 }
 
 
@@ -46,4 +48,4 @@ def get_morphology(name: str, *, real_inertia: bool = False) -> RobotMorphology:
 
 
 __all__ = ["EMBODIMENTS", "EMBODIMENT_INERTIA", "get_morphology", "g1", "h1", "h2",
-           "booster_t1", "apptronik_apollo"]
+           "booster_t1", "apptronik_apollo", "fourier_n1"]

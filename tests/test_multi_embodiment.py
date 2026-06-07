@@ -22,9 +22,9 @@ _MOTION_SCHEMA = json.loads(
 )
 
 
-def test_registry_has_five_embodiments() -> None:
+def test_registry_has_six_embodiments() -> None:
     assert set(EMBODIMENTS) == {"unitree_g1", "unitree_h1", "unitree_h2", "booster_t1",
-                                "apptronik_apollo"}
+                                "apptronik_apollo", "fourier_n1"}
     assert get_morphology("unitree_g1").name == "unitree_g1"
     with pytest.raises(KeyError):
         get_morphology("nonexistent_robot")
@@ -114,8 +114,11 @@ def test_embodiment_reports_real_joint_limits_not_placeholder(name: str) -> None
     # 膝は逆屈できない（lower > -0.5）し、placeholder ±3.14 ではない。
     assert jl["left_knee"]["position"][0] > -0.5
     assert jl["left_knee"]["position"] != [-3.14, 3.14]
-    # 膝トルクは腕より大きい（実機の事実: 脚の方が強力）。
-    assert jl["left_knee"]["torque"] > jl["left_elbow"]["torque"]
+    # 膝トルクは腕より大きい（実機の事実: 脚の方が強力）。torque 未収載の機種（menagerie MJCF に
+    # forcerange が無い, 例: fourier_n1）は generic fallback のため torque 検証から除外する。
+    pjl = get_morphology(name).per_joint_limits or {}
+    if "torque" in (pjl.get("left_knee") or {}):
+        assert jl["left_knee"]["torque"] > jl["left_elbow"]["torque"]
     # actuator の無い合成 toe は placeholder のまま（正直に区別）。
     assert jl["left_foot"]["position"] == [-3.14, 3.14]
 

@@ -1518,7 +1518,7 @@ def main(argv: list[str] | None = None) -> int:
     p_bench = sub.add_parser("benchmark", help="motion × robot を回し CSV + leaderboard を出力")
     p_bench.add_argument("--robots", nargs="+",
                          default=["unitree_g1", "unitree_h1", "unitree_h2", "booster_t1",
-                                  "apptronik_apollo"])
+                                  "apptronik_apollo", "fourier_n1"])
     p_bench.add_argument("--motions-dir", type=Path, default=None, help="*.rdmir.json のディレクトリ（既定: 合成スイート）")
     p_bench.add_argument("--no-sim", action="store_true", help="MuJoCo 物理検証を行わない")
     p_bench.add_argument("--chart", action="store_true",
