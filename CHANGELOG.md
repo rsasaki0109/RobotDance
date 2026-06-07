@@ -5,6 +5,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.118.0] - 2026-06-07
+
+### Added
+
+- CLI の `retarget` / `retarget-ik` に **`--conf-gate <0..1>`** を追加（v0.117 の遮蔽ガードを
+  実パイプラインから使えるように）。指定すると低信頼フレームの bone 方向を直近の高信頼へ hold し、
+  出力 RD-Motion の `retarget_metrics.confidence_gate`（gate / gated_direction_ratio）に記録。
+  `retarget-ik` は end-effector 誤差も併記。既定 off（既存挙動は不変）。
+- `tests/test_retarget.py` に CLI `--conf-gate` の縦スライステスト（記録あり/なし）を追加。
+
 ## [0.117.0] - 2026-06-07
 
 ### Added

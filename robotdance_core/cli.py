@@ -68,19 +68,25 @@ def _view(path: Path, out: Path, stride: int) -> int:
     return 0
 
 
-def _retarget(path: Path, out: Path, robot: str, clamp_flexion: bool = False) -> int:
+def _retarget(path: Path, out: Path, robot: str, clamp_flexion: bool = False,
+              conf_gate: float | None = None) -> int:
     from .rd_mir import RdMir
     from robotdance_retarget.kinematic import retarget
     from robotdance_unitree import get_morphology
 
     mir = RdMir.load(path)
-    motion = retarget(mir, get_morphology(robot), clamp_flexion=clamp_flexion)
+    motion = retarget(mir, get_morphology(robot), clamp_flexion=clamp_flexion,
+                      conf_gate=conf_gate)
     motion.save(out)
     m = motion.retarget_metrics or {}
     print(f"✓ {robot} RD-Motion を書き出しました: {out}")
     print(f"  height_scale={m.get('height_scale')} "
           f"bone_direction_cosine={m.get('bone_direction_cosine')} "
           f"foot_sliding={m.get('foot_sliding_m_per_frame')}")
+    cg = m.get("confidence_gate")
+    if cg:
+        print(f"  遮蔽ガード conf_gate={cg.get('gate')} "
+              f"gated_direction_ratio={cg.get('gated_direction_ratio')}")
     jf = m.get("joint_flexion") or {}
     if jf:
         print(f"  joint_flexion violation={jf.get('any_violation_ratio')}")
@@ -654,17 +660,21 @@ def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_
     return 0
 
 
-def _retarget_ik(path: Path, urdf: Path, out: Path, steps: int) -> int:
+def _retarget_ik(path: Path, urdf: Path, out: Path, steps: int,
+                 conf_gate: float | None = None) -> int:
     from .rd_mir import RdMir
     from robotdance_retarget.actuator_ik import actuator_retarget
 
-    motion = actuator_retarget(RdMir.load(path), urdf, steps=steps)
+    motion = actuator_retarget(RdMir.load(path), urdf, steps=steps, conf_gate=conf_gate)
     motion.save(out)
     m = motion.retarget_metrics or {}
     jr = motion.joint_rotations or {}
     print(f"✓ actuator-space IK → {out}")
     print(f"  {m.get('actuated_joints')} 関節角を出力（{len(jr.get('angles_rad', []))} frames）")
-    print(f"  IK 位置誤差 mean={m.get('ik_mean_pos_error_m')}m max={m.get('ik_max_pos_error_m')}m")
+    print(f"  IK 位置誤差 mean={m.get('ik_mean_pos_error_m')}m max={m.get('ik_max_pos_error_m')}m "
+          f"end-effector={m.get('ik_endeffector_pos_error_m')}m")
+    if conf_gate is not None:
+        print(f"  遮蔽ガード conf_gate={conf_gate} 適用")
     print("  ⚠️ 参照 IK（位置合わせ）。バランス policy ではない（sim_certificate で別途検証）。")
     return 0
 
@@ -1446,6 +1456,8 @@ def main(argv: list[str] | None = None) -> int:
                        help="対象ロボット（unitree_g1 / unitree_h1）")
     p_ret.add_argument("--clamp-flexion", action="store_true",
                        help="膝・肘の屈曲を実機可動域上限へ収める（検出→補正）")
+    p_ret.add_argument("--conf-gate", type=float, default=None,
+                       help="遮蔽ガード: 信頼度がこの値未満の bone 方向を直近の高信頼へ hold（0..1, 例 0.5）")
 
     p_pair = sub.add_parser("view-pair", help="human RD-MIR と robot RD-Motion を side-by-side 描画")
     p_pair.add_argument("human", type=Path, help="RD-MIR JSON")
@@ -1492,6 +1504,8 @@ def main(argv: list[str] | None = None) -> int:
     p_ik.add_argument("--urdf", type=Path, required=True, help="ロボット URDF（例: g1_23dof.urdf）")
     p_ik.add_argument("-o", "--out", type=Path, default=Path("g1_joints.rdmotion.json"))
     p_ik.add_argument("--steps", type=int, default=300)
+    p_ik.add_argument("--conf-gate", type=float, default=None,
+                      help="遮蔽ガード: 信頼度がこの値未満の bone 方向を直近の高信頼へ hold（0..1, 例 0.5）")
 
     p_urdf = sub.add_parser("import-urdf", help="実 URDF から実寸 RobotMorphology を構築する")
     p_urdf.add_argument("urdf", type=Path, help="URDF ファイル（例: g1_23dof.urdf）")
@@ -1775,7 +1789,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "view":
         return _view(args.path, args.out, args.stride)
     if args.command == "retarget":
-        return _retarget(args.path, args.out, args.robot, args.clamp_flexion)
+        return _retarget(args.path, args.out, args.robot, args.clamp_flexion, args.conf_gate)
     if args.command == "view-pair":
         return _view_pair(args.human, args.robot, args.out, args.stride)
     if args.command == "demo-g1":
@@ -1810,7 +1824,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo-motion-map":
         return _demo_motion_map(args.out, args.checkpoint)
     if args.command == "retarget-ik":
-        return _retarget_ik(args.path, args.urdf, args.out, args.steps)
+        return _retarget_ik(args.path, args.urdf, args.out, args.steps, args.conf_gate)
     if args.command == "import-urdf":
         return _import_urdf(args.urdf, args.name, args.save)
     if args.command == "train-encoder":

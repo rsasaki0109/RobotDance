@@ -275,6 +275,33 @@ def test_cli_retarget_clamp_flexion_flag(tmp_path: Path) -> None:
     assert jf["clamp"]["corrected_frame_ratio"] > 0.0
 
 
+def test_cli_retarget_conf_gate_flag(tmp_path: Path) -> None:
+    """CLI の --conf-gate で遮蔽ガードが効き、RD-Motion に confidence_gate が記録される。"""
+    import numpy as np
+
+    from robotdance_core.cli import main
+
+    clean = generate_dance(duration=1.0, fps=30.0)
+    kp = np.array(clean.keypoints_3d)
+    t, j = kp.shape[0], kp.shape[1]
+    conf = np.ones((t, j))
+    conf[t // 3: t // 3 + 4, 7] = 0.05               # ある関節の窓を低信頼に
+    src = tmp_path / "occ.rdmir.json"
+    clean.model_copy(update={"confidence": {"joint": conf.tolist()}}).save(src)
+
+    out = tmp_path / "g.rdmotion.json"
+    rc = main(["retarget", str(src), "-o", str(out), "--robot", "unitree_g1",
+               "--conf-gate", "0.5"])
+    assert rc == 0
+    cg = RdMotion.load(out).retarget_metrics["confidence_gate"]
+    assert cg["gate"] == 0.5 and cg["gated_direction_ratio"] > 0.0
+
+    # --conf-gate 無しでは記録されない（既定 off）。
+    out2 = tmp_path / "g2.rdmotion.json"
+    assert main(["retarget", str(src), "-o", str(out2), "--robot", "unitree_g1"]) == 0
+    assert "confidence_gate" not in (RdMotion.load(out2).retarget_metrics or {})
+
+
 def test_cli_validate_sim_clamp_remedies_rom(tmp_path: Path) -> None:
     """CLI validate-sim: overbend は ROM 超過で rc=1、--clamp-flexion で rc=0（remedy）。"""
     pytest.importorskip("mujoco")
