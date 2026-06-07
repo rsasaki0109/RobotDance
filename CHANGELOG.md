@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.114.0] - 2026-06-07
+
+### Added
+
+- README ギャラリー "Many motions × robots" に **Unitree H2 行**を追加（groove/fast/wave/march/squat の
+  実 H2 メッシュ render, IK err ~0.04m）。`scripts/render_gallery.py` を `--robot h2` 対応に
+  （H2_LINK_MAP / base_z 1.055）。「2 機種」→「3 機種」に更新。mesh/URDF 本体は非同梱（render のみ）。
+
 ## [0.113.0] - 2026-06-07
 
 ### Changed

@@ -17,7 +17,7 @@ English · [**日本語**](README.ja.md)
 
 <sub>A real karate video (left, 2D skeleton overlaid on the footage) → a real Unitree G1 reproduces the same kata on the right. That's "Shorts to humanoid" in one line. Source: Sdcsabac, CC BY-SA 4.0 (Wikimedia); raw video is not redistributed (renders only).</sub>
 
-### 🎬 Many motions × two robots
+### 🎬 Many motions × three robots
 
 <table>
 <tr>
@@ -36,9 +36,17 @@ English · [**日本語**](README.ja.md)
 <td align="center"><img src="assets/readme/gallery/h1_march.gif" width="120" alt="H1 march"><br><sub>march</sub></td>
 <td align="center"><img src="assets/readme/gallery/h1_squat.gif" width="120" alt="H1 squat"><br><sub>squat</sub></td>
 </tr>
+<tr>
+<td align="center"><sub><b>H2</b><br>1.76m</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_groove.gif" width="120" alt="H2 groove"><br><sub>groove</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_fast.gif" width="120" alt="H2 fast"><br><sub>fast</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_wave.gif" width="120" alt="H2 wave"><br><sub>wave</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_march.gif" width="120" alt="H2 march"><br><sub>march</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_squat.gif" width="120" alt="H2 squat"><br><sub>squat</sub></td>
+</tr>
 </table>
 
-<sub>The same choreography retargeted onto real G1 / H1 meshes — differences in height and DOF show through directly.<br>
+<sub>The same choreography retargeted onto real G1 / H1 / H2 meshes — differences in height and DOF show through directly.<br>
 ※ Meshes © Unitree Robotics (BSD-3-Clause, not bundled in this repo). GIFs are visualizations of pipeline output.</sub>
 
 </div>

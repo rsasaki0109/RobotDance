@@ -17,7 +17,7 @@
 
 <sub>左: 実際の空手動画（映像に 2D 骨格を重ね）→ 右: 実 Unitree G1 が同じ型を再現。これが「Shorts to humanoid」の一行説明。出典: Sdcsabac, CC BY-SA 4.0 (Wikimedia)、生動画は非再配布（レンダリングのみ）。</sub>
 
-### 🎬 色々な振付 × 2 機種
+### 🎬 色々な振付 × 3 機種
 
 <table>
 <tr>
@@ -36,9 +36,17 @@
 <td align="center"><img src="assets/readme/gallery/h1_march.gif" width="120" alt="H1 march"><br><sub>march</sub></td>
 <td align="center"><img src="assets/readme/gallery/h1_squat.gif" width="120" alt="H1 squat"><br><sub>squat</sub></td>
 </tr>
+<tr>
+<td align="center"><sub><b>H2</b><br>1.76m</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_groove.gif" width="120" alt="H2 groove"><br><sub>groove</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_fast.gif" width="120" alt="H2 fast"><br><sub>fast</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_wave.gif" width="120" alt="H2 wave"><br><sub>wave</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_march.gif" width="120" alt="H2 march"><br><sub>march</sub></td>
+<td align="center"><img src="assets/readme/gallery/h2_squat.gif" width="120" alt="H2 squat"><br><sub>squat</sub></td>
+</tr>
 </table>
 
-<sub>同じ振付を実 G1 / H1 メッシュへ retarget。身長・DOF の違いがそのまま出る。<br>
+<sub>同じ振付を実 G1 / H1 / H2 メッシュへ retarget。身長・DOF の違いがそのまま出る。<br>
 ※ メッシュ © Unitree Robotics（BSD-3-Clause, repo 非同梱）。GIF はパイプライン出力の可視化。</sub>
 
 </div>

@@ -90,9 +90,10 @@ def _render_one(p, urdf: Path, robot: str, base_z: float, angles, names,
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("urdf", type=Path, help="実 Unitree URDF（メッシュ付き, ローカル取得）")
-    ap.add_argument("--robot", choices=["g1", "h1"], default="g1")
+    ap.add_argument("--robot", choices=["g1", "h1", "h2"], default="g1")
     ap.add_argument("-o", "--out-dir", type=Path, default=Path("assets/readme/gallery"))
-    ap.add_argument("--base-z", type=float, default=None, help="pelvis 高さ（既定: g1 0.793 / h1 1.04）")
+    ap.add_argument("--base-z", type=float, default=None,
+                    help="pelvis 高さ（既定: g1 0.793 / h1 1.04 / h2 1.055）")
     ap.add_argument("--stride", type=int, default=2)
     ap.add_argument("--width", type=int, default=360)
     ap.add_argument("--height", type=int, default=460)
@@ -102,11 +103,13 @@ def main() -> None:
     import pybullet as p
 
     from robotdance_retarget.actuator_ik import actuator_retarget
+    from robotdance_unitree.h2 import H2_LINK_MAP
     from robotdance_unitree.urdf_import import G1_LINK_MAP, H1_LINK_MAP
 
-    link_map = H1_LINK_MAP if args.robot == "h1" else G1_LINK_MAP
+    link_map = {"h1": H1_LINK_MAP, "h2": H2_LINK_MAP}.get(args.robot, G1_LINK_MAP)
     robot_name = f"unitree_{args.robot}"
-    base_z = args.base_z if args.base_z is not None else (1.04 if args.robot == "h1" else 0.793)
+    base_z = args.base_z if args.base_z is not None else {"h1": 1.04, "h2": 1.055}.get(
+        args.robot, 0.793)
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     p.connect(p.DIRECT)
