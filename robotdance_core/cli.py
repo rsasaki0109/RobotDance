@@ -646,7 +646,8 @@ def _demo_runtime() -> int:
 
 def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_dir: Path,
                chart: bool = False) -> int:
-    from robotdance_benchmarks.report import aggregate_by_robot, write_csv, write_markdown
+    from robotdance_benchmarks.report import (aggregate_by_motion, aggregate_by_robot, write_csv,
+                                              write_markdown)
     from robotdance_benchmarks.suite import default_motion_suite, run_benchmark, run_from_dir
 
     if motions_dir is not None:
@@ -670,6 +671,13 @@ def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_
         print(f"  {a['robot']:12s} PASS率={a['pass_rate']} "
               f"bone_cos={a['mean_bone_dir_cos']} foot_sliding={a['mean_foot_sliding']} "
               f"reach_err={a['mean_endeffector_reach_error']}m")
+    reach_by_motion = sorted(
+        (m for m in aggregate_by_motion(report) if m["mean_endeffector_reach_error"] is not None),
+        key=lambda m: m["mean_endeffector_reach_error"], reverse=True)
+    if reach_by_motion:
+        hi, lo = reach_by_motion[0], reach_by_motion[-1]
+        print(f"  体格差にシビアな動作: {hi['motion_id']}={hi['mean_endeffector_reach_error']}m "
+              f"↔ 寛容: {lo['motion_id']}={lo['mean_endeffector_reach_error']}m（機種平均 reach）")
     return 0
 
 

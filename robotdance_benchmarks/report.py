@@ -69,6 +69,7 @@ def aggregate_by_motion(report: dict) -> list[dict]:
             "motion_class": rows[0]["motion_class"] if rows else None,
             "n_robots": len(rows),
             "pass_rate": round(passed / len(verdicts), 3) if verdicts else None,
+            "mean_endeffector_reach_error": _mean([r.get("endeffector_reach_error") for r in rows]),
             "mean_torque_ratio": _mean([r.get("torque_ratio") for r in rows]),
             "mean_balance_violation": _mean([r.get("balance_violation_ratio") for r in rows]),
             "top_binding_axis": _mode([r.get("binding_axis") for r in rows]),

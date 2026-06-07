@@ -27,6 +27,9 @@ def test_aggregate_by_motion_covers_all_motions() -> None:
     for a in agg:
         assert a["n_robots"] == 2  # G1 + H1
         assert "mean_torque_ratio" in a and "top_binding_axis" in a
+        # reach error は kinematic 由来で no-sim でも全 motion に出る（体格差のシビアさ）。
+        assert a["mean_endeffector_reach_error"] is not None
+        assert a["mean_endeffector_reach_error"] >= 0.0
 
 
 def test_default_suite_has_variety() -> None:
