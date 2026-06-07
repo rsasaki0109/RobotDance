@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.129.0] - 2026-06-08
+### Added
+- `download-hf`: Hugging Face Hub からファイルを取得（`huggingface_hub` 経由）し、既存の `import-humanml3d` / `import-motionx` / `import-babel` / `import-hmr` に繋ぐ取り込み経路。**著作権・規約上扱いにくい YouTube/TikTok の license-safe な代替**——ライセンスが明示された HF データセット（HumanML3D/Motion-X/BABEL 由来、多くは research_only）を取り込む。生ファイルは HF キャッシュ（repo 外・非同梱）。取得時にライセンス確認の警告を表示。`robotdance_data/hf_fetch.py`、`download-hf` CLI。
+
 ## [0.128.0] - 2026-06-08
 ### Added
 - benchmark の per-motion 集計（`aggregate_by_motion`）に `mean_endeffector_reach_error` を追加し、`benchmark` CLI が「**体格差にシビアな動作 ↔ 寛容な動作**」を表示（合成スイートでは backflip=0.239 m が最シビア・march_gentle=0.099 m が最寛容）。全身を大きく動かす動作ほど機種の四肢比率差が効く、を定量化。kinematic 由来で `--no-sim` でも算出。

@@ -184,7 +184,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 
 | area | main commands |
 | --- | --- |
-| extraction | `extract` (`--backend`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `smooth` `overlay` |
+| extraction | `extract` (`--backend`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `download-hf` (HF Hub fetch → import-*, license-safe alt to YouTube/TikTok) `smooth` `overlay` |
 | pose backends & QC | `list-backends` (mediapipe / 2D+lift / gvhmr·wham) `pose-compare` `motion-doctor` (mirror/depth/grounding) |
 | dataset | `build-dataset` (RD-Manifest + license firewall / Data BOM) `dedupe-dir` |
 | retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle + optional `--with-velocity` CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/H2/T1/Apollo/N1) |

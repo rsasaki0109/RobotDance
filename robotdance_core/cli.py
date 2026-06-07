@@ -226,6 +226,24 @@ def _cards_index(in_dir: Path, out_dir: Path | None) -> int:
     return 0
 
 
+def _download_hf(repo_id: str, filename: str, repo_type: str, revision: str | None,
+                 out: Path | None) -> int:
+    import shutil
+
+    from robotdance_data.hf_fetch import fetch_from_hub
+
+    path = fetch_from_hub(repo_id, filename, repo_type=repo_type, revision=revision)
+    if out is not None:
+        shutil.copy(path, out)
+        path = out
+    print(f"✓ HF {repo_type}:{repo_id}/{filename} → {path}")
+    print("  ⚠️ ライセンス確認必須: モーションデータセット（AMASS/HumanML3D/Motion-X 等）は多くが"
+          "研究用途限定。再配布・商用は各データセットのライセンスに従うこと。")
+    print("  → import-humanml3d / import-motionx / import-babel / import-hmr で RD-MIR 化"
+          "（license_state は research_only 等）。")
+    return 0
+
+
 def _import_humanml3d(joints: Path, text: Path | None, fps: float, out: Path) -> int:
     """HumanML3D の joint 位置(.npy)+記述(.txt) を RD-MIR 化する（§4.1）。"""
     from robotdance_data.humanml3d import load_humanml3d
@@ -1732,6 +1750,16 @@ def main(argv: list[str] | None = None) -> int:
     p_card.add_argument("--json", dest="json_out", type=Path, default=None,
                         help="機械可読カード JSON の保存先")
 
+    p_hf = sub.add_parser("download-hf",
+                          help="Hugging Face Hub からファイルを取得（既存 import-* に繋ぐ。動画より license 明示で安全）")
+    p_hf.add_argument("repo_id", help="HF repo（例: EricGuo5513/HumanML3D）")
+    p_hf.add_argument("filename", help="repo 内のファイルパス")
+    p_hf.add_argument("--repo-type", default="dataset", choices=["dataset", "model", "space"],
+                      dest="repo_type")
+    p_hf.add_argument("--revision", default=None, help="branch / tag / commit")
+    p_hf.add_argument("-o", "--out", type=Path, default=None,
+                      help="コピー先（省略時は HF キャッシュ内のパスを表示）")
+
     p_h3d = sub.add_parser("import-humanml3d",
                            help="HumanML3D の joint(.npy)+text(.txt) を RD-MIR 化（§4.1）")
     p_h3d.add_argument("joints", type=Path, help="HumanML3D new_joints/<id>.npy")
@@ -1935,6 +1963,8 @@ def main(argv: list[str] | None = None) -> int:
         return _pose_compare(args.video, args.out, args.stride, args.width)
     if args.command == "import-humanml3d":
         return _import_humanml3d(args.joints, args.text, args.fps, args.out)
+    if args.command == "download-hf":
+        return _download_hf(args.repo_id, args.filename, args.repo_type, args.revision, args.out)
     if args.command == "import-babel":
         return _import_babel(args.babel_json, args.amass_root, args.limit, args.out_dir,
                              args.dedupe, args.dedupe_threshold)
