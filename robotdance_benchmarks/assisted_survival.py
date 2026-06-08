@@ -12,8 +12,9 @@ from pathlib import Path
 from typing import Optional
 
 from robotdance_motion.fight_refinement import refine_for_fight
+from robotdance_retarget.dispatch import retarget_with_backend
 from robotdance_retarget.embodiment import RobotMorphology
-from robotdance_retarget.kinematic import retarget
+from robotdance_retarget.gmr_backend import ROBOT_TO_GMR, gmr_available
 from robotdance_sim.arena import motion_for_style
 from robotdance_sim.assisted_playback import AssistedPlaybackResult, rollout_pd_only
 from robotdance_sim.fight_moves import FIGHT_STYLE_NAMES
@@ -35,9 +36,30 @@ class AssistedSurvivalRow:
     survival_ratio: float
     mean_pose_rmse: float
     fallen: bool
+    retarget_backend: str = "kinematic"  # "kinematic" | "gmr"
     controller: str = "pd"  # "pd" | "rl"
     rl_iterations: int | None = None
     pd_survival: float | None = None  # RL 行のみ: 同一条件の PD baseline
+
+
+def _fight_reference(
+    robot: str,
+    style: str,
+    *,
+    depth_refine: bool,
+    duration: float,
+    morphology: RobotMorphology,
+    retarget_backend: str,
+):
+    """fight motion → retarget → tracking / assisted 参照。"""
+    mir = motion_for_style(style, duration=duration)
+    if depth_refine:
+        mir = refine_for_fight(mir)
+    return retarget_with_backend(mir, morphology, retarget_backend)
+
+
+def _gmr_supported(robot: str) -> bool:
+    return robot in ROBOT_TO_GMR
 
 
 def evaluate_assisted_survival(
@@ -47,13 +69,14 @@ def evaluate_assisted_survival(
     depth_refine: bool = False,
     duration: float = 3.0,
     morphology: Optional[RobotMorphology] = None,
+    retarget_backend: str = "kinematic",
 ) -> AssistedSurvivalRow:
-    """1 (robot, style, depth_refine) の PD-only assisted rollout を評価。"""
+    """1 (robot, style, depth_refine, retarget_backend) の PD-only assisted rollout を評価。"""
     morph = morphology or get_morphology(robot)
-    mir = motion_for_style(style, duration=duration)
-    if depth_refine:
-        mir = refine_for_fight(mir)
-    ref = retarget(mir, morph)
+    ref = _fight_reference(
+        robot, style, depth_refine=depth_refine, duration=duration,
+        morphology=morph, retarget_backend=retarget_backend,
+    )
     result: AssistedPlaybackResult = rollout_pd_only(ref, morph)
     return AssistedSurvivalRow(
         robot=robot,
@@ -64,6 +87,7 @@ def evaluate_assisted_survival(
         survival_ratio=result.survival_ratio,
         mean_pose_rmse=result.mean_pose_rmse,
         fallen=result.fallen,
+        retarget_backend=retarget_backend,
         controller="pd",
     )
 
@@ -113,29 +137,44 @@ def run_assisted_survival_benchmark(
     *,
     duration: float = 3.0,
     compare_refine: bool = True,
+    retarget_backends: Optional[list[str]] = None,
     with_rl: bool = False,
     rl_iterations: int = 20,
     rl_only_failures: bool = True,
     rl_seed: int = 0,
 ) -> dict:
-    """robots × styles の assisted survival を回し、raw / refined 比較レポートを返す。"""
+    """robots × styles × retarget_backends の assisted survival を回す。"""
     robots = list(robots or _DEFAULT_ROBOTS)
     styles = list(styles or sorted(FIGHT_STYLE_NAMES))
+    backends = list(retarget_backends or ["kinematic"])
+    skipped_gmr: list[str] = []
     rows: list[AssistedSurvivalRow] = []
-    for robot in robots:
-        morph = get_morphology(robot)
-        for style in styles:
-            rows.append(evaluate_assisted_survival(
-                robot, style, depth_refine=False, duration=duration, morphology=morph,
-            ))
-            if compare_refine:
+    for backend in backends:
+        if backend == "gmr" and not gmr_available():
+            raise RuntimeError(
+                "retarget backend 'gmr' が未導入です。"
+                " git clone https://github.com/YanjieZe/GMR.git && pip install -e GMR/"
+            )
+        for robot in robots:
+            if backend == "gmr" and not _gmr_supported(robot):
+                skipped_gmr.append(robot)
+                continue
+            morph = get_morphology(robot)
+            for style in styles:
                 rows.append(evaluate_assisted_survival(
-                    robot, style, depth_refine=True, duration=duration, morphology=morph,
+                    robot, style, depth_refine=False, duration=duration,
+                    morphology=morph, retarget_backend=backend,
                 ))
+                if compare_refine:
+                    rows.append(evaluate_assisted_survival(
+                        robot, style, depth_refine=True, duration=duration,
+                        morphology=morph, retarget_backend=backend,
+                    ))
 
     rl_rows: list[AssistedSurvivalRow] = []
     if with_rl:
-        pd_rows = [r for r in rows if r.controller == "pd"]
+        # RL は kinematic retarget のみ（v0.154）。GMR 比較は PD 列に限定。
+        pd_rows = [r for r in rows if r.controller == "pd" and r.retarget_backend == "kinematic"]
         for pd_row in pd_rows:
             if rl_only_failures and pd_row.survival_ratio >= 1.0:
                 continue
@@ -151,31 +190,91 @@ def run_assisted_survival_benchmark(
             ))
 
     all_rows = rows + rl_rows
+    pd_rows = [r for r in rows if r.controller == "pd"]
     return {
         "robots": robots,
         "styles": styles,
         "duration": duration,
         "compare_refine": compare_refine,
+        "retarget_backends": backends,
+        "skipped_gmr_robots": sorted(set(skipped_gmr)),
         "with_rl": with_rl,
         "rl_iterations": rl_iterations if with_rl else None,
         "rl_only_failures": rl_only_failures,
         "rows": [asdict(r) for r in all_rows],
-        "rescued": _rescued_pairs(rows),
-        "regressed": _regressed_pairs(rows),
+        "rescued": _rescued_pairs(pd_rows),
+        "regressed": _regressed_pairs(pd_rows),
+        "rescued_by_gmr": _rescued_by_gmr(pd_rows),
+        "regressed_by_gmr": _regressed_by_gmr(pd_rows),
         "rescued_by_rl": _rescued_by_rl(rl_rows),
-        "rescued_by_rl_only": _rescued_by_rl_only(rows, rl_rows),
+        "rescued_by_rl_only": _rescued_by_rl_only(pd_rows, rl_rows),
     }
 
 
-def _pair_key(row: AssistedSurvivalRow) -> tuple[str, str]:
-    return row.robot, row.style
+def _pair_key(row: AssistedSurvivalRow) -> tuple[str, str, str]:
+    return row.robot, row.style, row.retarget_backend
 
 
-def _by_pair(rows: list[AssistedSurvivalRow]) -> dict[tuple[str, str], dict[bool, AssistedSurvivalRow]]:
-    out: dict[tuple[str, str], dict[bool, AssistedSurvivalRow]] = {}
+def _by_pair(rows: list[AssistedSurvivalRow]) -> dict[tuple[str, str, str], dict[bool, AssistedSurvivalRow]]:
+    out: dict[tuple[str, str, str], dict[bool, AssistedSurvivalRow]] = {}
     for row in rows:
         out.setdefault(_pair_key(row), {})[row.depth_refine] = row
     return out
+
+
+def _backend_pair_key(row: AssistedSurvivalRow) -> tuple[str, str, bool]:
+    return row.robot, row.style, row.depth_refine
+
+
+def _by_backend_pair(
+    rows: list[AssistedSurvivalRow],
+) -> dict[tuple[str, str, bool], dict[str, AssistedSurvivalRow]]:
+    out: dict[tuple[str, str, bool], dict[str, AssistedSurvivalRow]] = {}
+    for row in rows:
+        if row.controller != "pd":
+            continue
+        out.setdefault(_backend_pair_key(row), {})[row.retarget_backend] = row
+    return out
+
+
+def _rescued_by_gmr(rows: list[AssistedSurvivalRow]) -> list[dict]:
+    """kinematic より GMR の survival が改善した (robot, style, depth_refine)。"""
+    rescued = []
+    for key, pair in _by_backend_pair(rows).items():
+        kin = pair.get("kinematic")
+        gmr = pair.get("gmr")
+        if kin is None or gmr is None:
+            continue
+        if kin.survival_ratio < gmr.survival_ratio:
+            rescued.append({
+                "robot": key[0],
+                "style": key[1],
+                "depth_refine": key[2],
+                "kin_survival": kin.survival_ratio,
+                "gmr_survival": gmr.survival_ratio,
+                "delta_survival": round(gmr.survival_ratio - kin.survival_ratio, 3),
+            })
+    return sorted(rescued, key=lambda x: (-x["delta_survival"], x["robot"], x["style"]))
+
+
+def _regressed_by_gmr(rows: list[AssistedSurvivalRow]) -> list[dict]:
+    """GMR が kinematic より survival を悪化させた組 — 正直に報告。"""
+    regressed = []
+    for key, pair in _by_backend_pair(rows).items():
+        kin = pair.get("kinematic")
+        gmr = pair.get("gmr")
+        if kin is None or gmr is None:
+            continue
+        if gmr.survival_ratio < kin.survival_ratio:
+            regressed.append({
+                "robot": key[0],
+                "style": key[1],
+                "depth_refine": key[2],
+                "kin_survival": kin.survival_ratio,
+                "gmr_survival": gmr.survival_ratio,
+                "delta_survival": round(gmr.survival_ratio - kin.survival_ratio, 3),
+            })
+    return sorted(regressed, key=lambda x: (x["delta_survival"], x["robot"], x["style"]))
 
 
 def _rescued_pairs(rows: list[AssistedSurvivalRow]) -> list[dict]:
@@ -264,8 +363,9 @@ def _rescued_by_rl_only(
 
 
 _CSV_COLUMNS = [
-    "robot", "style", "depth_refine", "controller", "survived_frames", "total_frames",
-    "survival_ratio", "mean_pose_rmse", "fallen", "rl_iterations", "pd_survival",
+    "robot", "style", "depth_refine", "retarget_backend", "controller",
+    "survived_frames", "total_frames", "survival_ratio", "mean_pose_rmse", "fallen",
+    "rl_iterations", "pd_survival",
 ]
 
 
@@ -291,37 +391,92 @@ def render_assisted_survival_markdown(report: dict) -> str:
         f"- robots: {', '.join(report['robots'])}",
         f"- styles: {', '.join(report['styles'])}",
         f"- duration: {report['duration']}s（karate/kathak はフィクスチャ長）",
+        f"- retarget backends: {', '.join(report.get('retarget_backends', ['kinematic']))}",
     ]
+    if report.get("skipped_gmr_robots"):
+        lines.append(
+            f"- GMR skipped robots: {', '.join(report['skipped_gmr_robots'])}（未対応機種）"
+        )
     if report.get("with_rl"):
         lines.append(
             f"- RL: PPO {report['rl_iterations']} iters"
             f"（{'PD 失敗のみ' if report.get('rl_only_failures') else '全組'}）"
         )
     lines.append("")
-    if report["compare_refine"]:
+    backends = report.get("retarget_backends", ["kinematic"])
+    if len(backends) > 1 or (len(backends) == 1 and backends[0] != "kinematic"):
         lines += [
-            "## Raw vs depth-refine",
+            "## Retarget backend comparison",
             "",
-            "| robot | style | raw surv | ref surv | Δ surv | raw RMSE | ref RMSE |",
-            "|-------|-------|----------|----------|--------|----------|----------|",
+            "| robot | style | refine | kin surv | gmr surv | Δ surv | kin RMSE | gmr RMSE |",
+            "|-------|-------|--------|----------|----------|--------|----------|----------|",
         ]
-        by_pair = {}
+        by_backend = {}
         for row in report["rows"]:
             if row.get("controller", "pd") != "pd":
                 continue
-            by_pair.setdefault((row["robot"], row["style"]), {})[row["depth_refine"]] = row
-        for (robot, style), pair in sorted(by_pair.items()):
-            raw = pair.get(False, {})
-            ref = pair.get(True, {})
-            if not raw or not ref:
+            key = (row["robot"], row["style"], row["depth_refine"])
+            by_backend.setdefault(key, {})[row.get("retarget_backend", "kinematic")] = row
+        for (robot, style, refine), pair in sorted(by_backend.items()):
+            kin = pair.get("kinematic")
+            gmr = pair.get("gmr")
+            if not kin or not gmr:
                 continue
-            delta = ref["survival_ratio"] - raw["survival_ratio"]
+            delta = gmr["survival_ratio"] - kin["survival_ratio"]
+            refine_s = "yes" if refine else "no"
             lines.append(
-                f"| {robot} | {style} | {raw['survival_ratio']:.3f} | "
-                f"{ref['survival_ratio']:.3f} | {delta:+.3f} | "
-                f"{raw['mean_pose_rmse']:.3f} | {ref['mean_pose_rmse']:.3f} |"
+                f"| {robot} | {style} | {refine_s} | {kin['survival_ratio']:.3f} | "
+                f"{gmr['survival_ratio']:.3f} | {delta:+.3f} | "
+                f"{kin['mean_pose_rmse']:.3f} | {gmr['mean_pose_rmse']:.3f} |"
             )
         lines.append("")
+        if report.get("rescued_by_gmr"):
+            lines += ["## Rescued by GMR (vs kinematic)", ""]
+            for r in report["rescued_by_gmr"]:
+                refine = "refine" if r["depth_refine"] else "raw"
+                lines.append(
+                    f"- **{r['robot']} / {r['style']} ({refine})**: "
+                    f"kin {r['kin_survival']:.3f} → gmr {r['gmr_survival']:.3f} "
+                    f"(Δ {r['delta_survival']:+.3f})"
+                )
+            lines.append("")
+        if report.get("regressed_by_gmr"):
+            lines += ["## Regressed by GMR (honest)", ""]
+            for r in report["regressed_by_gmr"]:
+                refine = "refine" if r["depth_refine"] else "raw"
+                lines.append(
+                    f"- **{r['robot']} / {r['style']} ({refine})**: "
+                    f"kin {r['kin_survival']:.3f} → gmr {r['gmr_survival']:.3f} "
+                    f"(Δ {r['delta_survival']:+.3f})"
+                )
+            lines.append("")
+    if report["compare_refine"]:
+        for backend in backends:
+            lines += [
+                f"## Raw vs depth-refine ({backend})",
+                "",
+                "| robot | style | raw surv | ref surv | Δ surv | raw RMSE | ref RMSE |",
+                "|-------|-------|----------|----------|--------|----------|----------|",
+            ]
+            by_pair = {}
+            for row in report["rows"]:
+                if row.get("controller", "pd") != "pd":
+                    continue
+                if row.get("retarget_backend", "kinematic") != backend:
+                    continue
+                by_pair.setdefault((row["robot"], row["style"]), {})[row["depth_refine"]] = row
+            for (robot, style), pair in sorted(by_pair.items()):
+                raw = pair.get(False, {})
+                ref = pair.get(True, {})
+                if not raw or not ref:
+                    continue
+                delta = ref["survival_ratio"] - raw["survival_ratio"]
+                lines.append(
+                    f"| {robot} | {style} | {raw['survival_ratio']:.3f} | "
+                    f"{ref['survival_ratio']:.3f} | {delta:+.3f} | "
+                    f"{raw['mean_pose_rmse']:.3f} | {ref['mean_pose_rmse']:.3f} |"
+                )
+            lines.append("")
         if report["rescued"]:
             lines += ["## Rescued by depth-refine", ""]
             for r in report["rescued"]:
@@ -355,7 +510,8 @@ def render_assisted_survival_markdown(report: dict) -> str:
                  if r.get("controller") == "pd"
                  and r["robot"] == row["robot"]
                  and r["style"] == row["style"]
-                 and r["depth_refine"] == row["depth_refine"]),
+                 and r["depth_refine"] == row["depth_refine"]
+                 and r.get("retarget_backend", "kinematic") == "kinematic"),
                 None,
             )
             pd_surv = row.get("pd_survival") if row.get("pd_survival") is not None else (

@@ -48,13 +48,35 @@ def test_benchmark_report_structure(mujoco, tmp_path) -> None:
     assert len(report["rows"]) == 4
     assert report["rescued"]
     assert any(r["style"] == "kick" for r in report["rescued"])
+    assert all(r.get("retarget_backend") == "kinematic" for r in report["rows"])
     md = render_assisted_survival_markdown(report)
     assert "Assisted Survival Benchmark" in md
     assert "unitree_g1" in md
     csv_path = write_assisted_survival_csv(report, tmp_path / "assisted.csv")
     assert csv_path.is_file()
-    assert "survival_ratio" in csv_path.read_text(encoding="utf-8")
-    assert "controller" in csv_path.read_text(encoding="utf-8")
+    text = csv_path.read_text(encoding="utf-8")
+    assert "survival_ratio" in text
+    assert "controller" in text
+    assert "retarget_backend" in text
+
+
+def test_benchmark_retarget_backend_compare(mujoco) -> None:
+    from robotdance_retarget.gmr_backend import gmr_available
+
+    if not gmr_available():
+        pytest.skip("GMR 未導入")
+    report = run_assisted_survival_benchmark(
+        robots=["unitree_g1"],
+        styles=["kick"],
+        duration=3.0,
+        compare_refine=False,
+        retarget_backends=["kinematic", "gmr"],
+    )
+    assert len(report["rows"]) == 2
+    backends = {r["retarget_backend"] for r in report["rows"]}
+    assert backends == {"kinematic", "gmr"}
+    md = render_assisted_survival_markdown(report)
+    assert "Retarget backend comparison" in md
 
 
 def test_benchmark_with_rl_on_pd_failures(mujoco) -> None:

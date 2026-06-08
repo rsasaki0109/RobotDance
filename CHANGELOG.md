@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.154.0] - 2026-06-08
+### Added
+- **`benchmark-assisted --retarget-backend`**: fight motion × robot の assisted survival を retarget backend 別に比較（`kinematic` / `gmr`）。CSV/Markdown に `retarget_backend` 列、`rescued_by_gmr` / `regressed_by_gmr` サマリ。GMR 未対応機種（Apollo 等）は自動スキップ。
+
 ## [0.153.0] - 2026-06-08
 ### Added
 - **GMR retarget backend（`retarget --backend gmr`）**: RD-MIR canonical keypoints → GMR smplx-style body dict → mink IK → RD-Motion。`robotdance_retarget/gmr_backend.py` + `dispatch.py`。GMR は clone + `pip install -e GMR/`（assets 同梱）が必要。対応 robot: unitree_g1/h1/h2, booster_t1, fourier_n1。`list-retargeters` が `retarget --backend gmr` を表示。

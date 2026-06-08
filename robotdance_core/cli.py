@@ -728,6 +728,7 @@ def _benchmark_assisted(
     duration: float,
     compare_refine: bool,
     out_dir: Path,
+    retarget_backends: list[str] | None = None,
     with_rl: bool = False,
     rl_iterations: int = 20,
     rl_all: bool = False,
@@ -738,10 +739,15 @@ def _benchmark_assisted(
         write_assisted_survival_csv,
     )
 
-    report = run_assisted_survival_benchmark(
-        robots, styles, duration=duration, compare_refine=compare_refine,
-        with_rl=with_rl, rl_iterations=rl_iterations, rl_only_failures=not rl_all,
-    )
+    try:
+        report = run_assisted_survival_benchmark(
+            robots, styles, duration=duration, compare_refine=compare_refine,
+            retarget_backends=retarget_backends,
+            with_rl=with_rl, rl_iterations=rl_iterations, rl_only_failures=not rl_all,
+        )
+    except RuntimeError as exc:
+        print(f"✗ {exc}")
+        return 1
     out_dir.mkdir(parents=True, exist_ok=True)
     csv_path = write_assisted_survival_csv(report, out_dir / "assisted_survival.csv")
     md_path = out_dir / "ASSISTED_SURVIVAL.md"
@@ -750,6 +756,14 @@ def _benchmark_assisted(
     n_rl = sum(1 for r in report["rows"] if r.get("controller") == "rl")
     print(f"✓ assisted survival benchmark: {n_pd} PD + {n_rl} RL runs")
     print(f"  {csv_path}\n  {md_path}")
+    for r in report.get("rescued_by_gmr", []):
+        tag = "refine" if r["depth_refine"] else "raw"
+        print(f"  rescued (GMR/{tag}): {r['robot']:12s} {r['style']:8s} "
+              f"kin {r['kin_survival']:.3f} → gmr {r['gmr_survival']:.3f}")
+    for r in report.get("regressed_by_gmr", []):
+        tag = "refine" if r["depth_refine"] else "raw"
+        print(f"  regressed (GMR/{tag}): {r['robot']:12s} {r['style']:8s} "
+              f"kin {r['kin_survival']:.3f} → gmr {r['gmr_survival']:.3f}")
     if report["compare_refine"]:
         for r in report["rescued"]:
             print(f"  rescued (refine): {r['robot']:12s} {r['style']:8s} "
@@ -2051,6 +2065,9 @@ def main(argv: list[str] | None = None) -> int:
                           help="合成 fight 技の長さ[s]（karate/kathak はフィクスチャ長）")
     p_abench.add_argument("--no-compare", action="store_true",
                           help="depth-refine なしの 1 パスだけ実行")
+    p_abench.add_argument("--retarget-backend", nargs="+", default=["kinematic"],
+                          choices=["kinematic", "gmr"],
+                          help="retarget バックエンド比較（例: kinematic gmr）")
     p_abench.add_argument("--rl", action="store_true",
                           help="PD が失敗した組に PPO tracking を追加評価")
     p_abench.add_argument("--rl-all", action="store_true",
@@ -2466,7 +2483,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "benchmark-assisted":
         return _benchmark_assisted(
             args.robots, args.styles, args.duration, not args.no_compare, args.out,
-            args.rl, args.rl_iterations, args.rl_all,
+            args.retarget_backend, args.rl, args.rl_iterations, args.rl_all,
         )
     if args.command == "demo-motion-map":
         return _demo_motion_map(args.out, args.checkpoint)
