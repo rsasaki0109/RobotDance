@@ -357,7 +357,7 @@ def _import_hmr(path: Path, source: str, fps: float | None, out: Path) -> int:
 
 
 def _extract(video: Path, out: Path, model: Path | None, backend: str, num_poses: int,
-             check: bool = True) -> int:
+             check: bool = True, stabilize_depth: bool = False) -> int:
     from robotdance_perception.backends import get_backend
 
     b = get_backend(backend)
@@ -376,6 +376,14 @@ def _extract(video: Path, out: Path, model: Path | None, backend: str, num_poses
         from robotdance_perception.mediapipe_adapter import extract_motion
 
         mir = extract_motion(video, model_path=model, backend=backend, num_poses=num_poses)
+    if stabilize_depth:
+        # 単眼で ill-posed な前後 x 深度を観測性で安定化（静的脚の front-back split 抑制, y/z は不変）。
+        from robotdance_motion.depth_stabilize import stabilize_depth as _stab
+
+        mir = _stab(mir)
+        ds = (mir.quality_metrics or {}).get("depth_stabilize", {})
+        print(f"  📐 stabilize-depth: 脚の前後スプリット {ds.get('leg_split_before_m')}→"
+              f"{ds.get('leg_split_after_m')} m（観測 y,z 不変・静的関節のみ）")
     mir.save(out)
     print(f"✓ {video.name} → RD-MIR: {out}")
     q = mir.quality_metrics or {}
@@ -1711,6 +1719,8 @@ def main(argv: list[str] | None = None) -> int:
                            help="検出させる最大人数（多人数シーンで前景被写体を追跡）")
     p_extract.add_argument("--no-check", action="store_true",
                            help="抽出直後の健全性チェック（motion-doctor）をスキップ")
+    p_extract.add_argument("--stabilize-depth", action="store_true",
+                           help="単眼 ill-posed な前後 x 深度を観測性で安定化（静的脚の front-back split 抑制, y/z 不変）")
 
     p_doc = sub.add_parser("motion-doctor",
                            help="RD-MIR の健全性チェック（mirror/深度/接地/多人数 等）。ディレクトリで一括診断")
@@ -1961,7 +1971,7 @@ def main(argv: list[str] | None = None) -> int:
         return _overlay(args.video, args.mir, args.out, args.stride)
     if args.command == "extract":
         return _extract(args.video, args.out, args.model, args.backend, args.num_poses,
-                        check=not args.no_check)
+                        check=not args.no_check, stabilize_depth=args.stabilize_depth)
     if args.command == "motion-doctor":
         return _motion_doctor(args.rdmir)
     if args.command == "list-backends":

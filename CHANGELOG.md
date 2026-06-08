@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.134.0] - 2026-06-08
+### Added
+- **`extract --stabilize-depth`（pose 抽出の深度安定化）**: 単眼で ill-posed な前後 x 深度を**観測性（画像面 y/z の動きの大きさ）で重み付け**して安定化。(1) 静的な関節の深度ジッタを low-pass、(2) 両方とも画像内で静的な左右対称ペア（足首/膝/股/肩/手首）の**持続的な前後スプリット**を共有平均へ leveling。観測軸 y・z は厳密に凍結し、**動いている関節は触らない**（深度が比較的信頼できるため）。documented failure の shoulder press（脚静止→前後スプリット）で sp30 の左右足首前後差 0.172→0.093 m、retarget 後のロボット足首スプリット 0.230→0.130 m（43%減）。`robotdance_motion/depth_stabilize.py` の `stabilize_depth()`。over-smoothing で隠す gimmick ではなく未観測な深度自由度を観測性で解く — 抽出側の第一歩（retarget 側の `--balance-refine` と相補的）。
+
 ## [0.133.0] - 2026-06-08
 ### Added
 - **2 つ目の実動画 multi-embodiment デモ（カタック舞踊）**: README に「空手だけじゃない」例として、古典舞踊カタックのクリップ → Unitree G1/H1/H2 が同じ踊りを同期再現する 4 パネル GIF を追加（actuator-IK 誤差 G1 0.068 / H1 0.116 / H2 0.043 m）。武術でも舞踊でも単眼パイプラインが動作タイプを跨いで汎化することを示す。出典 Suyash Dwivedi, CC BY-SA 4.0（レンダリングのみ・生動画非同梱）。`assets/readme/real/kathak_hero.gif`。

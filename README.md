@@ -139,7 +139,7 @@ Feed the extracted real squat into the feasibility certificate (real URDF inerti
 </td></tr>
 </table>
 
-<sub>The residual ZMP excursion concentrates along the forward x axis (depth — the least reliable axis in monocular). A full PASS needs better depth estimation / contact-aware retargeting — v0's honest frontier. `--balance-refine` is a first step: it refines **only** the unobserved fore-aft x depth with a quasi-static balance prior (COM over the support polygon), freezing the observed lateral/vertical (y, z) image-plane axes — refinement, not violation-hiding smoothing.</sub>
+<sub>The residual ZMP excursion concentrates along the forward x axis (depth — the least reliable axis in monocular). A full PASS needs better depth estimation / contact-aware retargeting — v0's honest frontier. Two complementary first steps, both freezing the observed lateral/vertical (y, z) image-plane axes and touching **only** the unobserved fore-aft x: `extract --stabilize-depth` (extraction-side — observability-weighted, it damps the spurious front-back split of joints that are static in view, e.g. legs during a shoulder press: robot ankle split 0.23→0.13 m), and `validate-sim --balance-refine` (retarget-side — a quasi-static balance prior, COM over the support polygon). Refinement of an ill-posed axis, not violation-hiding smoothing.</sub>
 
 ### Benchmark — why each motion passes or fails
 
@@ -191,7 +191,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 
 | area | main commands |
 | --- | --- |
-| extraction | `extract` (`--backend`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `download-hf` (HF Hub fetch → import-*, license-safe alt to YouTube/TikTok) `smooth` `overlay` |
+| extraction | `extract` (`--backend`, `--stabilize-depth`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `download-hf` (HF Hub fetch → import-*, license-safe alt to YouTube/TikTok) `smooth` `overlay` |
 | pose backends & QC | `list-backends` (mediapipe / 2D+lift / gvhmr·wham) `pose-compare` `motion-doctor` (mirror/depth/grounding) |
 | dataset | `build-dataset` (RD-Manifest + license firewall / Data BOM) `dedupe-dir` |
 | retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle + optional `--with-velocity` CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/H2/T1/Apollo/N1) |
