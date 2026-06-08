@@ -20,6 +20,10 @@ English · [**日本語**](README.ja.md)
 
 <sub><b>One video → three humanoids.</b> A real karate video (left, 2D skeleton overlaid on the footage) → Unitree <b>G1 (1.29m)</b>, <b>H1 (1.66m)</b> and <b>H2 (1.76m)</b> all reproduce the same kata, in sync, from a single monocular clip. Same motion, three different bodies — that's the multi-embodiment retarget. ("Shorts to humanoid" in one line.) Source: Sdcsabac, CC BY-SA 4.0 (Wikimedia); raw video is not redistributed (renders only).</sub>
 
+<img src="assets/readme/real/kathak_hero.gif" width="840" alt="Real kathak dance video, then Unitree G1, H1 and H2 reproducing the same dance in sync">
+
+<sub><b>…and it's not just karate.</b> A classical <b>kathak</b> dance clip → the same three Unitree humanoids reproduce the dance (actuator-IK error 0.04–0.12 m). Martial art or dance, the monocular pipeline generalizes across motion types. Source: Suyash Dwivedi, CC BY-SA 4.0 (Wikimedia); renders only, raw video not redistributed.</sub>
+
 ### 🎬 Many motions × three robots
 
 <table>

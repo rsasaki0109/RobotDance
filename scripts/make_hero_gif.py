@@ -48,7 +48,9 @@ def make_hero(panels: list[tuple[Path, str]], out: Path, *, height: int = 300, g
     import imageio.v2 as imageio
     from PIL import Image
 
-    seqs = [imageio.mimread(str(g)) for g, _ in panels]
+    # HD 動画由来の overlay GIF は数十 MB になり得る（パネルは後で height へ縮小されるので
+    # 最終 GIF は軽量）。imageio の 256MB デコード上限に当たらないよう memtest を外す。
+    seqs = [imageio.mimread(str(g), memtest=False) for g, _ in panels]
     n = min(len(s) for s in seqs)
     frames = []
     for i in range(n):

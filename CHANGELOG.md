@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.133.0] - 2026-06-08
+### Added
+- **2 つ目の実動画 multi-embodiment デモ（カタック舞踊）**: README に「空手だけじゃない」例として、古典舞踊カタックのクリップ → Unitree G1/H1/H2 が同じ踊りを同期再現する 4 パネル GIF を追加（actuator-IK 誤差 G1 0.068 / H1 0.116 / H2 0.043 m）。武術でも舞踊でも単眼パイプラインが動作タイプを跨いで汎化することを示す。出典 Suyash Dwivedi, CC BY-SA 4.0（レンダリングのみ・生動画非同梱）。`assets/readme/real/kathak_hero.gif`。
+### Fixed
+- `make_hero_gif.py`: HD 動画由来の overlay GIF（数十 MB）で `imageio.mimread` の 256MB デコード上限に当たり合成が失敗していた。`memtest=False` で読むよう修正（パネルは height へ縮小されるので最終 GIF は軽量）。
+
 ## [0.132.0] - 2026-06-08
 ### Added
 - **Colab quickstart ノートブック**（`notebooks/quickstart.ipynb`）＋ README に「Open in Colab」badge と「▶ Try it now」リンク。インストール不要で `pip install "robotdance[demo] @ git+…"` → synth → canonical skeleton 描画 → **demo-multi（1つの動き → 6 体のヒューマノイド）** → retarget 指標を約2分でブラウザ実行。生動画/重依存（MediaPipe/MuJoCo）なしで核心の multi-embodiment retarget を体験させる zero-install な star 導線。ノートブックが CLI からドリフトしないよう軽量ガードテスト（参照サブコマンド・robot 名の実在チェック、`tests/test_quickstart_notebook.py`）を追加。

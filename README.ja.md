@@ -20,6 +20,10 @@
 
 <sub><b>1つの動画 → 3体のヒューマノイド。</b> 左: 実際の空手動画（映像に 2D 骨格を重ね）→ Unitree <b>G1 (1.29m)</b>・<b>H1 (1.66m)</b>・<b>H2 (1.76m)</b> が、1本の単眼クリップから同じ型を同期再現。同じ動き・別体格の3体＝multi-embodiment retarget。（「Shorts to humanoid」の一行説明。）出典: Sdcsabac, CC BY-SA 4.0 (Wikimedia)、生動画は非再配布（レンダリングのみ）。</sub>
 
+<img src="assets/readme/real/kathak_hero.gif" width="840" alt="実カタック舞踊の動画 → Unitree G1・H1・H2 が同じ踊りを同期再現">
+
+<sub><b>…空手だけじゃない。</b> 古典舞踊 <b>カタック</b>のクリップ → 同じ 3 体の Unitree が踊りを再現（actuator-IK 誤差 0.04〜0.12 m）。武術でも舞踊でも、単眼パイプラインは動作タイプを跨いで汎化する。出典: Suyash Dwivedi, CC BY-SA 4.0 (Wikimedia)、レンダリングのみ・生動画は非再配布。</sub>
+
 ### 🎬 色々な振付 × 3 機種
 
 <table>
