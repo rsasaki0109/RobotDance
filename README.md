@@ -13,9 +13,9 @@ English · [**日本語**](README.ja.md)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![ROS2](https://img.shields.io/badge/ROS2-Jazzy-22314E.svg)
 
-<img src="assets/readme/karate_hero.gif" width="560" alt="Real karate video with skeleton overlay on the left, Unitree G1 reproducing the same kata on the right">
+<img src="assets/readme/karate_hero.gif" width="840" alt="Real karate video with skeleton overlay, then Unitree G1, H1 and H2 reproducing the same kata in sync">
 
-<sub>A real karate video (left, 2D skeleton overlaid on the footage) → a real Unitree G1 reproduces the same kata on the right. That's "Shorts to humanoid" in one line. Source: Sdcsabac, CC BY-SA 4.0 (Wikimedia); raw video is not redistributed (renders only).</sub>
+<sub><b>One video → three humanoids.</b> A real karate video (left, 2D skeleton overlaid on the footage) → Unitree <b>G1 (1.29m)</b>, <b>H1 (1.66m)</b> and <b>H2 (1.76m)</b> all reproduce the same kata, in sync, from a single monocular clip. Same motion, three different bodies — that's the multi-embodiment retarget. ("Shorts to humanoid" in one line.) Source: Sdcsabac, CC BY-SA 4.0 (Wikimedia); raw video is not redistributed (renders only).</sub>
 
 ### 🎬 Many motions × three robots
 

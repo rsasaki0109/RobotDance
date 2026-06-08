@@ -45,6 +45,18 @@ H1_LINK_MAP = {
     "left_elbow": "left_elbow_link", "right_elbow": "right_elbow_link",
 }
 
+# canonical limb joint → Unitree H2 URDF link（H2.urdf）。H2 は ankle が roll+pitch の 2 link、
+# wrist は roll/pitch/yaw を持つ。FK ターゲットは各 limb の遠位 link（足首は pitch、手首は yaw）。
+H2_LINK_MAP = {
+    "pelvis": "pelvis",
+    "left_hip": "left_hip_pitch_link", "right_hip": "right_hip_pitch_link",
+    "left_knee": "left_knee_link", "right_knee": "right_knee_link",
+    "left_ankle": "left_ankle_pitch_link", "right_ankle": "right_ankle_pitch_link",
+    "left_shoulder": "left_shoulder_pitch_link", "right_shoulder": "right_shoulder_pitch_link",
+    "left_elbow": "left_elbow_link", "right_elbow": "right_elbow_link",
+    "left_wrist": "left_wrist_yaw_link", "right_wrist": "right_wrist_yaw_link",
+}
+
 
 # canonical 関節 → その limb に属する actuated URDF 関節名の prefix。実機は 1 canonical
 # ball joint に複数 DOF（hip=pitch/roll/yaw 等）が対応するため、その limb の全 DOF を envelope

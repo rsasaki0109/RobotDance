@@ -11,6 +11,8 @@ import numpy as np
 from robotdance_core.skeleton import NUM_JOINTS, index_of
 from robotdance_unitree.urdf_import import (
     G1_LINK_MAP,
+    H1_LINK_MAP,
+    H2_LINK_MAP,
     link_world_positions,
     parse_urdf,
     urdf_to_morphology,
@@ -98,6 +100,19 @@ def test_g1_link_map_covers_limbs() -> None:
     # 13 limb joint（pelvis + 各肢）をマップ、torso/toe は合成。
     assert len(G1_LINK_MAP) == 13
     assert "left_wrist" in G1_LINK_MAP and "right_ankle" in G1_LINK_MAP
+
+
+def test_h2_link_map_covers_core_limbs_and_targets_distal_links() -> None:
+    # H2 は手首まで持つ（G1 と同型 13 マップ）。足首/手首は遠位 link を指す。
+    core = {"pelvis", "left_hip", "right_hip", "left_knee", "right_knee",
+            "left_ankle", "right_ankle", "left_shoulder", "right_shoulder",
+            "left_elbow", "right_elbow", "left_wrist", "right_wrist"}
+    assert core <= set(H2_LINK_MAP)
+    # 足首は roll でなく pitch（遠位）、手首は yaw（遠位）を FK ターゲットにする。
+    assert H2_LINK_MAP["left_ankle"] == "left_ankle_pitch_link"
+    assert H2_LINK_MAP["right_wrist"] == "right_wrist_yaw_link"
+    # H1（肘止まり）は wrist を持たない。
+    assert "left_wrist" not in H1_LINK_MAP
 
 
 def test_urdf_import_brings_real_per_joint_limits(tmp_path: Path) -> None:

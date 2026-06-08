@@ -85,7 +85,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("video", type=Path, help="ライセンスがクリアな short 動画（ローカル, 非同梱）")
     ap.add_argument("urdf", type=Path, help="実 Unitree URDF（メッシュ付き, ローカル取得）")
-    ap.add_argument("--robot", choices=["g1", "h1"], default="g1")
+    ap.add_argument("--robot", choices=["g1", "h1", "h2"], default="g1")
     ap.add_argument("-o", "--out", type=Path, default=Path("assets/readme/real_video"),
                     help="出力 prefix（_skeleton.gif / _robot.gif〔/ --overlay 時 _overlay.gif〕を付与）")
     ap.add_argument("--caption", default=None, help="スケルトン GIF に重ねる説明")
@@ -102,7 +102,7 @@ def main() -> None:
 
     from robotdance_perception.mediapipe_adapter import extract_motion
     from robotdance_retarget.actuator_ik import actuator_retarget
-    from robotdance_unitree.urdf_import import G1_LINK_MAP, H1_LINK_MAP
+    from robotdance_unitree.urdf_import import G1_LINK_MAP, H1_LINK_MAP, H2_LINK_MAP
     from robotdance_viewer.skeleton_view import render_gif
 
     # 1. 実動画 → canonical RD-MIR（MediaPipe Pose, smoothing 込み）。
@@ -128,9 +128,10 @@ def main() -> None:
         print(f"✓ overlay  → {ov_out} ({ov_out.stat().st_size // 1024} KB)")
 
     # 3. actuator-IK で実 Unitree の関節角へ → 実メッシュ render。
-    link_map = H1_LINK_MAP if args.robot == "h1" else G1_LINK_MAP
+    link_map = {"h1": H1_LINK_MAP, "h2": H2_LINK_MAP}.get(args.robot, G1_LINK_MAP)
     robot_name = f"unitree_{args.robot}"
-    base_z = args.base_z if args.base_z is not None else (1.04 if args.robot == "h1" else 0.793)
+    default_base_z = {"h1": 1.04, "h2": 1.10}.get(args.robot, 0.793)
+    base_z = args.base_z if args.base_z is not None else default_base_z
     motion = actuator_retarget(mir, str(args.urdf), steps=250,
                                link_map=link_map, robot_name=robot_name)
     angles = np.asarray(motion.joint_rotations["angles_rad"])

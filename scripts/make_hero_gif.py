@@ -38,22 +38,28 @@ def _panel(img: np.ndarray, label: str, color, height: int, banner: int) -> np.n
     return np.vstack([bar, resized])
 
 
-def make_hero(left_gif: Path, left_label: str, right_gif: Path, right_label: str,
-              out: Path, *, height: int = 300, gap: int = 10, colors: int = 48,
-              banner: int = 24, duration: float = 0.1) -> Path:
-    """2 本の GIF を横並び結合して out に書き出す。書き出した Path を返す。"""
+def make_hero(panels: list[tuple[Path, str]], out: Path, *, height: int = 300, gap: int = 10,
+              colors: int = 48, banner: int = 24, duration: float = 0.1) -> Path:
+    """N 本の GIF を横並び結合して out に書き出す。書き出した Path を返す。
+
+    panels: (gif_path, label) の列。先頭パネル（実動画 overlay 想定）は左色、残りはロボット色。
+    全 GIF は同一 extract・同一 stride 想定（フレーム数は最短に揃える）。
+    """
     import imageio.v2 as imageio
     from PIL import Image
 
-    left = imageio.mimread(str(left_gif))
-    right = imageio.mimread(str(right_gif))
-    n = min(len(left), len(right))
+    seqs = [imageio.mimread(str(g)) for g, _ in panels]
+    n = min(len(s) for s in seqs)
     frames = []
     for i in range(n):
-        lp = _panel(left[i], left_label, _LEFT_COLOR, height, banner)
-        rp = _panel(right[i], right_label, _RIGHT_COLOR, height, banner)
-        col = np.full((lp.shape[0], gap, 3), 255, np.uint8)
-        frames.append(np.hstack([lp, col, rp]))
+        cells = []
+        for j, ((_, label), seq) in enumerate(zip(panels, seqs)):
+            color = _LEFT_COLOR if j == 0 else _RIGHT_COLOR
+            cell = _panel(seq[i], label, color, height, banner)
+            if cells:
+                cells.append(np.full((cell.shape[0], gap, 3), 255, np.uint8))  # 区切り
+            cells.append(cell)
+        frames.append(np.hstack(cells))
     ims = [Image.fromarray(f).convert("P", palette=Image.ADAPTIVE, colors=colors) for f in frames]
     out.parent.mkdir(parents=True, exist_ok=True)
     ims[0].save(out, save_all=True, append_images=ims[1:],
@@ -62,18 +68,17 @@ def make_hero(left_gif: Path, left_label: str, right_gif: Path, right_label: str
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("left_gif", type=Path)
-    ap.add_argument("left_label")
-    ap.add_argument("right_gif", type=Path)
-    ap.add_argument("right_label")
+    ap = argparse.ArgumentParser(
+        description="N 本の GIF を横並び結合して hero GIF を作る。--panel GIF LABEL を複数指定。")
+    ap.add_argument("--panel", nargs=2, action="append", metavar=("GIF", "LABEL"),
+                    required=True, help="パネルの (GIF, ラベル)。先頭が左（実動画）。複数指定可。")
     ap.add_argument("-o", "--out", type=Path, default=Path("assets/readme/karate_hero.gif"))
     ap.add_argument("--height", type=int, default=300)
     ap.add_argument("--colors", type=int, default=48)
     args = ap.parse_args()
 
-    out = make_hero(args.left_gif, args.left_label, args.right_gif, args.right_label,
-                    args.out, height=args.height, colors=args.colors)
+    panels = [(Path(g), label) for g, label in args.panel]
+    out = make_hero(panels, args.out, height=args.height, colors=args.colors)
     print(f"✓ hero GIF → {out} ({out.stat().st_size // 1024} KB)")
 
 

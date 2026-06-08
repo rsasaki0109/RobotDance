@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.131.0] - 2026-06-08
+### Changed
+- **README ヒーローを multi-embodiment 化**: 「1つの空手動画 → Unitree G1 (1.29m) / H1 (1.66m) / H2 (1.76m) が同じ型を**同期再現**」の 4 パネル GIF に刷新（実動画 overlay + 3 ロボット mesh、全て同一クリップ・同一 extract・同一 stride）。同じ動き・別体格の 3 体で multi-embodiment retarget を一目で伝える。
+### Added
+- `H2_LINK_MAP`（`robotdance_unitree.urdf_import`）: canonical 関節 → Unitree H2 URDF link（足首=遠位 pitch、手首=遠位 yaw）。`render_real_video_gif.py --robot h2` で実 H2 mesh の動画再現が可能に（karate kata で actuator-IK 誤差 0.062 m）。
+- `make_hero_gif.py` を **N パネル汎用化**（`--panel GIF LABEL` を複数指定）。先頭=左（実動画）、残り=ロボット色。`make_hero(panels, out, ...)` シグネチャ。
+
 ## [0.130.1] - 2026-06-08
 ### Fixed
 - `balance_depth_refine`: せん断 `x'=x+k·z` が**絶対 z** を使っていたため、接地正規化されていない入力（`--ground-clean` 未適用や床が z=0 でない生抽出）で接地足が x に引きずられ、支持多角形が動いて COM-gap 計算が汚染されていた（床+1.0m で足の x 移動が接地時の約9倍）。**床上高さ `z−floor`**（per-frame 最下足）でせん断するよう修正し、床オフセットに不変化。接地足の z 接触高さ算出は `grounding._foot_floor_z` に集約（重複解消）。contacts の per-frame array 変換を事前に一度だけに（O(T²)→O(T)）。回帰テスト追加（コードレビューで検出）。
