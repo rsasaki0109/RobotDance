@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "robotdance"
-version = "0.138.0"
+version = "0.152.0"
 description = "Human Video to Humanoid Motion Compiler — converts legally available human videos into humanoid motion datasets, embeddings, policies, and robot-executable motions."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -76,10 +76,13 @@ dev = [
 robotdance = "robotdance_core.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/rsasaki0109/RobotDance"
-Specifications = "https://github.com/rsasaki0109/RobotDance/tree/main/specs"
+Homepage = "https://github.com/rsasaki0109/HumanoidBattle"
+Specifications = "https://github.com/rsasaki0109/HumanoidBattle/tree/main/specs"
 
 # monorepo: 各 robotdance_* を namespace なしのトップレベルパッケージとして配置
+[tool.hatch.build.targets.wheel.force-include]
+"robotdance_benchmarks/data" = "robotdance_benchmarks/data"
+
 [tool.hatch.build.targets.wheel]
 packages = [
     "robotdance_core",

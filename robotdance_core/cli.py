@@ -707,6 +707,52 @@ def _benchmark(robots: list[str], motions_dir: Path | None, with_sim: bool, out_
     return 0
 
 
+def _benchmark_assisted(
+    robots: list[str],
+    styles: list[str],
+    duration: float,
+    compare_refine: bool,
+    out_dir: Path,
+    with_rl: bool = False,
+    rl_iterations: int = 20,
+    rl_all: bool = False,
+) -> int:
+    from robotdance_benchmarks.assisted_survival import (
+        render_assisted_survival_markdown,
+        run_assisted_survival_benchmark,
+        write_assisted_survival_csv,
+    )
+
+    report = run_assisted_survival_benchmark(
+        robots, styles, duration=duration, compare_refine=compare_refine,
+        with_rl=with_rl, rl_iterations=rl_iterations, rl_only_failures=not rl_all,
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = write_assisted_survival_csv(report, out_dir / "assisted_survival.csv")
+    md_path = out_dir / "ASSISTED_SURVIVAL.md"
+    md_path.write_text(render_assisted_survival_markdown(report), encoding="utf-8")
+    n_pd = sum(1 for r in report["rows"] if r.get("controller", "pd") == "pd")
+    n_rl = sum(1 for r in report["rows"] if r.get("controller") == "rl")
+    print(f"✓ assisted survival benchmark: {n_pd} PD + {n_rl} RL runs")
+    print(f"  {csv_path}\n  {md_path}")
+    if report["compare_refine"]:
+        for r in report["rescued"]:
+            print(f"  rescued (refine): {r['robot']:12s} {r['style']:8s} "
+                  f"{r['raw_survival']:.3f} → {r['ref_survival']:.3f}")
+        for r in report["regressed"]:
+            print(f"  regressed (refine): {r['robot']:12s} {r['style']:8s} "
+                  f"{r['raw_survival']:.3f} → {r['ref_survival']:.3f}")
+    for r in report.get("rescued_by_rl", []):
+        tag = "refine" if r["depth_refine"] else "raw"
+        print(f"  rescued (RL/{tag}): {r['robot']:12s} {r['style']:8s} "
+              f"PD {r['pd_survival']:.3f} → RL {r['rl_survival']:.3f}")
+    for r in report.get("rescued_by_rl_only", []):
+        print(f"  rescued (RL-only): {r['robot']:12s} {r['style']:8s} "
+              f"PD raw {r['pd_survival']:.3f} → RL {r['rl_survival']:.3f}")
+    print("  ⚠️ v0: PD-only / 単参照 PPO。真の 2 体接触スパーリングは未対応。")
+    return 0
+
+
 def _retarget_ik(path: Path, urdf: Path, out: Path, steps: int,
                  conf_gate: float | None = None) -> int:
     from .rd_mir import RdMir
@@ -1022,7 +1068,9 @@ def _demo_denoise(out: Path, denoiser_ckpt: Path | None, epochs: int, stride: in
 
 
 def _train_tracking(out: Path, robot: str, iterations: int, device: str | None,
-                    suite: bool, real_inertia: bool = False) -> int:
+                    suite: str | None, real_inertia: bool = False,
+                    style: str | None = None, depth_refine: bool = False,
+                    duration: float = 3.0) -> int:
     """RL tracking policy（§4.5）を学習する。--suite で複数運動を 1 方策に汎化。
 
     real_inertia: 実 URDF 慣性テンソルで学習する（既定 capsule）。v0.37 では実慣性で PPO が崩壊
@@ -1034,18 +1082,21 @@ def _train_tracking(out: Path, robot: str, iterations: int, device: str | None,
         train_tracking_policy,
     )
     from robotdance_retarget.kinematic import retarget
+    from robotdance_sim.fight_tracking import fight_tracking_reference, fight_tracking_suite
     from robotdance_unitree import get_morphology
 
     morph = get_morphology(robot, real_inertia=real_inertia)
     if real_inertia:
         print("  慣性: 実 URDF テンソル（real_inertia）")
     if suite:
-        items = _tracking_suite(morph)
+        items = (fight_tracking_suite(morph, depth_refine=depth_refine, duration=duration)
+                 if suite == "fight" else _tracking_suite(morph))
         refs = [r for _, r in items]
         policy, info = train_multi_tracking_policy(refs, morph, iterations=iterations,
                                                    device=device, out_path=out)
         rh = info["return_history"]
-        print(f"✓ multi-motion RL tracking policy 学習完了: {out}")
+        label = "fight" if suite == "fight" else "dance"
+        print(f"✓ multi-motion RL tracking policy 学習完了 ({label} suite): {out}")
         print(f"  robot={robot} device={info['device']} iterations={iterations} "
               f"refs={info['num_references']} obs={info['obs_dim']} act={info['action_dim']}（base 非駆動）")
         print(f"  episode return: {rh[0]:.2f} → {rh[-1]:.2f}（PPO, round-robin）")
@@ -1056,13 +1107,20 @@ def _train_tracking(out: Path, robot: str, iterations: int, device: str | None,
         print("  ⚠️ v0 baseline: 1 方策が運動に応じ追従。PD 超え精度・摂動/実機転移は今後。")
         return 0
 
-    ref = retarget(generate_dance(duration=2.0, arm_amp=0.6, sway_amp=0.08), morph)
+    if style is not None:
+        ref = fight_tracking_reference(
+            robot, style, depth_refine=depth_refine, duration=duration, morphology=morph,
+        )
+        ref_label = f"fight:{style}"
+    else:
+        ref = retarget(generate_dance(duration=2.0, arm_amp=0.6, sway_amp=0.08), morph)
+        ref_label = "dance"
     policy, info = train_tracking_policy(ref, morph, iterations=iterations,
                                          device=device, out_path=out)
     rh = info["return_history"]
     m = policy.rollout()[1]
     print(f"✓ RL tracking policy 学習完了: {out}")
-    print(f"  robot={robot} device={info['device']} iterations={iterations} "
+    print(f"  robot={robot} ref={ref_label} device={info['device']} iterations={iterations} "
           f"obs={info['obs_dim']} act={info['action_dim']}（base 非駆動）")
     print(f"  episode return: {rh[0]:.2f} → {rh[-1]:.2f}（PPO）")
     print(f"  rollout: 生存 {m['survived_frames']}/{m['reference_frames']} frames "
@@ -1071,17 +1129,32 @@ def _train_tracking(out: Path, robot: str, iterations: int, device: str | None,
     return 0
 
 
-def _demo_track(out: Path, robot: str, iterations: int, stride: int) -> int:
+def _demo_track(out: Path, robot: str, iterations: int, stride: int,
+                style: str | None = None, depth_refine: bool = False,
+                duration: float = 3.0) -> int:
     """参照運動を RL policy で物理追従し、参照 vs 追従を side-by-side 描画する（§4.5）。"""
     from robotdance_core.synthetic import generate_dance
     from robotdance_models.tracking_policy import train_tracking_policy
     from robotdance_retarget.kinematic import retarget
+    from robotdance_sim.fight_tracking import fight_tracking_reference
     from robotdance_unitree import get_morphology
     from robotdance_viewer.skeleton_view import render_side_by_side
 
     morph = get_morphology(robot)
-    ref = retarget(generate_dance(duration=2.0, arm_amp=0.6, sway_amp=0.08), morph)
-    print(f"🤸 RL tracking policy を学習中（{robot}, PPO {iterations} iters, base 非駆動）...")
+    if style is not None:
+        ref = fight_tracking_reference(
+            robot, style, depth_refine=depth_refine, duration=duration, morphology=morph,
+        )
+        ref_label = f"fight:{style}"
+    else:
+        ref = retarget(generate_dance(duration=2.0, arm_amp=0.6, sway_amp=0.08), morph)
+        ref_label = "dance"
+    notes = []
+    if depth_refine:
+        notes.append("depth-refine")
+    note = f" ({', '.join(notes)})" if notes else ""
+    print(f"🤸 RL tracking policy を学習中（{robot}, ref={ref_label}{note}, "
+          f"PPO {iterations} iters, base 非駆動）...")
     policy, info = train_tracking_policy(ref, morph, iterations=iterations)
     motion, m = policy.rollout()
     print(f"  episode return: {info['return_history'][0]:.2f} → {info['return_history'][-1]:.2f}")
@@ -1187,30 +1260,35 @@ def _tracking_suite(morph):  # noqa: ANN001, ANN201
     return [(name, retarget(generate_dance(duration=2.0, **kw), morph)) for name, kw in specs]
 
 
-def _demo_track_multi(out: Path, robot: str, iterations: int, stride: int) -> int:
+def _demo_track_multi(out: Path, robot: str, iterations: int, stride: int,
+                      suite: str = "dance", depth_refine: bool = False,
+                      duration: float = 3.0) -> int:
     """1 つの方策で参照スイート（4 運動）を物理追従し、横並び描画する（§4.5 汎化）。"""
     from robotdance_models.tracking_policy import train_multi_tracking_policy
+    from robotdance_sim.fight_tracking import fight_tracking_suite
     from robotdance_unitree import get_morphology
     from robotdance_viewer.skeleton_view import render_side_by_side
 
     morph = get_morphology(robot)
-    suite = _tracking_suite(morph)
-    refs = [r for _, r in suite]
-    print(f"🤹 1 つの RL 方策で {len(suite)} 運動スイートを追従学習中"
+    suite_items = (fight_tracking_suite(morph, depth_refine=depth_refine, duration=duration)
+                   if suite == "fight" else _tracking_suite(morph))
+    refs = [r for _, r in suite_items]
+    label = "fight" if suite == "fight" else "dance"
+    print(f"🤹 1 つの RL 方策で {len(suite_items)} {label} スイートを追従学習中"
           f"（{robot}, PPO {iterations} iters, round-robin）...")
     policy, info = train_multi_tracking_policy(refs, morph, iterations=iterations)
     print(f"  episode return: {info['return_history'][0]:.2f} → {info['return_history'][-1]:.2f}")
 
     colors = ["#1f77b4", "#2ca02c", "#d62728", "#9467bd"]
     panels, verdicts = [], []
-    for i, (name, _ref) in enumerate(suite):
+    for i, (name, _ref) in enumerate(suite_items):
         motion, m = policy.rollout(i)
         print(f"  {name:7s}: 生存 {m['survived_frames']}/{m['reference_frames']} "
               f"(survival {m['survival_ratio']:.0%}) / pose RMSE {m['mean_pose_rmse']:.3f}")
         panels.append((motion.keypoints_3d_array(), name, colors[i % len(colors)]))
         verdicts.append((f"{name} {m['survival_ratio']:.0%}", colors[i % len(colors)]))
     render_side_by_side(panels, out, stride=stride, verdicts=verdicts)
-    print(f"✓ multi-motion tracking デモ GIF: {out}")
+    print(f"✓ multi-motion tracking デモ GIF ({label}): {out}")
     print("  ⚠️ v0 baseline: 1 方策が運動に応じ追従（reference-conditioned）。"
           "短い feasible クリップでは PD でも概ねバランスするため PD 超えは主張しない。")
     return 0
@@ -1544,17 +1622,104 @@ def _demo_battle(p1: str, p2: str, out: Path, stride: int, sim: bool) -> int:
 
 
 def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int,
-                     sim: bool) -> int:
-    """🏆 HumanoidBattle トーナメント: 単欠ブラケットで全機種を best-of-N 対戦→チャンピオン描画。"""
+                     sim: bool, *, physical: bool = False, duration: float = 4.0,
+                     separation: float = 0.17, mesh: bool = False,
+                     urdf_a: Path | None = None, urdf_b: Path | None = None,
+                     record: bool = False, leaderboard: Path | None = None,
+                     assisted: str | None = None, assisted_rl: bool = False,
+                     rl_iterations: int = 20, depth_refine: bool = False) -> int:
+    """🏆 HumanoidBattle トーナメント: 単欠ブラケット→チャンピオン（型採点 or 物理 fight）。"""
+    labels = ["準々決勝", "準決勝", "決勝"]
+
+    if physical:
+        from robotdance_benchmarks.fight_tournament import FIGHT_STYLES, run_fight_tournament
+        from robotdance_sim.arena import run_fight
+        from robotdance_unitree import get_morphology
+
+        bad = [m for m in moves if m not in FIGHT_STYLES]
+        if bad:
+            print(f"⚠️ --physical では style は {sorted(FIGHT_STYLES)} のみ（未知: {bad}）")
+            return 1
+        t = run_fight_tournament(
+            robots, moves, duration=duration, separation=separation, mesh=mesh,
+            urdf_a=str(urdf_a) if urdf_a else None,
+            urdf_b=str(urdf_b) if urdf_b else None,
+        )
+        mode = "🥊 Physical Fight"
+        print(f"{mode} Tournament  ({len(robots)} fighters × styles {','.join(moves)})")
+        for ri, rnd in enumerate(t.bracket):
+            name = labels[ri] if ri < len(labels) else f"Round {ri + 1}"
+            if ri == len(t.bracket) - 1:
+                name = "決勝 (FINAL)"
+            print(f"  ── {name} ──")
+            for m in rnd:
+                rs = " ".join(f"{r.style}:{r.p1_hits}-{r.p2_hits}" for r in m.rounds)
+                print(f"    {m.p1} vs {m.p2}  →  {m.winner}  "
+                      f"({m.p1_rounds}-{m.p2_rounds} rd, "
+                      f"{m.p1_total_hits}-{m.p2_total_hits} hits) [{rs}]")
+        if t.byes:
+            print(f"  (bye: {', '.join(t.byes)})")
+        print(f"  🏆 FIGHTING CHAMPION: {t.champion}")
+        if record:
+            from robotdance_benchmarks.battle_leaderboard import (
+                DEFAULT_MD_PATH,
+                record_and_write_fight_tournament,
+            )
+
+            lb_path = leaderboard or DEFAULT_MD_PATH
+            lb = record_and_write_fight_tournament(t, moves, md_path=lb_path)
+            print(f"  📊 leaderboard → {lb}")
+
+        f = t.final
+        import imageio.v2 as imageio
+
+        if assisted_rl and not assisted:
+            print("✗ --rl は --assisted と併用してください")
+            return 1
+
+        from robotdance_benchmarks.fight_tournament import resolve_assisted_corner
+
+        assisted_corner = resolve_assisted_corner(
+            assisted, champion=t.champion, p1=f.p1, p2=f.p2,
+        )
+        fin = run_fight(
+            get_morphology(f.p1), get_morphology(f.p2),
+            name_a=f.p1, name_b=f.p2, duration=duration, separation=separation,
+            style=f.hi_style, mesh=mesh,
+            urdf_a=str(urdf_a) if urdf_a else None,
+            urdf_b=str(urdf_b) if urdf_b else None,
+            depth_refine=depth_refine,
+            assisted=assisted_corner,
+            assisted_mode="rl" if assisted_rl else "pd",
+            rl_iterations=rl_iterations,
+        )
+        frames = _fight_hud(fin)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        imageio.mimsave(out, frames[::2], duration=2.0 / fin.fps, loop=0)
+        notes = []
+        if assisted:
+            corner = f.p1 if assisted_corner == "p1" else f.p2
+            if assisted == "champion":
+                notes.append(f"champion={t.champion}")
+            mode = (fin.assisted_mode or "pd").upper()
+            surv = f"{fin.assisted_survival:.0%}" if fin.assisted_survival is not None else "?"
+            notes.append(f"final={corner}({mode} {surv})")
+        if depth_refine:
+            notes.append("depth-refine")
+        note = f" ({', '.join(notes)})" if notes else ""
+        print(f"✓ fight tournament FINAL GIF{note} → {out} ({out.stat().st_size // 1024} KB)")
+        if assisted:
+            print("  ⚠️ ブラケット試合は kinematic。決勝 GIF のみ assisted 物理追従。")
+        return 0
+
     from robotdance_benchmarks.battle import run_tournament
     from robotdance_viewer.skeleton_view import render_side_by_side
 
     t = run_tournament(robots, moves, sim=sim)
-    labels = ["準々決勝", "準決勝", "決勝"] if len(t.bracket) == 3 else \
-        [f"Round {i + 1}" for i in range(len(t.bracket))]
+    label_list = labels if len(t.bracket) == 3 else [f"Round {i + 1}" for i in range(len(t.bracket))]
     print(f"⚔️  HumanoidBattle Tournament  ({len(robots)} fighters × moves {','.join(moves)})")
     for ri, rnd in enumerate(t.bracket):
-        name = labels[ri] if ri < len(labels) else f"Round {ri + 1}"
+        name = label_list[ri] if ri < len(label_list) else f"Round {ri + 1}"
         if ri == len(t.bracket) - 1:
             name = "決勝 (FINAL)"
         print(f"  ── {name} ──")
@@ -1565,8 +1730,23 @@ def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int
     if t.byes:
         print(f"  (bye: {', '.join(t.byes)})")
     print(f"  🏆 CHAMPION: {t.champion}")
+    if record:
+        from robotdance_benchmarks.battle_leaderboard import (
+            DEFAULT_MD_PATH,
+            record_kinematic_champion,
+            state_path_for,
+            write_leaderboard,
+        )
 
-    # 決勝のハイライトラウンドを描画（チャンピオンを左に、相手を反転で対面）。
+        f = t.final
+        finalist = f.p2 if t.champion == f.p1 else f.p1
+        lb_path = leaderboard or DEFAULT_MD_PATH
+        state = record_kinematic_champion(
+            t.champion, moves, finalist, state_path=state_path_for(lb_path),
+        )
+        lb = write_leaderboard(state, lb_path)
+        print(f"  📊 hall of champions → {lb}")
+
     f = t.final
     champ_left = f.winner == f.p1 or f.winner == "DRAW"
     lk = f.p1_kps if champ_left else f.p2_kps
@@ -1585,22 +1765,83 @@ def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int
     return 0
 
 
-def _demo_fight(robot_a: str, robot_b: str, out: Path, duration: float, sep: float) -> int:
-    """🥊 2 体を MuJoCo シーンで実際にボクシングさせ、ヒットを採点した GIF を書き出す。"""
+def _demo_fight(robot_a: str, robot_b: str, out: Path, duration: float, sep: float,
+                style: str, mesh: bool, urdf_a: Path | None, urdf_b: Path | None,
+                depth_refine: bool = False, assisted: str | None = None,
+                assisted_rl: bool = False, rl_iterations: int = 20) -> int:
+    """🥊 2 体を MuJoCo シーンで対面させ、ヒットを採点した GIF を書き出す。"""
     import imageio.v2 as imageio
 
     from robotdance_sim.arena import run_fight
     from robotdance_unitree import get_morphology
 
+    if assisted_rl and not assisted:
+        print("✗ --rl は --assisted と併用してください")
+        return 1
+
     res = run_fight(get_morphology(robot_a), get_morphology(robot_b),
-                    name_a=robot_a, name_b=robot_b, duration=duration, separation=sep)
+                    name_a=robot_a, name_b=robot_b, duration=duration, separation=sep,
+                    style=style, mesh=mesh,
+                    urdf_a=str(urdf_a) if urdf_a else None,
+                    urdf_b=str(urdf_b) if urdf_b else None,
+                    depth_refine=depth_refine, assisted=assisted,
+                    assisted_mode="rl" if assisted_rl else "pd",
+                    rl_iterations=rl_iterations)
     frames = _fight_hud(res)
     out.parent.mkdir(parents=True, exist_ok=True)
     imageio.mimsave(out, frames[::2], duration=2.0 / res.fps, loop=0)
-    print(f"🥊 HumanoidBattle FIGHT: {robot_a} (RED) vs {robot_b} (BLUE)")
+    notes = []
+    if style != "boxing":
+        notes.append(f"style={style}")
+    if mesh:
+        notes.append("mesh=URDF")
+    if depth_refine:
+        notes.append("depth-refine")
+    if assisted:
+        corner = robot_a if assisted == "p1" else robot_b
+        surv = f"{res.assisted_survival:.0%}" if res.assisted_survival is not None else "?"
+        mode = (res.assisted_mode or "pd").upper()
+        notes.append(f"assisted={corner}({mode} {surv})")
+    note = f"  ({', '.join(notes)})" if notes else ""
+    print(f"🥊 HumanoidBattle FIGHT: {robot_a} (RED) vs {robot_b} (BLUE){note}")
     print(f"   ヒット {robot_a}={res.p1_hits}  {robot_b}={res.p2_hits}  "
           f"→ {'引き分け' if res.winner == 'DRAW' else 'WINNER: ' + res.winner}")
+    if assisted:
+        mode = res.assisted_mode or "pd"
+        print(f"  ⚠️ assisted: 1 体のみ {mode.upper()} 物理追従。相手は kinematic。接触反動なし。")
     print(f"✓ fight GIF → {out} ({out.stat().st_size // 1024} KB)")
+    return 0
+
+
+def _demo_assisted(out: Path, robot: str, style: str, duration: float, stride: int,
+                   depth_refine: bool) -> int:
+    """単体ロボットで参照 motion を PD-only 物理追従（assisted balance）し side-by-side 描画。"""
+    from robotdance_sim.assisted_playback import rollout_pd_only
+    from robotdance_sim.fight_tracking import fight_tracking_reference
+    from robotdance_unitree import get_morphology
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    morph = get_morphology(robot)
+    ref = fight_tracking_reference(
+        robot, style, depth_refine=depth_refine, duration=duration, morphology=morph,
+    )
+    print(f"🦾 assisted PD-only playback（{robot}, style={style}, 残差ゼロ）...")
+    result = rollout_pd_only(ref, morph)
+    print(f"  物理ロールアウト: 生存 {result.survived_frames}/{result.total_frames} "
+          f"(survival {result.survival_ratio:.0%}) / pose RMSE {result.mean_pose_rmse:.3f}")
+    ref_kp = ref.keypoints_3d_array()
+    n = min(len(ref_kp), len(result.keypoints))
+    panels = [
+        (ref_kp[:n], "reference (kinematic)", "#1f77b4"),
+        (result.keypoints[:n], "assisted PD (physics)", "#d62728"),
+    ]
+    render_side_by_side(
+        panels, out, stride=stride,
+        verdicts=[("kinematic", "#1f77b4"),
+                  (f"survival {result.survival_ratio:.0%}", "#d62728")],
+    )
+    print(f"✓ assisted playback GIF: {out}")
+    print("  ⚠️ v0.144: PD-only（RL なし）。倒れずに追従する足場；真の 2 体接触スパーリングは未対応。")
     return 0
 
 
@@ -1694,10 +1935,32 @@ def main(argv: list[str] | None = None) -> int:
                         default=["unitree_g1", "unitree_h1", "unitree_h2",
                                  "booster_t1", "apptronik_apollo", "fourier_n1"])
     p_tour.add_argument("--moves", nargs="+", default=["kata", "squat", "backflip"],
-                        help="各マッチの best-of-N 技（kata/march/squat/backflip/bow）")
+                        help="各マッチの best-of-N 技（型: kata/… / --physical: boxing/hook/kick/dodge/karate/kathak）")
     p_tour.add_argument("-o", "--out", type=Path, default=Path("tournament_final.gif"))
     p_tour.add_argument("--stride", type=int, default=2)
     p_tour.add_argument("--sim", action="store_true", help="物理 sim も採点に含める（重い）")
+    p_tour.add_argument("--physical", action="store_true",
+                        help="各試合を demo-fight のヒット採点で決定")
+    p_tour.add_argument("--duration", type=float, default=4.0, help="--physical 時の bout 長さ[s]")
+    p_tour.add_argument("--separation", type=float, default=0.17,
+                        help="--physical 時の間合い[m]（半距離）")
+    p_tour.add_argument("--mesh", action="store_true",
+                        help="--physical 決勝 GIF を実 URDF メッシュで描画（G1/H1/H2 URDF 要）")
+    p_tour.add_argument("--urdf-a", type=Path, default=None, help="--physical --mesh 時の URDF（自動解決可）")
+    p_tour.add_argument("--urdf-b", type=Path, default=None, help="--physical --mesh 時の URDF（自動解決可）")
+    p_tour.add_argument("--record", action="store_true",
+                        help="結果を HumanoidBattle leaderboard に永続化（ELO + Hall of Champions）")
+    p_tour.add_argument("--leaderboard", type=Path, default=None,
+                        help="leaderboard Markdown 出力先（既定: docs/benchmark/HUMANOID_BATTLE_LEADERBOARD.md）")
+    p_tour.add_argument("--depth-refine", action="store_true",
+                        help="--physical 決勝 GIF の retarget 前に depth refine")
+    p_tour.add_argument("--assisted", nargs="?", const="champion",
+                        choices=["p1", "p2", "champion"],
+                        help="--physical 決勝 GIF の物理追従（省略時 champion、ブラケットは kinematic）")
+    p_tour.add_argument("--rl", action="store_true",
+                        help="--physical --assisted 決勝を PPO tracking で描画")
+    p_tour.add_argument("--rl-iterations", type=int, default=20,
+                        help="--physical --assisted --rl 時の PPO 学習量")
 
     p_fight = sub.add_parser(
         "demo-fight",
@@ -1705,8 +1968,37 @@ def main(argv: list[str] | None = None) -> int:
     p_fight.add_argument("--p1", default="unitree_g1", help="赤コーナー robot")
     p_fight.add_argument("--p2", default="unitree_h1", help="青コーナー robot")
     p_fight.add_argument("-o", "--out", type=Path, default=Path("fight.gif"))
-    p_fight.add_argument("--duration", type=float, default=4.0)
+    from robotdance_sim.fight_moves import FIGHT_STYLE_NAMES
+    p_fight.add_argument("--style", default="boxing", choices=sorted(FIGHT_STYLE_NAMES),
+                         help="fight style: boxing/hook/kick/dodge または karate/kathak（実動画）")
+    p_fight.add_argument("--mesh", action="store_true",
+                         help="実 Unitree URDF メッシュで描画（pybullet+torch, G1/H1/H2 URDF 要）")
+    p_fight.add_argument("--urdf-a", type=Path, default=None, help="赤コーナーの URDF（--mesh 時、省略で自動解決）")
+    p_fight.add_argument("--urdf-b", type=Path, default=None, help="青コーナーの URDF（--mesh 時、省略で自動解決）")
+    p_fight.add_argument("--duration", type=float, default=4.0,
+                         help="boxing 時の長さ[s]（karate/kathak はフィクスチャ長を使用）")
     p_fight.add_argument("--separation", type=float, default=0.17, help="両者の間合い[m]（半距離）")
+    p_fight.add_argument("--depth-refine", action="store_true",
+                         help="retarget 前に depth stabilize + balance refine（実動画技向け）")
+    p_fight.add_argument("--assisted", nargs="?", const="p1", choices=["p1", "p2"],
+                         help="指定コーナーを物理追従（省略時 p1=赤）。相手は kinematic")
+    p_fight.add_argument("--rl", action="store_true",
+                         help="--assisted 時に PPO tracking（省略時 PD-only）")
+    p_fight.add_argument("--rl-iterations", type=int, default=20,
+                         help="--assisted --rl 時の PPO 学習イテレーション数")
+
+    p_assist = sub.add_parser(
+        "demo-assisted",
+        help="単体ロボットで fight motion を PD-only 物理追従（assisted balance）し side-by-side 描画",
+    )
+    p_assist.add_argument("-o", "--out", type=Path, default=Path("assisted.gif"))
+    p_assist.add_argument("--robot", default="unitree_g1")
+    p_assist.add_argument("--style", default="boxing", choices=sorted(FIGHT_STYLE_NAMES))
+    p_assist.add_argument("--duration", type=float, default=3.5,
+                          help="boxing/hook/kick/dodge の長さ[s]（karate/kathak はフィクスチャ長）")
+    p_assist.add_argument("--stride", type=int, default=2)
+    p_assist.add_argument("--depth-refine", action="store_true",
+                          help="retarget 前に depth stabilize + balance refine")
 
     p_serve = sub.add_parser("serve", help=".rdmotion を safety guard 越しに再生（--ros2 で ROS2 配信）")
     p_serve.add_argument("rdmotion", type=Path, help="certified .rdmotion JSON")
@@ -1727,6 +2019,27 @@ def main(argv: list[str] | None = None) -> int:
     p_bench.add_argument("--chart", action="store_true",
                          help="feasibility 散布図（torque× vs balance）PNG も出力（要 sim）")
     p_bench.add_argument("-o", "--out", type=Path, default=Path("benchmark_out"))
+
+    p_abench = sub.add_parser(
+        "benchmark-assisted",
+        help="fight motion × robot の PD/RL assisted survival を raw/refine 比較（要 sim+torch）",
+    )
+    p_abench.add_argument("--robots", nargs="+",
+                          default=["unitree_g1", "unitree_h1", "unitree_h2", "booster_t1",
+                                   "apptronik_apollo", "fourier_n1"])
+    from robotdance_sim.fight_moves import FIGHT_STYLE_NAMES
+    p_abench.add_argument("--styles", nargs="+", default=sorted(FIGHT_STYLE_NAMES))
+    p_abench.add_argument("--duration", type=float, default=3.0,
+                          help="合成 fight 技の長さ[s]（karate/kathak はフィクスチャ長）")
+    p_abench.add_argument("--no-compare", action="store_true",
+                          help="depth-refine なしの 1 パスだけ実行")
+    p_abench.add_argument("--rl", action="store_true",
+                          help="PD が失敗した組に PPO tracking を追加評価")
+    p_abench.add_argument("--rl-all", action="store_true",
+                          help="--rl 時に PD 失敗に限らず全組で RL も実行")
+    p_abench.add_argument("--rl-iterations", type=int, default=20,
+                          help="--rl 時の PPO 学習イテレーション数")
+    p_abench.add_argument("-o", "--out", type=Path, default=Path("docs/benchmark"))
 
     p_mmap = sub.add_parser("demo-motion-map", help="合成モーションを埋め込み Motion Map を描く")
     p_mmap.add_argument("-o", "--out", type=Path, default=Path("motion_map.png"))
@@ -2019,7 +2332,15 @@ def main(argv: list[str] | None = None) -> int:
     p_trk.add_argument("-o", "--out", type=Path, default=Path("tracking_policy.pt"))
     p_trk.add_argument("--robot", default="unitree_g1")
     p_trk.add_argument("--iterations", type=int, default=40)
-    p_trk.add_argument("--suite", action="store_true", help="複数運動を 1 方策に汎化（multi-motion）")
+    p_trk.add_argument("--suite", nargs="?", const="dance", choices=["dance", "fight"],
+                       help="複数運動を 1 方策に汎化（--suite / --suite fight）")
+    from robotdance_sim.fight_moves import FIGHT_STYLE_NAMES as _FIGHT_STYLES
+    p_trk.add_argument("--style", default=None, choices=sorted(_FIGHT_STYLES),
+                       help="単一 fight 技を参照に学習（省略時は合成 dance）")
+    p_trk.add_argument("--depth-refine", action="store_true",
+                       help="fight 参照の retarget 前に depth stabilize + balance refine")
+    p_trk.add_argument("--duration", type=float, default=3.0,
+                       help="合成 fight 技の長さ[s]（karate/kathak はフィクスチャ長）")
     p_trk.add_argument("--real-inertia", action="store_true",
                        help="実 URDF 慣性テンソルで学習（既定 capsule。v0.47 clean reference で安定）")
     p_trk.add_argument("--device", default=None, help="cpu / cuda（既定: 自動）")
@@ -2029,6 +2350,12 @@ def main(argv: list[str] | None = None) -> int:
     p_dtrk.add_argument("--robot", default="unitree_g1")
     p_dtrk.add_argument("--iterations", type=int, default=40)
     p_dtrk.add_argument("--stride", type=int, default=2)
+    p_dtrk.add_argument("--style", default=None, choices=sorted(_FIGHT_STYLES),
+                        help="fight 技を参照に追従（省略時は合成 dance）")
+    p_dtrk.add_argument("--depth-refine", action="store_true",
+                        help="fight 参照の retarget 前に depth stabilize + balance refine")
+    p_dtrk.add_argument("--duration", type=float, default=3.0,
+                        help="合成 fight 技の長さ[s]（karate/kathak はフィクスチャ長）")
 
     p_dtrkm = sub.add_parser("demo-track-multi",
                              help="1 方策で運動スイート（4 運動）を物理追従し横並び描画")
@@ -2036,6 +2363,12 @@ def main(argv: list[str] | None = None) -> int:
     p_dtrkm.add_argument("--robot", default="unitree_g1")
     p_dtrkm.add_argument("--iterations", type=int, default=60)
     p_dtrkm.add_argument("--stride", type=int, default=2)
+    p_dtrkm.add_argument("--suite", nargs="?", const="dance", choices=["dance", "fight"],
+                         help="スイート種別（--suite / --suite fight）")
+    p_dtrkm.add_argument("--depth-refine", action="store_true",
+                         help="fight スイート時の retarget 前 depth refine")
+    p_dtrkm.add_argument("--duration", type=float, default=3.0,
+                         help="合成 fight 技の長さ[s]")
 
     p_djs = sub.add_parser("demo-joint-safety",
                            help="関節空間 safety guard の位置/速度/加速度クランプを実演（§5.6）")
@@ -2060,9 +2393,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo-battle":
         return _demo_battle(args.p1, args.p2, args.out, args.stride, args.sim)
     if args.command == "demo-tournament":
-        return _demo_tournament(args.robots, args.moves, args.out, args.stride, args.sim)
+        return _demo_tournament(
+            args.robots, args.moves, args.out, args.stride, args.sim,
+            physical=args.physical, duration=args.duration, separation=args.separation,
+            mesh=args.mesh, urdf_a=args.urdf_a, urdf_b=args.urdf_b,
+            record=args.record, leaderboard=args.leaderboard,
+            assisted=args.assisted, assisted_rl=args.rl,
+            rl_iterations=args.rl_iterations, depth_refine=args.depth_refine,
+        )
     if args.command == "demo-fight":
-        return _demo_fight(args.p1, args.p2, args.out, args.duration, args.separation)
+        return _demo_fight(
+            args.p1, args.p2, args.out, args.duration, args.separation, args.style,
+            args.mesh, args.urdf_a, args.urdf_b, args.depth_refine, args.assisted,
+            args.rl, args.rl_iterations,
+        )
+    if args.command == "demo-assisted":
+        return _demo_assisted(args.out, args.robot, args.style, args.duration, args.stride,
+                              args.depth_refine)
     if args.command == "validate-sim":
         return _validate_sim(args.path, args.robot, args.out, args.backend, args.clamp_flexion,
                              args.balance_plot, args.ground_clean, args.lock_foot_xy,
@@ -2075,12 +2422,20 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "demo-safety":
         return _demo_safety(args.out, args.robot, args.stride)
     if args.command == "train-tracking":
-        return _train_tracking(args.out, args.robot, args.iterations, args.device, args.suite,
-                               args.real_inertia)
+        return _train_tracking(
+            args.out, args.robot, args.iterations, args.device, args.suite,
+            args.real_inertia, args.style, args.depth_refine, args.duration,
+        )
     if args.command == "demo-track":
-        return _demo_track(args.out, args.robot, args.iterations, args.stride)
+        return _demo_track(
+            args.out, args.robot, args.iterations, args.stride,
+            args.style, args.depth_refine, args.duration,
+        )
     if args.command == "demo-track-multi":
-        return _demo_track_multi(args.out, args.robot, args.iterations, args.stride)
+        return _demo_track_multi(
+            args.out, args.robot, args.iterations, args.stride,
+            args.suite or "dance", args.depth_refine, args.duration,
+        )
     if args.command == "demo-joint-safety":
         return _demo_joint_safety(args.urdf)
     if args.command == "serve":
@@ -2089,6 +2444,11 @@ def main(argv: list[str] | None = None) -> int:
         return _demo_runtime()
     if args.command == "benchmark":
         return _benchmark(args.robots, args.motions_dir, not args.no_sim, args.out, args.chart)
+    if args.command == "benchmark-assisted":
+        return _benchmark_assisted(
+            args.robots, args.styles, args.duration, not args.no_compare, args.out,
+            args.rl, args.rl_iterations, args.rl_all,
+        )
     if args.command == "demo-motion-map":
         return _demo_motion_map(args.out, args.checkpoint)
     if args.command == "retarget-ik":

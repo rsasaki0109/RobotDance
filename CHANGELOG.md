@@ -5,6 +5,64 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.152.0] - 2026-06-08
+### Changed
+- **GitHub リポジトリ名を HumanoidBattle に変更**（`rsasaki0109/HumanoidBattle`）。README/Colab badge・`pyproject.toml`・`CITATION.cff`・quickstart の URL を更新。pip パッケージ名・CLI（`robotdance`）・Python モジュール名は互換のため据え置き。旧 `RobotDance` URL は GitHub がリダイレクト。
+- **README ヒーローを battle GIF に差し替え** — 先頭を `assets/readme/battle.gif`（型バトル・実 metrics 採点）に。`fight.gif` はボクシング節へ。karate/kathak は「Real video → humanoid」節へ移動。
+
+## [0.151.0] - 2026-06-08
+### Added
+- **`demo-tournament --assisted champion`**: 決勝 GIF でトーナメントチャンピオン側を自動的に PD/RL 物理追従（`resolve_assisted_corner`）。`--assisted` 省略時も `champion`（`p1`/`p2` 明示も可）。
+
+## [0.150.0] - 2026-06-08
+### Added
+- **Physical tournament 決勝 assisted**: `demo-tournament --physical --assisted [--rl] [--depth-refine]` — ブラケット試合は kinematic のまま、決勝 GIF のみ 1 体を PD/RL 物理追従。`--rl-iterations` 対応。
+- **Benchmark rescued-by-RL-only**: `benchmark-assisted --rl` が depth-refine でも救えなかった組で RL が改善したケースを `rescued_by_rl_only` として報告。
+
+## [0.149.0] - 2026-06-08
+### Added
+- **`demo-fight --assisted --rl`**: 1 体を PPO tracking で物理追従（`rollout_rl` in `assisted_playback.py`）。`--rl-iterations` で学習量調整。`FightResult.assisted_mode` が `pd`/`rl` を区別。相手は kinematic のまま。
+
+## [0.148.0] - 2026-06-08
+### Added
+- **`demo-fight --assisted`（1 体物理追従バウト）**: 赤/青コーナー（`--assisted` / `--assisted p2`）を PD-only 物理追従、相手は kinematic のまま。`run_fight(assisted="p1"|"p2")` が `FightResult.assisted_survival` を返す。`--depth-refine` と併用可（kick 等）。mesh は assisted 時はカプセル描画にフォールバック。
+
+## [0.147.0] - 2026-06-08
+### Added
+- **Assisted survival + RL 列（`benchmark-assisted --rl`）**: PD が失敗した (robot, style) に PPO tracking を追加評価。CSV/Markdown に `controller=pd|rl` 列、`rescued_by_rl` サマリ。`--rl-all` で全組、`--rl-iterations` で学習量調整。`demo-fight --assisted` 投入前のゲート判定。
+
+## [0.146.0] - 2026-06-08
+### Added
+- **Fight motion RL tracking**: `robotdance_sim/fight_tracking.py` が fight 技を tracking 参照へ retarget。`demo-track --style boxing|kick|karate|kathak [--depth-refine]`、`train-tracking --style` / `--suite fight`、`demo-track-multi --suite fight` で HumanoidBattle 技を PPO 物理追従。`demo-assisted` も共有ヘルパー経由に整理。
+
+## [0.145.0] - 2026-06-08
+### Added
+- **Assisted survival benchmark（`benchmark-assisted`）**: fight motion × robot の PD-only 物理追従 survival / pose RMSE を raw vs depth-refine で比較。`robotdance_benchmarks/assisted_survival.py` が CSV + `ASSISTED_SURVIVAL.md` を出力。kick（G1/H2/T1）や boxing（H1）が depth-refine で 0.02→1.0 に救済される例を定量。karate/kathak は全機種で survival 1.0（実動画技は assisted で追従可能）。
+
+## [0.144.0] - 2026-06-08
+### Added
+- **Priority 3 第一歩 — depth frontier + assisted balance**: `robotdance_motion/fight_refinement.py` が `stabilize_depth` + `balance_depth_refine` を fight 前処理として束ねる。`demo-fight --depth-refine` / `demo-assisted --depth-refine` で retarget 前に適用。`demo-assisted` は単体ロボットで fight motion を `TrackingEnv` PD-only（残差ゼロ）物理追従し参照 vs 物理を side-by-side 描画（`robotdance_sim/assisted_playback.py`）。2 体接触スパーリングは未対応。
+
+## [0.143.0] - 2026-06-08
+### Added
+- **Fight 技拡充 + 体格差バランス**: `hook`（横フック）/`kick`（前蹴り・足先ヒット）/`dodge`（スリップ）を `demo-fight --style` と physical トーナメント・型バトル（`robot:hook` 等）に追加。身長ベースの reach 補正（高い=有利）と compact のボディ精密補正、同点時はボディヒット数→身長でタイブレーク。`robotdance_sim/fight_moves.py`。
+
+## [0.142.0] - 2026-06-08
+### Added
+- **HumanoidBattle Leaderboard（`demo-tournament --record`）**: 物理 fight トーナメントの全試合で ELO 更新（K=32）、対戦履歴・Hall of Champions を `docs/benchmark/HUMANOID_BATTLE_LEADERBOARD.md` + `humanoid_battle_state.json` に永続化。型採点トーナメントは Hall のみ（ELO なし）。`robotdance_benchmarks/battle_leaderboard.py`。
+
+## [0.141.0] - 2026-06-08
+### Added
+- **Physical tournament（`demo-tournament --physical`）**: 単欠ブラケットの各試合を `demo-fight` のヒット採点で決定し**格闘チャンピオン**を決める。`--moves boxing/karate/kathak` で best-of-N style bout。決勝は fight GIF（`--mesh` 対応）。`robotdance_benchmarks/fight_tournament.py`（`play_fight_match` / `run_fight_tournament`）。
+
+## [0.140.0] - 2026-06-08
+### Added
+- **Mesh fights（`demo-fight --mesh`）**: MuJoCo カプセルの代わりに実 Unitree URDF メッシュ（pybullet + actuator-IK）で 2 体対面バウトを描画。赤/青コーナーの色分け、URDF は `ROBOTDANCE_G1_URDF` 等で自動解決。ヒット判定は従来の幾何のまま。`robotdance_sim/mesh_render.py`（`render_fight_mesh` / `resolve_unitree_urdf`）を `render_real_video_gif` と共有。
+
+## [0.139.0] - 2026-06-08
+### Added
+- **実動画の必殺技（HumanoidBattle）**: README の karate kata / kathak クリップを MediaPipe 抽出した RD-MIR を `robotdance_benchmarks/data/` に同梱（数値 motion のみ・ピクセル非同梱、CC BY-SA 出典は `source_ref`）。`demo-battle` / `demo-tournament` で `robot:karate` / `robot:kathak` を選択可能。`demo-fight --style karate|kathak` で MuJoCo 対面バウトにも実動画 motion を適用。`robotdance_benchmarks/real_motions.py`、`motion_for_style()`。
+
 ## [0.138.0] - 2026-06-08
 ### Added
 - **🥊 `demo-fight` — シミュレータで実際に殴り合う**: 2 体を同じ MuJoCo シーンに対面配置（MjSpec.attach・赤/青コーナー・ライト/影）し、合成ボクシングコンビ（ガード→ジャブ→クロス→フック）を再生、拳が相手の頭/胸/みぞおちに届いたらヒット判定してライブスコア HUD 付き GIF を出力。**正直な範囲**: kinematic playback（毎フレーム qpos→`mj_forward`、倒れない）＋幾何ヒット判定（接触力ではない）——完全 forward dynamics は未解決バランスで両者倒れるため。G1 vs H1 は背の高い H1 がリーチで 10–6、低い G1 はボディ打ちで応戦（背の低い側も当てられるよう低い的＋z 弱め重み）。`robotdance_sim/arena.py`（`generate_boxing`/`run_fight`/`FightResult`）、`demo-fight` CLI、README に 🥊 サブセクション + fight GIF。描画は EGL（`MUJOCO_GL=egl`, sim extra）、テストは render=False でスコアリングを検証。

@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from robotdance_benchmarks.real_motions import REAL_MOTIONS
+from robotdance_sim.fight_moves import generate_dodge, generate_hook, generate_kick
 from robotdance_core.synthetic import (
     generate_backflip,
     generate_dance,
@@ -21,16 +23,19 @@ from robotdance_core.synthetic import (
     generate_squat,
 )
 
-# モーション名 → 合成ジェネレータ。CLI から `robot:motion` で指定する。
+# モーション名 → 合成ジェネレータ or 実動画フィクスチャ loader。CLI から `robot:motion` で指定。
 MOTIONS = {
     "dance": generate_dance, "kata": generate_dance, "march": generate_march,
     "squat": generate_squat, "backflip": generate_backflip, "bow": generate_overbend,
+    "hook": generate_hook, "kick": generate_kick, "dodge": generate_dodge,
+    **REAL_MOTIONS,
 }
 
 # 技の難度＝style 倍率（透明な「リスク/リターン」）。難しい技ほど決まれば高得点だが、自分の体で
 # 物理的に無理だと feasibility 項（control/balance）が落ちて whiff する＝倍率を掛けても低いまま。
 DIFFICULTY = {
     "kata": 1.0, "dance": 1.0, "march": 1.0, "bow": 0.9, "squat": 1.15, "backflip": 1.4,
+    "karate": 1.1, "kathak": 1.2, "hook": 1.05, "kick": 1.25, "dodge": 0.95,
 }
 
 

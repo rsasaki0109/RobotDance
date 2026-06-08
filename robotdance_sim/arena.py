@@ -23,76 +23,15 @@ from robotdance_core.skeleton import index_of
 
 _FPS = 30.0
 
-
-def generate_boxing(*, duration: float = 4.0, fps: float = _FPS, lead: str = "left",
-                    motion_id: str = "rdmir-synth-boxing-0001") -> RdMir:
-    """ボクシングのコンビネーション（ガード→ジャブ→クロス→フック）を合成 RD-MIR で返す。
-
-    立位（脚は固定）で上体・腕だけを動かす。x=前方（相手方向）へ拳を伸ばす。lead で利き腕を選ぶ。
-    """
-    from robotdance_core.synthetic import _REST
-
-    n = round(fps * duration)
-    t = np.arange(n) / fps
-    kps = np.repeat(_REST[None].astype(np.float64), n, axis=0)
-
-    li, ri = index_of("left_wrist"), index_of("right_wrist")
-    lei, rei = index_of("left_elbow"), index_of("right_elbow")
-    # ガード姿勢（拳を顔の前に上げる, x やや前・z 高め・中央寄り）。
-    guard = {
-        li: np.array([0.16, 0.07, 1.36]), lei: np.array([0.10, 0.15, 1.20]),
-        ri: np.array([0.16, -0.07, 1.36]), rei: np.array([0.10, -0.15, 1.20]),
-    }
-    # フルエクステンション（パンチ）: 拳を前方 +x へ突き出す。
-    ext = {
-        li: np.array([0.62, 0.03, 1.34]), lei: np.array([0.34, 0.10, 1.30]),
-        ri: np.array([0.62, -0.03, 1.34]), rei: np.array([0.34, -0.10, 1.30]),
-    }
-
-    def _pulse(center: float, width: float) -> np.ndarray:
-        """center 付近で 0→1→0 に立ち上がるパンチ包絡（cos^2 窓）。"""
-        x = (t - center) / width
-        return np.where(np.abs(x) < 1.0, np.cos(x * math.pi / 2) ** 2, 0.0)
-
-    # コンビネーション: 周期ごとに [lead ジャブ, 逆クロス, lead フック]。
-    period = 1.6
-    n_cyc = max(1, int(duration / period))
-    left_lead = lead == "left"
-    left_p = np.zeros(n)
-    right_p = np.zeros(n)
-    for c in range(n_cyc):
-        base = c * period + 0.3
-        (left_p if left_lead else right_p)[:] += _pulse(base, 0.22)          # ジャブ
-        (right_p if left_lead else left_p)[:] += _pulse(base + 0.55, 0.22)   # クロス
-        (left_p if left_lead else right_p)[:] += _pulse(base + 1.05, 0.26)   # フック/2nd
-    left_p = np.clip(left_p, 0, 1)
-    right_p = np.clip(right_p, 0, 1)
-
-    for f in range(n):
-        for w, e, p in ((li, lei, left_p[f]), (ri, rei, right_p[f])):
-            kps[f, w] = guard[w] * (1 - p) + ext[w] * p
-            kps[f, e] = guard[e] * (1 - p) + ext[e] * p
-        # 軽い体重移動（前後の bob）でリズムを出す（脚は据え置き）。
-        bob = 0.02 * math.sin(2 * math.pi * t[f] / period)
-        kps[f, :11, 0] += bob
-
-    from robotdance_core.rd_mir import Skeleton
-    from robotdance_core.skeleton import JOINT_NAMES, PARENTS
-
-    return RdMir(
-        motion_id=motion_id,
-        source_ref={"dataset_name": "robotdance-synthetic", "generator": "synthetic.generate_boxing"},
-        license_state="redistributable",
-        fps=fps,
-        duration=duration,
-        skeleton=Skeleton(joint_names=JOINT_NAMES, parents=PARENTS),
-        root_trajectory={"position": kps[:, 0, :].tolist()},
-        keypoints_3d=kps.tolist(),
-        privacy_flags={"synthetic": True, "face_visible": False},
-        semantics={"action_label": "boxing", "style_tag": "synthetic_demo"},
-        extractor_versions={"generator": "robotdance.synthetic.v0"},
-    )
-
+from robotdance_sim.fight_moves import (  # noqa: E402
+    STYLE_CONFIG,
+    SYNTH_FIGHT_GENERATORS,
+    effective_hit_radius,
+    generate_boxing,
+    generate_dodge,
+    generate_hook,
+    generate_kick,
+)
 
 _Z180 = np.array([[-1.0, 0, 0], [0, -1.0, 0], [0, 0, 1.0]])  # z 軸 180° 回転（対面）。
 
@@ -108,6 +47,9 @@ class FightResult:
     fps: float = _FPS
     p1_cum: list = field(repr=False, default_factory=list)  # 各フレーム時点の累積ヒット
     p2_cum: list = field(repr=False, default_factory=list)
+    assisted_corner: str | None = None  # "p1" | "p2" — 物理追従コーナー
+    assisted_mode: str | None = None  # "pd" | "rl"
+    assisted_survival: float | None = None
 
 
 def _single_model(morph):
@@ -129,40 +71,160 @@ def _arena_kps(robot_kps: np.ndarray, R: np.ndarray, stance_xy: np.ndarray) -> n
     return out
 
 
+def motion_for_style(style: str, *, duration: float = 4.0, fps: float = _FPS, lead: str = "left") -> RdMir:
+    """fight / arena 用の RD-MIR を返す（合成 fight 技 or 実動画フィクスチャ）。"""
+    if style == "boxing":
+        return generate_boxing(duration=duration, fps=fps, lead=lead)
+    if style in SYNTH_FIGHT_GENERATORS:
+        return SYNTH_FIGHT_GENERATORS[style](duration=duration, fps=fps)
+    from robotdance_benchmarks.real_motions import get_real_motion
+    return get_real_motion(style)
+
+
+def _motion_pair(style: str, *, duration: float, fps: float) -> tuple[RdMir, RdMir]:
+    if style == "boxing":
+        return (
+            generate_boxing(duration=duration, fps=fps, lead="left"),
+            generate_boxing(duration=duration, fps=fps, lead="right"),
+        )
+    mir = motion_for_style(style, duration=duration, fps=fps)
+    return mir, mir
+
+
+def _assisted_trajectory(
+    morph, reference, n: int, *, mode: str = "pd", rl_iterations: int = 20,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    """物理追従 → robot kps [T,J,3]、単体 qpos [T,nq]、survival ratio。"""
+    from robotdance_sim.assisted_playback import rollout_pd_only, rollout_rl
+
+    if mode == "rl":
+        result = rollout_rl(reference, morph, iterations=rl_iterations)
+    else:
+        result = rollout_pd_only(reference, morph)
+    kps = result.keypoints
+    if kps.shape[0] < n:
+        kps = np.concatenate([kps, np.repeat(kps[-1:], n - kps.shape[0], axis=0)], axis=0)
+    else:
+        kps = kps[:n]
+    ma = _single_model(morph)
+    qa = _poses_to_qpos_arena(ma, morph, kps)
+    return kps, qa, result.survival_ratio
+
+
 def run_fight(morph_a, morph_b, *, name_a: str, name_b: str, separation: float = 0.17,
               hit_radius: float = 0.20, duration: float = 4.0, fps: float = _FPS,
-              width: int = 480, height: int = 360, render: bool = True) -> FightResult:
-    """2 体をボクシングさせ、拳→相手頭/胸の幾何ヒットを採点し、GIF フレームを返す。"""
+              style: str = "boxing", width: int = 480, height: int = 360,
+              render: bool = True, mesh: bool = False,
+              urdf_a: str | None = None, urdf_b: str | None = None,
+              depth_refine: bool = False,
+              assisted: str | None = None,
+              assisted_mode: str = "pd",
+              rl_iterations: int = 20) -> FightResult:
+    """2 体を対面させ motion を再生し、拳→相手頭/胸の幾何ヒットを採点して GIF フレームを返す。
+
+    style: `boxing`/`hook`/`kick`/`dodge` または `karate`/`kathak`（実動画）。
+    mesh: True で pybullet 実 URDF メッシュ描画（ヒット判定は MuJoCo 幾何のまま）。
+    assisted: "p1" または "p2" — 指定コーナーだけ物理追従、相手は kinematic のまま。
+    assisted_mode: "pd"（残差ゼロ）または "rl"（PPO tracking）。
+    """
     import mujoco
 
     from robotdance_retarget.kinematic import retarget
 
-    # 1. 各ファイターのボクシング motion → robot kps → 単体 qpos。
-    box_a = generate_boxing(duration=duration, fps=fps, lead="left")
-    box_b = generate_boxing(duration=duration, fps=fps, lead="right")
-    rk_a = retarget(box_a, morph_a).keypoints_3d_array()
-    rk_b = retarget(box_b, morph_b).keypoints_3d_array()
+    cfg = STYLE_CONFIG.get(style, STYLE_CONFIG["boxing"])
+
+    # 1. 各ファイターの motion → robot kps → 単体 qpos。
+    box_a, box_b = _motion_pair(style, duration=duration, fps=fps)
+    if depth_refine:
+        from robotdance_motion.fight_refinement import refine_for_fight
+
+        box_a = refine_for_fight(box_a)
+        box_b = refine_for_fight(box_b)
+    fps = float(box_a.fps)
+    motion_a = retarget(box_a, morph_a)
+    motion_b = retarget(box_b, morph_b)
+    rk_a = motion_a.keypoints_3d_array()
+    rk_b = motion_b.keypoints_3d_array()
     n = min(rk_a.shape[0], rk_b.shape[0])
     rk_a, rk_b = rk_a[:n], rk_b[:n]
 
+    ma, mb = _single_model(morph_a), _single_model(morph_b)
+    assisted_survival = None
+    track_mode = assisted_mode if assisted else None
+    if assisted == "p1":
+        rk_a, qa, assisted_survival = _assisted_trajectory(
+            morph_a, motion_a, n, mode=assisted_mode, rl_iterations=rl_iterations,
+        )
+        qb = _poses_to_qpos_arena(mb, morph_b, rk_b)
+    elif assisted == "p2":
+        rk_b, qb, assisted_survival = _assisted_trajectory(
+            morph_b, motion_b, n, mode=assisted_mode, rl_iterations=rl_iterations,
+        )
+        qa = _poses_to_qpos_arena(ma, morph_a, rk_a)
+    else:
+        qa = _poses_to_qpos_arena(ma, morph_a, rk_a)
+        qb = _poses_to_qpos_arena(mb, morph_b, rk_b)
+
     ak_a = _arena_kps(rk_a, np.eye(3), np.array([-separation, 0.0]))
     ak_b = _arena_kps(rk_b, _Z180, np.array([+separation, 0.0]))
-
-    ma, mb = _single_model(morph_a), _single_model(morph_b)
-    qa = _poses_to_qpos_arena(ma, morph_a, rk_a)
-    qb = _poses_to_qpos_arena(mb, morph_b, rk_b)
 
     # 2. arena 組み立て（MjSpec.attach, ライト+コーナーカラー）。
     model, info = _build_arena(morph_a, morph_b, separation, ak_a, ak_b)
     data = mujoco.MjData(model)
 
-    # 3. ヒット判定（拳 vs 相手頭/胸の最小距離, cooldown で 1 パンチ 1 ヒット）。
-    p1_hits, p2_hits, frames, p1_cum, p2_cum = _play_and_score(
+    # 3. ヒット判定（striker→的の幾何距離, 体格差で reach/precision 補正）。
+    p1_hits, p2_hits, p1_body, p2_body, frames, p1_cum, p2_cum = _play_and_score(
         model, data, ma, mb, qa, qb, ak_a, ak_b, info, separation,
-        hit_radius, fps, width, height, render)
+        morph_a, morph_b, cfg, fps, width, height, render and not mesh)
 
-    winner = name_a if p1_hits > p2_hits else name_b if p2_hits > p1_hits else "DRAW"
-    return FightResult(name_a, name_b, p1_hits, p2_hits, winner, frames, fps, p1_cum, p2_cum)
+    if mesh and assisted:
+        mesh = False  # assisted は MuJoCo カプセル描画のみ（v0.148）
+
+    if mesh:
+        from pathlib import Path
+
+        from .mesh_render import render_fight_mesh, resolve_unitree_urdf
+
+        path_a = Path(urdf_a) if urdf_a else resolve_unitree_urdf(name_a)
+        path_b = Path(urdf_b) if urdf_b else resolve_unitree_urdf(name_b)
+        mesh_sep = max(separation, 0.45)  # 実メッシュは幅があるため間合いを広げる
+        import pybullet as p
+        p.connect(p.DIRECT)
+        try:
+            frames = render_fight_mesh(
+                box_a, box_b, robot_a=name_a, robot_b=name_b,
+                urdf_a=path_a, urdf_b=path_b, separation=mesh_sep, n_frames=n,
+                width=width, height=height, stride=2)
+        finally:
+            p.disconnect()
+
+    if p1_hits > p2_hits:
+        winner = name_a
+    elif p2_hits > p1_hits:
+        winner = name_b
+    else:
+        winner = _resolve_draw(
+            name_a, name_b, morph_a, morph_b, p1_body, p2_body,
+        )
+    return FightResult(
+        name_a, name_b, p1_hits, p2_hits, winner, frames, fps, p1_cum, p2_cum,
+        assisted_corner=assisted, assisted_mode=track_mode,
+        assisted_survival=assisted_survival,
+    )
+
+
+def _resolve_draw(name_a, name_b, morph_a, morph_b, body_a: int, body_b: int) -> str:
+    """同点時: ボディヒット多い方（compact precision）、それでも同点なら背が高い方（reach）。"""
+    if body_a > body_b:
+        return name_a
+    if body_b > body_a:
+        return name_b
+    ha, hb = morph_a.nominal_height, morph_b.nominal_height
+    if ha > hb:
+        return name_a
+    if hb > ha:
+        return name_b
+    return "DRAW"
 
 
 def _poses_to_qpos_arena(single_model, morph, robot_kps: np.ndarray) -> np.ndarray:
@@ -203,15 +265,15 @@ def _build_arena(morph_a, morph_b, separation, ak_a, ak_b):
 
 
 def _play_and_score(model, data, ma, mb, qa, qb, ak_a, ak_b, info, separation,
-                    hit_radius, fps, width, height, render):
+                    morph_a, morph_b, style_cfg, fps, width, height, render):
     import mujoco
 
     n = min(qa.shape[0], qb.shape[0])
-    # arena 座標での拳と的の軌跡（ヒット判定はこの幾何で行う＝描画 qpos と一致）。
-    lw, rw = index_of("left_wrist"), index_of("right_wrist")
-    # 的: 頭・胸・みぞおち（spine）。背の低いファイターが背の高い相手にボディ打ちできるよう
-    # 低い的も含める（reach 差はあっても完封にしない）。
-    targets = (index_of("head"), index_of("chest"), index_of("spine"))
+    strikers = tuple(index_of(j) for j in style_cfg["strikers"])
+    base_r = float(style_cfg["base_radius"])
+    head_i = index_of("head")
+    body_targets = (index_of("chest"), index_of("spine"))
+    targets = (head_i, *body_targets)
     # 各 fighter の ball-joint quat を arena qpos に書くためのアドレス対応。
     a_adr = [model.joint(f"a_jnt_{j}").qposadr[0] for j in range(1, 19)]
     b_adr = [model.joint(f"b_jnt_{j}").qposadr[0] for j in range(1, 19)]
@@ -233,15 +295,23 @@ def _play_and_score(model, data, ma, mb, qa, qb, ak_a, ak_b, info, separation,
         cam.elevation = -8
         cam.lookat = [0, 0, 1.0]
 
-    zw = np.array([1.0, 1.0, 0.5])  # z（高さ）を弱め重み: 前後/左右で届けば多少高さがズレても可。
+    zw = np.array([1.0, 1.0, 0.5])
+    ha, hb = morph_a.nominal_height, morph_b.nominal_height
 
-    def _fist(att, dfn, fr):
-        """フレーム fr での攻撃側の拳(左右) × 守備側の的（頭/胸/みぞおち）の最小距離 [m, z 重み付け]。"""
-        return min(float(np.linalg.norm((att[fr, w] - dfn[fr, tg]) * zw))
-                   for w in (lw, rw) for tg in targets)
+    def _strike(att, dfn, fr, att_h, def_h):
+        best = 1e9
+        best_body = False
+        for w in strikers:
+            for tg in targets:
+                d = float(np.linalg.norm((att[fr, w] - dfn[fr, tg]) * zw))
+                is_body = tg in body_targets
+                if d < best:
+                    best, best_body = d, is_body
+        return best, best_body
 
     p1_hits = p2_hits = 0
-    a_cd = b_cd = 0  # cooldown frames
+    p1_body = p2_body = 0
+    a_cd = b_cd = 0
     frames = []
     p1_cum: list[int] = []
     p2_cum: list[int] = []
@@ -257,16 +327,21 @@ def _play_and_score(model, data, ma, mb, qa, qb, ak_a, ak_b, info, separation,
             data.qpos[b_adr[k]:b_adr[k] + 4] = qb[f, sb_adr[k]:sb_adr[k] + 4]
         mujoco.mj_forward(model, data)
 
-        # ヒット判定（arena 座標の幾何, 各拳 × 相手の頭/胸の最小距離・対称）。
-        a_fist = _fist(ak_a, ak_b, f)
-        b_fist = _fist(ak_b, ak_a, f)
+        a_dist, a_body = _strike(ak_a, ak_b, f, ha, hb)
+        b_dist, b_body = _strike(ak_b, ak_a, f, hb, ha)
+        a_lim = effective_hit_radius(base_r, ha, hb, body_target=a_body)
+        b_lim = effective_hit_radius(base_r, hb, ha, body_target=b_body)
         a_cd = max(0, a_cd - 1)
         b_cd = max(0, b_cd - 1)
-        if a_fist < hit_radius and a_cd == 0:
+        if a_dist < a_lim and a_cd == 0:
             p1_hits += 1
+            if a_body:
+                p1_body += 1
             a_cd = int(0.4 * fps)
-        if b_fist < hit_radius and b_cd == 0:
+        if b_dist < b_lim and b_cd == 0:
             p2_hits += 1
+            if b_body:
+                p2_body += 1
             b_cd = int(0.4 * fps)
         p1_cum.append(p1_hits)
         p2_cum.append(p2_hits)
@@ -276,7 +351,7 @@ def _play_and_score(model, data, ma, mb, qa, qb, ak_a, ak_b, info, separation,
             frames.append(renderer.render().copy())
     if renderer is not None:
         del renderer
-    return p1_hits, p2_hits, frames, p1_cum, p2_cum
+    return p1_hits, p2_hits, p1_body, p2_body, frames, p1_cum, p2_cum
 
 
 def _centered_min_z(single_model, q: np.ndarray) -> float:
@@ -291,4 +366,7 @@ def _centered_min_z(single_model, q: np.ndarray) -> float:
     return float(d.xpos[:, 2].min())
 
 
-__all__ = ["generate_boxing", "run_fight", "FightResult"]
+__all__ = [
+    "generate_boxing", "generate_dodge", "generate_hook", "generate_kick",
+    "motion_for_style", "run_fight", "FightResult",
+]

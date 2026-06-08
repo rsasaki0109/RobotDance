@@ -1,12 +1,12 @@
 cff-version: 1.2.0
-title: "RobotDance: a Human Video to Humanoid Motion Compiler"
-message: "If you use RobotDance in your research, please cite it as below."
+title: "HumanoidBattle: Human Video to Humanoid Motion Compiler (robotdance)"
+message: "If you use HumanoidBattle / robotdance in your research, please cite it as below."
 type: software
 authors:
   - family-names: Sasaki
     given-names: Ryohei
-repository-code: "https://github.com/rsasaki0109/RobotDance"
-url: "https://github.com/rsasaki0109/RobotDance"
+repository-code: "https://github.com/rsasaki0109/HumanoidBattle"
+url: "https://github.com/rsasaki0109/HumanoidBattle"
 abstract: >-
   RobotDance is an open-source motion compiler that converts legally available
   human videos and mocap into humanoid motion datasets, embeddings, policies,
@@ -30,6 +30,6 @@ keywords:
   - motion-generation
   - smpl
   - mujoco
-version: 0.138.0
+version: 0.152.0
 date-released: "2026-06-08"
 license: Apache-2.0

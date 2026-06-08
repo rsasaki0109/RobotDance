@@ -34,7 +34,7 @@ def test_notebook_is_valid_json_with_cells() -> None:
 
 def test_install_cell_points_at_this_repo() -> None:
     code = _code_text()
-    assert "git+https://github.com/rsasaki0109/RobotDance.git" in code
+    assert "git+https://github.com/rsasaki0109/HumanoidBattle.git" in code
     assert "robotdance[demo]" in code  # 軽量 extra でツアーが回る
 
 

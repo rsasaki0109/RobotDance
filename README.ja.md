@@ -1,36 +1,32 @@
 <div align="center">
 
-# 🕺 RobotDance
+# 🥊 HumanoidBattle
 
-**Human Video → Humanoid Motion Compiler**
+**Human Video → Humanoid Motion Compiler** · pip / CLI: `robotdance`
 
-*人間の動画を、ヒューマノイドが学習・検索・模倣・実行できる運動へ変換する OSS コンパイラ。*
+*ヒューマノイドが戦い・競い・実 motion を実行する — RobotDance コンパイラ基盤の上に構築。*
 
 [**English**](README.md) · 日本語
 
-[![CI](https://github.com/rsasaki0109/RobotDance/actions/workflows/ci.yml/badge.svg)](https://github.com/rsasaki0109/RobotDance/actions/workflows/ci.yml)
+[![CI](https://github.com/rsasaki0109/HumanoidBattle/actions/workflows/ci.yml/badge.svg)](https://github.com/rsasaki0109/HumanoidBattle/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![ROS2](https://img.shields.io/badge/ROS2-Jazzy-22314E.svg)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rsasaki0109/HumanoidBattle/blob/main/notebooks/quickstart.ipynb)
 
-**[▶ Colab で今すぐ試す](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb)** — インストール不要・約2分で「1つの動き → 6体のヒューマノイド」。
+**[▶ Colab で今すぐ試す](https://colab.research.google.com/github/rsasaki0109/HumanoidBattle/blob/main/notebooks/quickstart.ipynb)** — インストール不要・約2分で「1つの動き → 6体のヒューマノイド」。
 
-<img src="assets/readme/karate_hero.gif" width="840" alt="実空手動画の骨格 overlay → Unitree G1・H1・H2 が同じ型を同期再現">
+<img src="assets/readme/battle.gif" width="640" alt="HumanoidBattle: Unitree G1 vs H1 が同じ型を演じ採点、reach 精度で G1 が勝利">
 
-<sub><b>1つの動画 → 3体のヒューマノイド。</b> 左: 実際の空手動画（映像に 2D 骨格を重ね）→ Unitree <b>G1 (1.29m)</b>・<b>H1 (1.66m)</b>・<b>H2 (1.76m)</b> が、1本の単眼クリップから同じ型を同期再現。同じ動き・別体格の3体＝multi-embodiment retarget。（「Shorts to humanoid」の一行説明。）出典: Sdcsabac, CC BY-SA 4.0 (Wikimedia)、生動画は非再配布（レンダリングのみ）。</sub>
-
-<img src="assets/readme/real/kathak_hero.gif" width="840" alt="実カタック舞踊の動画 → Unitree G1・H1・H2 が同じ踊りを同期再現">
-
-<sub><b>…空手だけじゃない。</b> 古典舞踊 <b>カタック</b>のクリップ → 同じ 3 体の Unitree が踊りを再現（actuator-IK 誤差 0.04〜0.12 m）。武術でも舞踊でも、単眼パイプラインは動作タイプを跨いで汎化する。出典: Suyash Dwivedi, CC BY-SA 4.0 (Wikimedia)、レンダリングのみ・生動画は非再配布。</sub>
+<sub><b>⚔️ 2 体・1 つの型・実 metrics で勝敗が決まる。</b> <code>robotdance demo-battle --p1 unitree_g1:kata --p2 unitree_h1:kata</code> — G1 (1.29m) が H1 (1.66m) を 80–79 で下す: 同じ型でも、低い体の方が基準 end-effector 目標を精密に突く（reach 55 vs 52）。スコアは RobotDance の<b>実 metrics</b>（reach・bone 一致・foot sliding・ROM、任意で MuJoCo balance/torque）だけ——乱数なし。スケルトン描画＝URDF も GPU も不要でどこでも動く（[Colab](https://colab.research.google.com/github/rsasaki0109/HumanoidBattle/blob/main/notebooks/quickstart.ipynb) でも）。</sub>
 
 ### ⚔️ HumanoidBattle — 1v1 実行品質バトル
 
 2 体のヒューマノイドが同じ型を演じ、**どちらの体がきれいに動きを再現できたか**で勝敗を決める。殴り合いではなく**型（演武）バトル**: スコアは RobotDance が算出する**実 metrics**（end-effector reach 誤差・bone 方向の一致・foot sliding・関節可動域、任意で MuJoCo の balance/torque）だけで合成され、**乱数は一切なし**。同じ技でも体格で点が変わるので、対戦は本物。
 
-<img src="assets/readme/battle.gif" width="560" alt="HumanoidBattle: Unitree G1 vs H1 が同じ型を演じ採点、reach 精度で G1 が勝利">
+<img src="assets/readme/fight.gif" width="560" alt="HumanoidBattle: MuJoCo で 2 体がボクシング — 赤 Unitree G1 vs 青 Unitree H1、ライブヒットカウンタ付き">
 
-<sub>`robotdance demo-battle --p1 unitree_g1:kata --p2 unitree_h1:kata` — G1 (1.29m) が H1 (1.66m) を 80–79 で下す: 同じ型でも、低い体の方が基準 end-effector 目標を精密に突く（reach 55 vs 52）。`--sim` で MuJoCo の balance/torque も採点に追加。`robot:motion`（kata/march/squat/backflip/bow）は自由に選べる。スケルトン描画＝URDF も GPU も不要でどこでも動く（[Colab](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb) でも）。</sub>
+<sub><b>🥊 2 体・1 リング・ライブヒット。</b> <code>robotdance demo-fight --p1 unitree_g1 --p2 unitree_h1</code> — MuJoCo で赤 vs 青、スコアがリアルタイムで伸びる。背の高い <b>H1 がリーチで 10–6 勝利</b>、低い G1 はボディ打ちで応戦。<code>--assisted --rl</code> でチャンピオン側だけ物理追従、<code>--style karate</code> で実動画必殺技も可。<b>正直な範囲:</b> kinematic + 幾何ヒット（接触力は未対応）—— motion compiler の上に載せた「面白いフック」。</sub>
 
 **これはゲーム。** 1 ラウンド = 1 技。難しい技ほど高配点（backflip ×1.4・squat ×1.15）**——ただし決まればの話**。自分の体で物理的に無理な技（ROM / balance / torque 違反）は *whiff* してスコアが暴落する＝リスクとリターン。1 マッチは **best-of-3（毎ラウンド別の技）**なので一芸では勝てず、**万能な体が勝つ**。全体を**単欠トーナメント**で回せる:
 
@@ -38,13 +34,15 @@
 
 <sub><code>robotdance demo-tournament</code> — 6 体が全員エントリー、best-of-3（kata / squat / backflip）の単欠戦。**チャンピオン: Fourier N1** — 人間に近い四肢比率で reach 誤差が最小、全技を最もきれいに実行し決勝で backflip(60 vs 51)で G1 を下す。ブラケットは全て実 metrics で決まり、GIF は決勝ラウンド。（全ブラケットはコンソール出力、`--sim` で物理採点も追加。）</sub>
 
-#### 🥊 …そしてシミュレータで実際に殴り合う
+### 🎬 実動画 → ヒューマノイド（下にあるコンパイラ）
 
-上の採点バトルは kinematic。こちらは **2 体を同じ MuJoCo シーン**に入れ、ボクシングのコンビネーションを繰り出し、拳が相手の頭/胴に届いたらヒットとして判定する:
+<img src="assets/readme/karate_hero.gif" width="840" alt="実空手動画の骨格 overlay → Unitree G1・H1・H2 が同じ型を同期再現">
 
-<img src="assets/readme/fight.gif" width="480" alt="MuJoCo シーンで 2 体がボクシング: 赤 Unitree G1 vs 青 Unitree H1, ライブヒットカウンタ付き, リーチで H1 勝利">
+<sub><b>1つの動画 → 3体のヒューマノイド。</b> 左: 実際の空手動画（映像に 2D 骨格を重ね）→ Unitree <b>G1 (1.29m)</b>・<b>H1 (1.66m)</b>・<b>H2 (1.76m)</b> が、1本の単眼クリップから同じ型を同期再現。同じ動き・別体格の3体＝multi-embodiment retarget。出典: Sdcsabac, CC BY-SA 4.0 (Wikimedia)、生動画は非再配布（レンダリングのみ）。</sub>
 
-<sub><code>robotdance demo-fight --p1 unitree_g1 --p2 unitree_h1</code> — 赤コーナー vs 青コーナーを MuJoCo でライブヒットカウンタ付きに描画。背の高い **H1 がリーチで 10–6 勝利**、低い G1 はボディ打ちで応戦。<b>正直な範囲:</b> 動作は kinematic playback（毎フレーム姿勢を設定→`mj_forward`）なので倒れない——完全な接触ダイナミクスにすると両者倒れる（物理ゲートが弾く未解決バランス frontier そのもの）。ヒットは幾何（拳↔頭/胴の距離）で接触力ではない。実 3D エンジン上の振り付けバウト＝真のスパーリングへの次の一歩。</sub>
+<img src="assets/readme/real/kathak_hero.gif" width="840" alt="実カタック舞踊の動画 → Unitree G1・H1・H2 が同じ踊りを同期再現">
+
+<sub><b>…空手だけじゃない。</b> 古典舞踊 <b>カタック</b>のクリップ → 同じ 3 体の Unitree が踊りを再現（actuator-IK 誤差 0.04〜0.12 m）。武術でも舞踊でも、単眼パイプラインは動作タイプを跨いで汎化する。出典: Suyash Dwivedi, CC BY-SA 4.0 (Wikimedia)、レンダリングのみ・生動画は非再配布。</sub>
 
 ### 🎬 色々な振付 × 3 機種
 

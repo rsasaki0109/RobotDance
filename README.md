@@ -1,36 +1,32 @@
 <div align="center">
 
-# 🕺 RobotDance
+# 🥊 HumanoidBattle
 
-**Human Video → Humanoid Motion Compiler**
+**Human Video → Humanoid Motion Compiler** · pip / CLI: `robotdance`
 
-*An OSS compiler that turns human videos into motion humanoids can learn, search, imitate, and execute.*
+*Humanoids that fight, compete, and execute real motion — built on the RobotDance compiler core.*
 
 English · [**日本語**](README.ja.md)
 
-[![CI](https://github.com/rsasaki0109/RobotDance/actions/workflows/ci.yml/badge.svg)](https://github.com/rsasaki0109/RobotDance/actions/workflows/ci.yml)
+[![CI](https://github.com/rsasaki0109/HumanoidBattle/actions/workflows/ci.yml/badge.svg)](https://github.com/rsasaki0109/HumanoidBattle/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![ROS2](https://img.shields.io/badge/ROS2-Jazzy-22314E.svg)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rsasaki0109/HumanoidBattle/blob/main/notebooks/quickstart.ipynb)
 
-**[▶ Try it now in Colab](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb)** — zero install: one motion → six humanoids, in ~2 minutes.
+**[▶ Try it now in Colab](https://colab.research.google.com/github/rsasaki0109/HumanoidBattle/blob/main/notebooks/quickstart.ipynb)** — zero install: one motion → six humanoids, in ~2 minutes.
 
-<img src="assets/readme/karate_hero.gif" width="840" alt="Real karate video with skeleton overlay, then Unitree G1, H1 and H2 reproducing the same kata in sync">
+<img src="assets/readme/battle.gif" width="640" alt="HumanoidBattle: Unitree G1 vs H1 performing the same kata, scored, G1 wins on reach precision">
 
-<sub><b>One video → three humanoids.</b> A real karate video (left, 2D skeleton overlaid on the footage) → Unitree <b>G1 (1.29m)</b>, <b>H1 (1.66m)</b> and <b>H2 (1.76m)</b> all reproduce the same kata, in sync, from a single monocular clip. Same motion, three different bodies — that's the multi-embodiment retarget. ("Shorts to humanoid" in one line.) Source: Sdcsabac, CC BY-SA 4.0 (Wikimedia); raw video is not redistributed (renders only).</sub>
-
-<img src="assets/readme/real/kathak_hero.gif" width="840" alt="Real kathak dance video, then Unitree G1, H1 and H2 reproducing the same dance in sync">
-
-<sub><b>…and it's not just karate.</b> A classical <b>kathak</b> dance clip → the same three Unitree humanoids reproduce the dance (actuator-IK error 0.04–0.12 m). Martial art or dance, the monocular pipeline generalizes across motion types. Source: Suyash Dwivedi, CC BY-SA 4.0 (Wikimedia); renders only, raw video not redistributed.</sub>
+<sub><b>⚔️ Two humanoids, one kata, real metrics decide the winner.</b> <code>robotdance demo-battle --p1 unitree_g1:kata --p2 unitree_h1:kata</code> — G1 (1.29m) edges H1 (1.66m) 80–79: same kata, but the shorter body hits the reference end-effector targets more precisely (reach 55 vs 52). Scores come from RobotDance's <b>real metrics</b> (reach, bone fidelity, foot sliding, ROM; optionally MuJoCo balance/torque) — no random numbers. Skeleton render — no URDF or GPU needed, so it runs anywhere (even in the [Colab](https://colab.research.google.com/github/rsasaki0109/HumanoidBattle/blob/main/notebooks/quickstart.ipynb)).</sub>
 
 ### ⚔️ HumanoidBattle — 1v1 execution face-off
 
 Two humanoids, one kata, and a winner decided by **how well each body actually executes the motion**. It's a forms battle, not a brawl: each fighter's score is composed entirely from RobotDance's **real metrics** (end-effector reach error, bone-direction fidelity, foot-sliding, joint-ROM feasibility, optionally MuJoCo balance/torque) — no random numbers. Different bodies score differently on the same move, so the matchup is genuine.
 
-<img src="assets/readme/battle.gif" width="560" alt="HumanoidBattle: Unitree G1 vs H1 performing the same kata, scored, G1 wins on reach precision">
+<img src="assets/readme/fight.gif" width="560" alt="HumanoidBattle: two humanoids boxing in MuJoCo — red Unitree G1 vs blue Unitree H1 with live hit counter">
 
-<sub>`robotdance demo-battle --p1 unitree_g1:kata --p2 unitree_h1:kata` — G1 (1.29m) edges H1 (1.66m) 80–79: same kata, but the shorter body hits the reference end-effector targets more precisely (reach 55 vs 52). Add `--sim` to fold in MuJoCo balance/torque. Pick any `robot:motion` (kata/march/squat/backflip/bow). Skeleton render — no URDF or GPU needed, so it runs anywhere (even in the [Colab](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb)).</sub>
+<sub><b>🥊 Two humanoids, one arena, live hits.</b> <code>robotdance demo-fight --p1 unitree_g1 --p2 unitree_h1</code> — red vs blue in MuJoCo with a running score. Taller <b>H1 wins 10–6 on reach</b>; shorter G1 answers with body shots. Add <code>--assisted --rl</code> for champion-side physics tracking, or <code>--style karate</code> for real-video special moves. <b>Honest scope:</b> kinematic playback + geometric hits (not contact forces yet) — the fun hook on top of the motion compiler.</sub>
 
 **It's a game.** A round is one move; harder moves (backflip ×1.4, squat ×1.15) are worth more **if your body can land them** — but a move your robot can't do feasibly (ROM / balance / torque) *whiffs* and the score crashes. Risk vs reward. A match is **best-of-3 different moves**, so a one-trick body can't sweep — versatility wins. Run the whole thing as a **single-elimination tournament**:
 
@@ -38,13 +34,15 @@ Two humanoids, one kata, and a winner decided by **how well each body actually e
 
 <sub><code>robotdance demo-tournament</code> — all six humanoids enter, best-of-3 (kata / squat / backflip), single-elimination. **Champion: Fourier N1** — its near-human limb proportions give the lowest reach error, so it executes every move the cleanest and beats G1 in the final on the backflip (60 vs 51). The whole bracket is decided by real metrics; the GIF is the championship round. (Print the full bracket in the console; `--sim` adds physics scoring.)</sub>
 
-#### 🥊 …and an actual fight in the simulator
+### 🎬 Real video → humanoid (the compiler underneath)
 
-The scored face-offs above are kinematic. This one puts **two humanoids in the same MuJoCo scene**, throws boxing combinations, and registers a hit when a fist reaches the opponent's head or body:
+<img src="assets/readme/karate_hero.gif" width="840" alt="Real karate video with skeleton overlay, then Unitree G1, H1 and H2 reproducing the same kata in sync">
 
-<img src="assets/readme/fight.gif" width="480" alt="Two humanoids boxing in a MuJoCo scene: red Unitree G1 vs blue Unitree H1, with a live hit counter; H1 wins on reach">
+<sub><b>One video → three humanoids.</b> A real karate video (left, 2D skeleton overlaid on the footage) → Unitree <b>G1 (1.29m)</b>, <b>H1 (1.66m)</b> and <b>H2 (1.76m)</b> all reproduce the same kata, in sync, from a single monocular clip. Same motion, three different bodies — that's the multi-embodiment retarget. Source: Sdcsabac, CC BY-SA 4.0 (Wikimedia); raw video is not redistributed (renders only).</sub>
 
-<sub><code>robotdance demo-fight --p1 unitree_g1 --p2 unitree_h1</code> — red corner vs blue corner, rendered in MuJoCo with a live hit counter. The taller **H1 wins 10–6 on reach**; the shorter G1 answers with body shots. <b>Honest scope:</b> motion is kinematic playback (each frame's pose is set, then `mj_forward`) so the fighters stay upright — full contact dynamics would just make them fall, which is the same unsolved balance frontier the physics gate flags. Hits are geometric (fist↔head/torso distance), not contact forces. It's a choreographed bout in the real 3D engine — the next step toward true contact sparring.</sub>
+<img src="assets/readme/real/kathak_hero.gif" width="840" alt="Real kathak dance video, then Unitree G1, H1 and H2 reproducing the same dance in sync">
+
+<sub><b>…and it's not just karate.</b> A classical <b>kathak</b> dance clip → the same three Unitree humanoids reproduce the dance (actuator-IK error 0.04–0.12 m). Martial art or dance, the monocular pipeline generalizes across motion types. Source: Suyash Dwivedi, CC BY-SA 4.0 (Wikimedia); renders only, raw video not redistributed.</sub>
 
 ### 🎬 Many motions × three robots
 

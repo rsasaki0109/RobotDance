@@ -1,4 +1,4 @@
-# RobotDance — Plan (HumanoidBattle pivot)
+# HumanoidBattle — Plan
 
 > Living plan. The original research roadmap is in [`docs/ROADMAP.md`](docs/ROADMAP.md); this file
 > tracks the **current strategic direction**: turn the motion-compiler core into a fun, shareable
@@ -13,8 +13,8 @@
 - **Two levers, in priority order:**
   1. **Distribution** — launch it (Show HN / r/robotics / X). Only the owner can press this button.
   2. **A viral hook** — **HumanoidBattle**: humanoids that fight/compete. Fun things get shared.
-- Plan: keep making the battle more fun *and* launch with it as the hook. Don't rename the repo
-  yet (breaks links, no traffic upside) — decided 2026-06-08.
+- Plan: keep making the battle more fun *and* launch with it as the hook. **Repo renamed to
+  HumanoidBattle** (2026-06-08); pip/CLI package stays `robotdance`. GitHub redirects old URLs.
 
 ## Where we are (v0.138)
 
@@ -49,32 +49,43 @@ This is what actually moves stars. Owner-action required; everything below remov
 
 Each is a self-contained increment (implement → test → release), most fun first:
 
-- [ ] **Physical tournament** — run the whole bracket as `demo-fight` bouts (boxing), not kinematic
-      kata scoring. Crown a *fighting* champion. Round-robin or single-elim, hit-count standings.
-- [ ] **Mesh fights** — render the bout with real robot meshes (G1/H1/H2 URDFs we already have)
-      instead of capsules, for a far more impressive GIF. Reuse `render_real_video_gif` mesh path.
-- [ ] **Special moves from real video** — add the karate kata / kathak clips as selectable "moves"
-      so a fighter can throw a real extracted technique. Ties the video pipeline into the game.
-- [ ] **Leaderboard / ranking** — persist results to `LEADERBOARD.md`, ELO across matchups,
-      "hall of champions". Makes outcomes feel like a sport.
-- [ ] **More moves + balance** — expand the move roster (hooks, kicks, dodges), tune difficulty so
-      outcomes spread (avoid 10–10 draws); per-body strengths (tall = reach, compact = precision).
+- [x] **Physical tournament** — `demo-tournament --physical` runs single-elim bracket as
+      `demo-fight` bouts (hit-count); `--moves boxing/karate/kathak` for best-of-N styles.
+      Crown a *fighting* champion; final bout rendered as fight GIF.
+- [x] **Mesh fights** — `demo-fight --mesh` renders with real G1/H1/H2 URDF meshes (pybullet)
+      instead of MuJoCo capsules; shared `robotdance_sim/mesh_render.py` with `render_real_video_gif`.
+- [x] **Special moves from real video** — karate kata / kathak clips as selectable moves
+      (`robot:motion` in battle/tournament; `demo-fight --style karate|kathak`). Bundled RD-MIR
+      fixtures (numeric motion only, CC BY-SA attribution in source_ref).
+- [x] **Leaderboard / ranking** — `demo-tournament --record` persists ELO + bout log +
+      Hall of Champions to `docs/benchmark/HUMANOID_BATTLE_LEADERBOARD.md`
+      (`humanoid_battle_state.json`). Physical = ELO; kata = hall only.
+- [x] **More moves + balance** — `hook`/`kick`/`dodge` fight styles + kinematic moves; per-height
+      reach/precision hit radii; draw tiebreak (body hits → height). `robotdance_sim/fight_moves.py`.
 
 ## Priority 3 — Tech frontier that deepens the game
 
 The honest unsolved core; better here → a *real* fight instead of choreography:
 
-- [ ] **Balance controller** so a humanoid can track motion under forward dynamics without falling
-      (pinned-base → assisted → free). This is the gate to **true contact sparring** (punches that
-      land with reaction, stumbles, KOs). Likely RL (the `tracking_env` is the seed).
-- [ ] **Depth frontier** (continues `--stabilize-depth` / `--balance-refine`): observability-weighted
-      depth, contact-aware retarget — so extracted real-video moves are physically feasible enough to
-      fight with.
+- [~] **Balance controller** so a humanoid can track motion under forward dynamics without falling
+      (pinned-base → assisted → free). **v0.144**: `demo-assisted` — single-robot PD-only rollout via
+      `TrackingEnv` (`robotdance_sim/assisted_playback.py`). **v0.145**: `benchmark-assisted` で
+      fight × robot の survival を raw/refine 比較。**v0.146**: fight motion RL tracking CLI。
+      **v0.147**: `benchmark-assisted --rl` で PD 失敗組に RL 列を追加。
+      **v0.148**: `demo-fight --assisted` — 1 体 PD-only 物理追従、相手 kinematic。
+      **v0.149**: `--assisted --rl` — 同枠で PPO tracking 追従（`rollout_rl`）。
+      **v0.150**: physical tournament 決勝 assisted/RL + benchmark rescued-by-RL-only。
+      **v0.151**: `--assisted champion`（省略時も champion）— 決勝 GIF でチャンピオン側を自動物理追従。
+      2-body contact sparring still open.
+- [~] **Depth frontier** (continues `--stabilize-depth` / `--balance-refine`): **v0.144**:
+      `refine_for_fight()` + `demo-fight --depth-refine` / `demo-assisted --depth-refine` wire
+      stabilize + balance into the fight pipeline. **v0.145**: assisted survival benchmark で効果を
+      可視化（`docs/benchmark/ASSISTED_SURVIVAL.md`）。Contact-aware retarget still open.
 
 ## Non-goals / decisions
 
-- **No repo rename** to "HumanoidBattle" yet — breaks Colab/install/badge links, discards the
-  RobotDance identity, and brings no traffic on its own. Revisit *after* a launch lands.
+- **Repo is HumanoidBattle**; Python package / CLI remain `robotdance` (PyPI・import 互換).
+  Old `RobotDance` GitHub URLs redirect automatically.
 - **No fake physics.** Hits stay geometric and clearly labeled until a real balance controller makes
   contact dynamics stable. No gimmicks that pretend the fight is fully simulated when it isn't.
 - Keep license-safety: only renders + numeric motion, never raw video/mocap/meshes.

@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from robotdance_core.skeleton import index_of
-from robotdance_sim.arena import generate_boxing
+from robotdance_sim.fight_moves import generate_boxing, generate_hook, generate_kick
 
 
 def test_generate_boxing_is_valid_and_punches_forward() -> None:
@@ -53,3 +53,50 @@ def test_mirror_match_is_draw() -> None:
     res = run_fight(get_morphology("unitree_g1"), get_morphology("unitree_g1"),
                     name_a="unitree_g1", name_b="unitree_g1", duration=4.0, render=False)
     assert res.p1_hits == res.p2_hits and res.winner == "DRAW"  # 同体・同モーション → 引き分け
+
+
+def test_run_fight_assisted_p1_scores() -> None:
+    pytest.importorskip("mujoco")
+    from robotdance_sim.arena import run_fight
+    from robotdance_unitree import get_morphology
+
+    res = run_fight(
+        get_morphology("unitree_g1"), get_morphology("unitree_h1"),
+        name_a="unitree_g1", name_b="unitree_h1", duration=3.0, render=False,
+        style="boxing", depth_refine=True, assisted="p1",
+    )
+    assert res.assisted_corner == "p1"
+    assert res.assisted_survival is not None
+    assert res.assisted_survival > 0.5
+    assert res.winner in ("unitree_g1", "unitree_h1", "DRAW")
+    assert res.p1_hits >= 0 and res.p2_hits >= 0
+
+
+def test_run_fight_assisted_kick_with_depth_refine() -> None:
+    pytest.importorskip("mujoco")
+    from robotdance_sim.arena import run_fight
+    from robotdance_unitree import get_morphology
+
+    res = run_fight(
+        get_morphology("unitree_g1"), get_morphology("unitree_h1"),
+        name_a="unitree_g1", name_b="unitree_h1", duration=3.0, render=False,
+        style="kick", depth_refine=True, assisted="p1",
+    )
+    assert res.assisted_survival == 1.0
+
+
+def test_run_fight_assisted_rl_karate() -> None:
+    pytest.importorskip("torch")
+    pytest.importorskip("mujoco")
+    from robotdance_sim.arena import run_fight
+    from robotdance_unitree import get_morphology
+
+    res = run_fight(
+        get_morphology("unitree_g1"), get_morphology("unitree_h1"),
+        name_a="unitree_g1", name_b="unitree_h1", duration=3.0, render=False,
+        style="karate", assisted="p1", assisted_mode="rl", rl_iterations=8,
+    )
+    assert res.assisted_corner == "p1"
+    assert res.assisted_mode == "rl"
+    assert res.assisted_survival is not None
+    assert res.assisted_survival > 0.3
