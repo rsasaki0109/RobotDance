@@ -5,9 +5,13 @@ from __future__ import annotations
 import pytest
 
 from robotdance_benchmarks.battle import (
+    DIFFICULTY,
     MOTIONS,
     _parse_fighter,
+    evaluate,
+    play_match,
     run_battle,
+    run_tournament,
     score_fighter,
 )
 
@@ -67,3 +71,52 @@ def test_same_robot_same_motion_is_draw() -> None:
 
 def test_motions_registry_nonempty() -> None:
     assert "kata" in MOTIONS and callable(MOTIONS["kata"])
+
+
+# --- ゲーム層（move / match / tournament）---
+
+def test_evaluate_applies_difficulty_and_is_deterministic() -> None:
+    a = evaluate("unitree_g1", "kata")
+    b = evaluate("unitree_g1", "kata")
+    assert a.score == b.score                     # 決定的
+    assert 0.0 <= a.score <= 100.0
+    assert a.kps is not None and a.kps.shape[1:] == (19, 3)
+    # backflip は難度倍率が最大。
+    assert DIFFICULTY["backflip"] == max(DIFFICULTY.values())
+
+
+def test_play_match_best_of_n_winner_by_rounds() -> None:
+    m = play_match("unitree_g1", "unitree_h1", ["kata", "squat", "backflip"])
+    assert len(m.rounds) == 3
+    assert m.p1_rounds + m.p2_rounds <= 3
+    assert m.winner in ("unitree_g1", "unitree_h1", "DRAW")
+    if m.winner != "DRAW":
+        # 勝者は勝ちラウンド数が多い、または同数なら総得点が多い。
+        if m.p1_rounds == m.p2_rounds:
+            assert (m.p1_total > m.p2_total) == (m.winner == "unitree_g1")
+        else:
+            assert (m.p1_rounds > m.p2_rounds) == (m.winner == "unitree_g1")
+    assert m.p1_kps is not None and m.p2_kps is not None  # 描画用ハイライト
+
+
+def test_identical_fighters_draw_match() -> None:
+    m = play_match("unitree_g1", "unitree_g1", ["kata", "squat"])
+    assert m.winner == "DRAW"
+    assert all(r.winner == "TIE" for r in m.rounds)
+
+
+def test_tournament_crowns_a_valid_champion() -> None:
+    robots = ["unitree_g1", "unitree_h1", "unitree_h2",
+              "booster_t1", "apptronik_apollo", "fourier_n1"]
+    t = run_tournament(robots, ["kata", "squat", "backflip"])
+    assert t.champion in robots
+    assert len(t.bracket) >= 2                     # 6 体 → 複数ラウンド
+    assert t.final.winner == t.champion or t.final.winner == "DRAW"
+    # 決勝の対戦者にチャンピオンが含まれる。
+    assert t.champion in (t.final.p1, t.final.p2)
+
+
+def test_tournament_handles_odd_field_with_bye() -> None:
+    t = run_tournament(["unitree_g1", "unitree_h1", "fourier_n1"], ["kata"])
+    assert t.champion in ("unitree_g1", "unitree_h1", "fourier_n1")
+    assert t.byes  # 奇数なので最低 1 回 bye が発生

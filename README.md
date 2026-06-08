@@ -32,6 +32,12 @@ Two humanoids, one kata, and a winner decided by **how well each body actually e
 
 <sub>`robotdance demo-battle --p1 unitree_g1:kata --p2 unitree_h1:kata` — G1 (1.29m) edges H1 (1.66m) 80–79: same kata, but the shorter body hits the reference end-effector targets more precisely (reach 55 vs 52). Add `--sim` to fold in MuJoCo balance/torque. Pick any `robot:motion` (kata/march/squat/backflip/bow). Skeleton render — no URDF or GPU needed, so it runs anywhere (even in the [Colab](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb)).</sub>
 
+**It's a game.** A round is one move; harder moves (backflip ×1.4, squat ×1.15) are worth more **if your body can land them** — but a move your robot can't do feasibly (ROM / balance / torque) *whiffs* and the score crashes. Risk vs reward. A match is **best-of-3 different moves**, so a one-trick body can't sweep — versatility wins. Run the whole thing as a **single-elimination tournament**:
+
+<img src="assets/readme/tournament.gif" width="560" alt="HumanoidBattle tournament final: Fourier N1 beats Unitree G1 on a backflip to win the championship">
+
+<sub><code>robotdance demo-tournament</code> — all six humanoids enter, best-of-3 (kata / squat / backflip), single-elimination. **Champion: Fourier N1** — its near-human limb proportions give the lowest reach error, so it executes every move the cleanest and beats G1 in the final on the backflip (60 vs 51). The whole bracket is decided by real metrics; the GIF is the championship round. (Print the full bracket in the console; `--sim` adds physics scoring.)</sub>
+
 ### 🎬 Many motions × three robots
 
 <table>
@@ -206,7 +212,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 | extraction | `extract` (`--backend`, `--stabilize-depth`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `download-hf` (HF Hub fetch → import-*, license-safe alt to YouTube/TikTok) `smooth` `overlay` |
 | pose backends & QC | `list-backends` (mediapipe / 2D+lift / gvhmr·wham) `pose-compare` `motion-doctor` (mirror/depth/grounding) |
 | dataset | `build-dataset` (RD-Manifest + license firewall / Data BOM) `dedupe-dir` |
-| retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle + optional `--with-velocity` CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/H2/T1/Apollo/N1) `demo-battle` (⚔️ 1v1 execution face-off, metric-scored) |
+| retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle + optional `--with-velocity` CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/H2/T1/Apollo/N1) `demo-battle` (⚔️ 1v1 execution face-off, metric-scored) `demo-tournament` (🏆 single-elim bracket → champion) |
 | physics check | `validate-sim` (sim_certificate, MuJoCo) `--ground-clean` `--balance-refine` `--balance-plot` `sim-backends` |
 | embedding & search | `demo-motion-map` `train-encoder` `train-text-motion` `search-text` `search-motion` (`--text` zero-dep concept search, `--healthy-only` quality-aware) |
 | generation | `train-tokenizer` (VQ-VAE) `train-prior` `demo-generate` `train-text2motion` `generate-text` `train-denoiser` |

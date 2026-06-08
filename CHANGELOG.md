@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.137.0] - 2026-06-08
+### Added
+- **HumanoidBattle をゲーム化（`demo-tournament` ＋ best-of-N マッチ ＋ 技難度）**: 1 ラウンド=1 技で、難しい技ほど高配点（backflip ×1.4・squat ×1.15）だが、自分の体で物理的に無理な技は feasibility 項が落ちて *whiff*＝リスク/リターン。1 マッチは best-of-3（毎ラウンド別技）で万能な体が勝つ。全機種を単欠トーナメントで対戦し**チャンピオン**を決定（既定 6 体, 評価キャッシュ共有）。**チャンピオン: Fourier N1**（人間に近い四肢比率→reach 最小→全技を最もきれいに実行、決勝で backflip 60 vs 51 で G1 を下す）。全ブラケットはコンソール出力、決勝ラウンドを GIF 描画。`robotdance_benchmarks/battle.py` に `Move`/`evaluate`/`play_match`/`run_tournament`/`DIFFICULTY`、`demo-tournament` CLI、README に 🏆 セクション + tournament GIF。
+
 ## [0.136.0] - 2026-06-08
 ### Added
 - **⚔️ HumanoidBattle（`demo-battle`）**: 2 体のヒューマノイドが同じ/別の型を実行し、**実行品質で 1v1 採点**して勝者を描画する新モード。殴り合いではなく型（演武）バトルで、スコアは RobotDance の**実 metrics**（reach 誤差・bone 方向・foot sliding・関節可動域、任意で MuJoCo balance/torque）だけで合成（乱数なし・breakdown 透明）。体格差で点が変わる（G1 vs H1 kata で 80–79、低い体ほど end-effector 目標を精密に突く）。`robot:motion` を 2 つ指定、`--sim` で物理採点追加。スケルトン描画で URDF/GPU 不要（Colab でも動く）。`robotdance_benchmarks/battle.py`（`score_fighter`/`run_battle`）、`demo-battle` CLI、README に ⚔️ セクション + battle GIF。

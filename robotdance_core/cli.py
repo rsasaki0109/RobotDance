@@ -1484,7 +1484,7 @@ def _demo_safety(out: Path, robot: str, stride: int) -> int:
 
 
 # multi-embodiment デモで描き分ける色。
-_ROBOT_COLORS = {"unitree_g1": "#ff7f0e", "unitree_h1": "#2ca02c", "unitree_h2": "#17becf", "booster_t1": "#9467bd", "apptronik_apollo": "#8c564b"}
+_ROBOT_COLORS = {"unitree_g1": "#ff7f0e", "unitree_h1": "#2ca02c", "unitree_h2": "#17becf", "booster_t1": "#9467bd", "apptronik_apollo": "#8c564b", "fourier_n1": "#e377c2"}
 
 
 def _demo_multi(out: Path, robots: list[str], stride: int) -> int:
@@ -1543,6 +1543,48 @@ def _demo_battle(p1: str, p2: str, out: Path, stride: int, sim: bool) -> int:
     return 0
 
 
+def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int,
+                     sim: bool) -> int:
+    """🏆 HumanoidBattle トーナメント: 単欠ブラケットで全機種を best-of-N 対戦→チャンピオン描画。"""
+    from robotdance_benchmarks.battle import run_tournament
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    t = run_tournament(robots, moves, sim=sim)
+    labels = ["準々決勝", "準決勝", "決勝"] if len(t.bracket) == 3 else \
+        [f"Round {i + 1}" for i in range(len(t.bracket))]
+    print(f"⚔️  HumanoidBattle Tournament  ({len(robots)} fighters × moves {','.join(moves)})")
+    for ri, rnd in enumerate(t.bracket):
+        name = labels[ri] if ri < len(labels) else f"Round {ri + 1}"
+        if ri == len(t.bracket) - 1:
+            name = "決勝 (FINAL)"
+        print(f"  ── {name} ──")
+        for m in rnd:
+            rs = " ".join(f"{r.move}:{r.p1_score:.0f}-{r.p2_score:.0f}" for r in m.rounds)
+            print(f"    {m.p1} vs {m.p2}  →  {m.winner}  "
+                  f"({m.p1_rounds}-{m.p2_rounds} rd, {m.p1_total:.0f}-{m.p2_total:.0f} pts) [{rs}]")
+    if t.byes:
+        print(f"  (bye: {', '.join(t.byes)})")
+    print(f"  🏆 CHAMPION: {t.champion}")
+
+    # 決勝のハイライトラウンドを描画（チャンピオンを左に、相手を反転で対面）。
+    f = t.final
+    champ_left = f.winner == f.p1 or f.winner == "DRAW"
+    lk = f.p1_kps if champ_left else f.p2_kps
+    rk = (f.p2_kps if champ_left else f.p1_kps).copy()
+    rk[:, :, 1] *= -1.0
+    lname = f.p1 if champ_left else f.p2
+    rname = f.p2 if champ_left else f.p1
+    panels = [
+        (lk, lname, _ROBOT_COLORS.get(lname, "#ff7f0e")),
+        (rk, rname, _ROBOT_COLORS.get(rname, "#2ca02c")),
+    ]
+    verdicts = [("CHAMPION", "#d4a017"), ("finalist", "#888888")]
+    title = f"HumanoidBattle FINAL  ({f.hi_move})  —  CHAMPION: {t.champion}"
+    render_side_by_side(panels, out, fps=f.fps, stride=stride, verdicts=verdicts, title=title)
+    print(f"✓ tournament FINAL GIF → {out}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="robotdance", description="RobotDance core CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1595,6 +1637,18 @@ def main(argv: list[str] | None = None) -> int:
     p_battle.add_argument("--stride", type=int, default=2)
     p_battle.add_argument("--sim", action="store_true",
                           help="物理 sim（balance/torque）も採点に含める（MuJoCo, 重い）")
+
+    p_tour = sub.add_parser(
+        "demo-tournament",
+        help="🏆 HumanoidBattle トーナメント: 全機種を best-of-N で単欠対戦しチャンピオン決定")
+    p_tour.add_argument("--robots", nargs="+",
+                        default=["unitree_g1", "unitree_h1", "unitree_h2",
+                                 "booster_t1", "apptronik_apollo", "fourier_n1"])
+    p_tour.add_argument("--moves", nargs="+", default=["kata", "squat", "backflip"],
+                        help="各マッチの best-of-N 技（kata/march/squat/backflip/bow）")
+    p_tour.add_argument("-o", "--out", type=Path, default=Path("tournament_final.gif"))
+    p_tour.add_argument("--stride", type=int, default=2)
+    p_tour.add_argument("--sim", action="store_true", help="物理 sim も採点に含める（重い）")
 
     p_serve = sub.add_parser("serve", help=".rdmotion を safety guard 越しに再生（--ros2 で ROS2 配信）")
     p_serve.add_argument("rdmotion", type=Path, help="certified .rdmotion JSON")
@@ -1947,6 +2001,8 @@ def main(argv: list[str] | None = None) -> int:
         return _demo_multi(args.out, args.robots, args.stride)
     if args.command == "demo-battle":
         return _demo_battle(args.p1, args.p2, args.out, args.stride, args.sim)
+    if args.command == "demo-tournament":
+        return _demo_tournament(args.robots, args.moves, args.out, args.stride, args.sim)
     if args.command == "validate-sim":
         return _validate_sim(args.path, args.robot, args.out, args.backend, args.clamp_flexion,
                              args.balance_plot, args.ground_clean, args.lock_foot_xy,

@@ -27,6 +27,12 @@ MOTIONS = {
     "squat": generate_squat, "backflip": generate_backflip, "bow": generate_overbend,
 }
 
+# 技の難度＝style 倍率（透明な「リスク/リターン」）。難しい技ほど決まれば高得点だが、自分の体で
+# 物理的に無理だと feasibility 項（control/balance）が落ちて whiff する＝倍率を掛けても低いまま。
+DIFFICULTY = {
+    "kata": 1.0, "dance": 1.0, "march": 1.0, "bow": 0.9, "squat": 1.15, "backflip": 1.4,
+}
+
 
 def _clip01(x: float) -> float:
     return float(min(1.0, max(0.0, x)))
@@ -139,4 +145,151 @@ def run_battle(p1_spec: str, p2_spec: str, *, sim: bool = False) -> BattleResult
                         kps[0], kps[1], fps=fps)
 
 
-__all__ = ["Scorecard", "BattleResult", "score_fighter", "run_battle", "MOTIONS"]
+# ---------------------------------------------------------------------------
+# ゲーム層: 技難度つきラウンド → best-of-N マッチ → 単純トーナメント。
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Move:
+    """1 ファイターの 1 技の結果（style 倍率込みのラウンド得点 + 描画用 kps）。"""
+
+    move: str
+    score: float                      # min(100, overall * difficulty)
+    card: Scorecard
+    kps: np.ndarray = field(repr=False, default=None)
+    fps: float = 30.0
+
+
+def evaluate(robot: str, move: str, *, sim: bool = False) -> Move:
+    """robot が move を実行した時の難度込みラウンド得点を返す（相手に依らず決定的）。"""
+    from robotdance_retarget.kinematic import retarget
+    from robotdance_unitree import get_morphology
+
+    if move not in MOTIONS:
+        raise ValueError(f"未知の move '{move}'（利用可能: {sorted(MOTIONS)}）")
+    morph = get_morphology(robot)
+    mir = MOTIONS[move]()
+    mo = retarget(mir, morph)
+    cert = None
+    if sim:
+        from robotdance_sim.backend import certify
+        certify(mo, morph)
+        cert = mo.sim_certificate
+    card = score_fighter(mo.retarget_metrics or {}, cert)
+    score = round(min(100.0, card.overall * DIFFICULTY.get(move, 1.0)), 1)
+    return Move(move, score, card, mo.keypoints_3d_array(), float(mir.fps))
+
+
+@dataclass
+class RoundResult:
+    move: str
+    p1_score: float
+    p2_score: float
+    winner: str          # robot 名 / "TIE"
+
+
+@dataclass
+class MatchResult:
+    p1: str
+    p2: str
+    rounds: list[RoundResult]
+    p1_rounds: int
+    p2_rounds: int
+    p1_total: float
+    p2_total: float
+    winner: str
+    # 描画用ハイライト（最も差がついたラウンドの両者 kps）。
+    hi_move: str = ""
+    p1_kps: np.ndarray = field(repr=False, default=None)
+    p2_kps: np.ndarray = field(repr=False, default=None)
+    fps: float = 30.0
+
+
+def play_match(p1: str, p2: str, moves: list[str], *, sim: bool = False,
+               _cache: dict | None = None) -> MatchResult:
+    """best-of-N マッチ: 各 move で両者を採点しラウンド勝者を決め、勝ちラウンド数→総得点で勝敗。
+
+    _cache は (robot, move)→Move の評価キャッシュ（トーナメントで再計算を避ける）。
+    """
+    cache = _cache if _cache is not None else {}
+
+    def ev(robot: str, move: str) -> Move:
+        key = (robot, move)
+        if key not in cache:
+            cache[key] = evaluate(robot, move, sim=sim)
+        return cache[key]
+
+    rounds: list[RoundResult] = []
+    p1w = p2w = 0
+    p1t = p2t = 0.0
+    best_margin = -1.0
+    hi = (moves[0] if moves else "kata", None, None, 30.0)
+    for mv in moves:
+        m1, m2 = ev(p1, mv), ev(p2, mv)
+        if m1.score > m2.score:
+            rw, p1w = p1, p1w + 1
+        elif m2.score > m1.score:
+            rw, p2w = p2, p2w + 1
+        else:
+            rw = "TIE"
+        rounds.append(RoundResult(mv, m1.score, m2.score, rw))
+        p1t += m1.score
+        p2t += m2.score
+        if abs(m1.score - m2.score) >= best_margin:
+            best_margin = abs(m1.score - m2.score)
+            hi = (mv, m1.kps, m2.kps, m1.fps)
+    if p1w > p2w or (p1w == p2w and p1t > p2t):
+        winner = p1
+    elif p2w > p1w or (p2w == p1w and p2t > p1t):
+        winner = p2
+    else:
+        winner = "DRAW"
+    return MatchResult(p1, p2, rounds, p1w, p2w, round(p1t, 1), round(p2t, 1), winner,
+                       hi_move=hi[0], p1_kps=hi[1], p2_kps=hi[2], fps=hi[3])
+
+
+@dataclass
+class TournamentResult:
+    bracket: list[list[MatchResult]]   # ラウンドごとの試合（[準々/準決/決勝...]）
+    champion: str
+    final: MatchResult
+    byes: list[str] = field(default_factory=list)
+
+
+def run_tournament(robots: list[str], moves: list[str], *, sim: bool = False) -> TournamentResult:
+    """単純な単欠トーナメント（入力順シード）。各試合は best-of-N マッチ。チャンピオンを返す。
+
+    奇数なら先頭が bye で次へ進む。評価はキャッシュ共有で (robot, move) を一度だけ計算。
+    """
+    if len(robots) < 2:
+        raise ValueError("トーナメントには 2 体以上必要です")
+    cache: dict = {}
+    alive = list(robots)
+    bracket: list[list[MatchResult]] = []
+    byes: list[str] = []
+    final: MatchResult | None = None
+    while len(alive) > 1:
+        nxt: list[str] = []
+        rnd: list[MatchResult] = []
+        i = 0
+        if len(alive) % 2 == 1:           # 奇数: 先頭が bye
+            byes.append(alive[0])
+            nxt.append(alive[0])
+            i = 1
+        while i < len(alive):
+            a, b = alive[i], alive[i + 1]
+            m = play_match(a, b, moves, sim=sim, _cache=cache)
+            rnd.append(m)
+            nxt.append(m.winner if m.winner != "DRAW" else a)  # DRAW は上シード(a)勝ち抜け
+            i += 2
+        bracket.append(rnd)
+        final = rnd[-1]
+        alive = nxt
+    return TournamentResult(bracket, alive[0], final, byes)
+
+
+__all__ = [
+    "Scorecard", "BattleResult", "Move", "RoundResult", "MatchResult", "TournamentResult",
+    "score_fighter", "run_battle", "evaluate", "play_match", "run_tournament",
+    "MOTIONS", "DIFFICULTY",
+]
