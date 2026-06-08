@@ -141,6 +141,10 @@ Feed the extracted real squat into the feasibility certificate (real URDF inerti
 
 <sub>The residual ZMP excursion concentrates along the forward x axis (depth — the least reliable axis in monocular). A full PASS needs better depth estimation / contact-aware retargeting — v0's honest frontier. Two complementary first steps, both freezing the observed lateral/vertical (y, z) image-plane axes and touching **only** the unobserved fore-aft x: `extract --stabilize-depth` (extraction-side — observability-weighted, it damps the spurious front-back split of joints that are static in view, e.g. legs during a shoulder press: robot ankle split 0.23→0.13 m), and `validate-sim --balance-refine` (retarget-side — a quasi-static balance prior, COM over the support polygon). Refinement of an ill-posed axis, not violation-hiding smoothing.</sub>
 
+<img src="assets/readme/real/stabilize_depth_beforeafter.gif" width="480" alt="Shoulder press: raw extraction splays the static legs front-back; --stabilize-depth pulls them back together">
+
+<sub><b><code>--stabilize-depth</code> in action.</b> A shoulder-press clip — the arms move but the legs are static, so monocular gives them no depth cue and hallucinates a front-back split (left, the robot does the splits). Observability-weighted depth stabilization recognizes the legs are static in view and levels their fore-aft position, leaving the moving arms untouched (right). This is exactly the kind of clip that used to be unusable. Source: FitnessScape, CC BY 3.0 (Wikimedia); renders only.</sub>
+
 ### Benchmark — why each motion passes or fails
 
 `robotdance benchmark --chart` runs the motion suite × robots and plots every run by **torque ratio (×actuator limit)** vs **balance-violation ratio**, so you can see *which axis* each motion is limited by:

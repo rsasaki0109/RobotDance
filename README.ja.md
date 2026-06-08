@@ -141,6 +141,10 @@ Output: ロボット実行可能モーション + RD-MIR データセット + mo
 
 <sub>残った ZMP のはみ出しは前後 x（単眼で最も不確実な深度）方向に偏る。完全 PASS には深度推定 / contact-aware retarget の改善が要る — v0 の正直な frontier。相補的な第一歩が 2 つ、いずれも観測できている横/高さ（y, z）を凍結し**未観測の前後 x だけ**を扱う: `extract --stabilize-depth`（抽出側 — 観測性で重み付けし、画像内で静的な関節の spurious な前後スプリットを抑える。例: shoulder press の静止脚 → ロボット足首スプリット 0.23→0.13 m）と `validate-sim --balance-refine`（retarget 側 — quasi-static balance prior, COM を支持多角形上へ）。ill-posed な軸の精緻化であり、violation を隠す平滑ではない。</sub>
 
+<img src="assets/readme/real/stabilize_depth_beforeafter.gif" width="480" alt="ショルダープレス: 生抽出は静止脚を前後にスプリットするが --stabilize-depth で揃う">
+
+<sub><b><code>--stabilize-depth</code> の効果。</b> ショルダープレスのクリップ — 腕は動くが脚は静止なので単眼は深度の手がかりを得られず前後スプリットを幻視する（左、ロボットが開脚）。観測性ベースの深度安定化は脚が画像内で静的だと認識して前後位置を揃え、動いている腕はそのまま残す（右）。まさに以前は使えなかった種類のクリップ。出典: FitnessScape, CC BY 3.0 (Wikimedia)、レンダリングのみ。</sub>
+
 ### Benchmark — 各動作が PASS/REJECT する理由
 
 `robotdance benchmark --chart` は motion スイート × ロボットを回し、各 run を **torque 比（×actuator 上限）** vs **balance 違反率** で散布図にする。動作が**どの軸で律速か**が一目で分かる:

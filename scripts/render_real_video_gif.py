@@ -95,6 +95,8 @@ def main() -> None:
     ap.add_argument("--stride", type=int, default=3)
     ap.add_argument("--width", type=int, default=360)
     ap.add_argument("--height", type=int, default=460)
+    ap.add_argument("--stabilize-depth", action="store_true",
+                    help="抽出後に深度安定化（静的脚の前後スプリット抑制, y/z 不変）を適用")
     args = ap.parse_args()
 
     import imageio.v2 as imageio
@@ -110,6 +112,13 @@ def main() -> None:
     conf = np.array(mir.confidence["joint"])
     print(f"extract: {conf.shape[0]} frames, mean_conf={conf.mean():.3f}, "
           f"jitter_after={mir.quality_metrics.get('jitter_after')}")
+    if args.stabilize_depth:
+        from robotdance_motion.depth_stabilize import stabilize_depth
+
+        mir = stabilize_depth(mir)
+        ds = (mir.quality_metrics or {}).get("depth_stabilize", {})
+        print(f"stabilize-depth: leg split {ds.get('leg_split_before_m')}→"
+              f"{ds.get('leg_split_after_m')} m")
 
     # 2. 抽出スケルトン GIF（人間の動きの復元を見せる）。
     skel_out = Path(str(args.out) + "_skeleton.gif")

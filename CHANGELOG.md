@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.135.0] - 2026-06-08
+### Added
+- **`--stabilize-depth` の before/after デモ GIF**: ショルダープレス（腕は動くが脚は静止）で、生抽出はロボット脚が前後にスプリット（開脚）するのに対し、`--stabilize-depth` で脚が揃う様子を side-by-side で可視化（足首前後差 0.17→0.09 m）。「以前は使えなかったクリップ」が救済される証拠。README frontier 節に追加。`assets/readme/real/stabilize_depth_beforeafter.gif`。出典 FitnessScape, CC BY 3.0（レンダリングのみ）。
+- `render_real_video_gif.py` に `--stabilize-depth` フラグ（抽出後・retarget 前に深度安定化を適用）を追加し、上記デモを再現可能に。
+
 ## [0.134.0] - 2026-06-08
 ### Added
 - **`extract --stabilize-depth`（pose 抽出の深度安定化）**: 単眼で ill-posed な前後 x 深度を**観測性（画像面 y/z の動きの大きさ）で重み付け**して安定化。(1) 静的な関節の深度ジッタを low-pass、(2) 両方とも画像内で静的な左右対称ペア（足首/膝/股/肩/手首）の**持続的な前後スプリット**を共有平均へ leveling。観測軸 y・z は厳密に凍結し、**動いている関節は触らない**（深度が比較的信頼できるため）。documented failure の shoulder press（脚静止→前後スプリット）で sp30 の左右足首前後差 0.172→0.093 m、retarget 後のロボット足首スプリット 0.230→0.130 m（43%減）。`robotdance_motion/depth_stabilize.py` の `stabilize_depth()`。over-smoothing で隠す gimmick ではなく未観測な深度自由度を観測性で解く — 抽出側の第一歩（retarget 側の `--balance-refine` と相補的）。
