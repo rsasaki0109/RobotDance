@@ -69,17 +69,32 @@ def _view(path: Path, out: Path, stride: int) -> int:
 
 
 def _retarget(path: Path, out: Path, robot: str, clamp_flexion: bool = False,
-              conf_gate: float | None = None) -> int:
+              conf_gate: float | None = None, backend: str = "kinematic") -> int:
     from .rd_mir import RdMir
-    from robotdance_retarget.kinematic import retarget
+    from robotdance_retarget.backends import get_retarget_backend
+    from robotdance_retarget.dispatch import retarget_with_backend
+    from robotdance_retarget.gmr_backend import gmr_install_hint
     from robotdance_unitree import get_morphology
 
+    b = get_retarget_backend(backend)
+    if not b.available():
+        print(f"✗ retarget backend '{backend}' は未導入です。")
+        if backend == "gmr":
+            print(gmr_install_hint())
+        return 1
+
     mir = RdMir.load(path)
-    motion = retarget(mir, get_morphology(robot), clamp_flexion=clamp_flexion,
-                      conf_gate=conf_gate)
+    try:
+        motion = retarget_with_backend(
+            mir, get_morphology(robot), backend,
+            clamp_flexion=clamp_flexion, conf_gate=conf_gate,
+        )
+    except (RuntimeError, ValueError) as exc:
+        print(f"✗ {exc}")
+        return 1
     motion.save(out)
     m = motion.retarget_metrics or {}
-    print(f"✓ {robot} RD-Motion を書き出しました: {out}")
+    print(f"✓ {robot} RD-Motion を書き出しました: {out} (backend={backend})")
     print(f"  height_scale={m.get('height_scale')} "
           f"bone_direction_cosine={m.get('bone_direction_cosine')} "
           f"foot_sliding={m.get('foot_sliding_m_per_frame')}")
@@ -1893,15 +1908,18 @@ def main(argv: list[str] | None = None) -> int:
     p_view.add_argument("-o", "--out", type=Path, default=Path("skeleton.gif"))
     p_view.add_argument("--stride", type=int, default=2, help="何フレームおきに描画するか")
 
-    p_ret = sub.add_parser("retarget", help="RD-MIR を Unitree ロボットへ kinematic retarget する")
+    p_ret = sub.add_parser("retarget", help="RD-MIR をロボットへ retarget（kinematic または GMR）")
     p_ret.add_argument("path", type=Path, help="RD-MIR JSON")
     p_ret.add_argument("-o", "--out", type=Path, default=Path("robot.rdmotion.json"))
     p_ret.add_argument("--robot", default="unitree_g1",
-                       help="対象ロボット（unitree_g1 / unitree_h1）")
+                       help="対象ロボット（unitree_g1 / unitree_h1 等）")
+    p_ret.add_argument("--backend", default="kinematic",
+                       choices=["kinematic", "gmr"],
+                       help="retarget バックエンド（list-retargeters で一覧）")
     p_ret.add_argument("--clamp-flexion", action="store_true",
-                       help="膝・肘の屈曲を実機可動域上限へ収める（検出→補正）")
+                       help="膝・肘の屈曲を実機可動域上限へ収める（kinematic のみ）")
     p_ret.add_argument("--conf-gate", type=float, default=None,
-                       help="遮蔽ガード: 信頼度がこの値未満の bone 方向を直近の高信頼へ hold（0..1, 例 0.5）")
+                       help="遮蔽ガード（kinematic のみ, 0..1）")
 
     p_pair = sub.add_parser("view-pair", help="human RD-MIR と robot RD-Motion を side-by-side 描画")
     p_pair.add_argument("human", type=Path, help="RD-MIR JSON")
@@ -2383,7 +2401,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "view":
         return _view(args.path, args.out, args.stride)
     if args.command == "retarget":
-        return _retarget(args.path, args.out, args.robot, args.clamp_flexion, args.conf_gate)
+        return _retarget(args.path, args.out, args.robot, args.clamp_flexion, args.conf_gate,
+                         args.backend)
     if args.command == "view-pair":
         return _view_pair(args.human, args.robot, args.out, args.stride)
     if args.command == "demo-g1":

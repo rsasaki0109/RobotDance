@@ -81,6 +81,9 @@ The honest unsolved core; better here → a *real* fight instead of choreography
       `refine_for_fight()` + `demo-fight --depth-refine` / `demo-assisted --depth-refine` wire
       stabilize + balance into the fight pipeline. **v0.145**: assisted survival benchmark で効果を
       可視化（`docs/benchmark/ASSISTED_SURVIVAL.md`）。Contact-aware retarget still open.
+- [x] **GMR retarget backend** — **v0.153**: `retarget --backend gmr` が GMR mink IK を実行
+      （`robotdance_retarget/gmr_backend.py`、clone + `pip install -e GMR/` 要）。対応 robot:
+      G1/H1/H2/T1/N1。次: builtin vs GMR の fight benchmark 列。
 
 ## Non-goals / decisions
 

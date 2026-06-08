@@ -95,8 +95,9 @@ certificate and adds license/provenance discipline on top.
 - **World-grounded extraction backend** (GVHMR / WHAM / TRAM) to relax the depth-limited frontier
   — done as registered `import`-mode backends (v0.94); the open part is running their inference
   in-process instead of redirecting to `import-hmr`.
-- **GMR as an optional retarget backend** — registered in the retarget registry (v0.95); the open
-  part is making it runnable (wire its `mink` IK) and a shared-clip benchmark vs actuator-space IK.
+- **GMR as an optional retarget backend** — **v0.153**: `retarget --backend gmr` runs GMR mink IK
+  when the cloned repo is editable-installed (`pip install -e GMR/`). Shared-clip benchmark vs
+  builtin kinematic on fight motions is the next step.
 - **Certificate vs. learned-filter study** — compare the analytic certificate's REJECT set
   against H2O's privileged-policy filtering and PHUMA's rule thresholds.
 - **Curation interop** — align RD-MIR quality fields with PHUMA / OpenT2M conventions.

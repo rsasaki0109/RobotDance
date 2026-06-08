@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.153.0] - 2026-06-08
+### Added
+- **GMR retarget backend（`retarget --backend gmr`）**: RD-MIR canonical keypoints → GMR smplx-style body dict → mink IK → RD-Motion。`robotdance_retarget/gmr_backend.py` + `dispatch.py`。GMR は clone + `pip install -e GMR/`（assets 同梱）が必要。対応 robot: unitree_g1/h1/h2, booster_t1, fourier_n1。`list-retargeters` が `retarget --backend gmr` を表示。
+
 ## [0.152.0] - 2026-06-08
 ### Changed
 - **GitHub リポジトリ名を HumanoidBattle に変更**（`rsasaki0109/HumanoidBattle`）。README/Colab badge・`pyproject.toml`・`CITATION.cff`・quickstart の URL を更新。pip パッケージ名・CLI（`robotdance`）・Python モジュール名は互換のため据え置き。旧 `RobotDance` URL は GitHub がリダイレクト。

@@ -42,8 +42,8 @@ def test_gmr_is_external_with_url():
     assert GMR.method == "external"
     assert "external" in GMR.extras
     assert GMR.url.startswith("https://github.com/")
-    assert GMR.cli == ""  # builtin CLI は持たない
-    # available は遅延 spec チェックで bool（未導入なら False）。例外は投げない。
+    assert GMR.cli == "retarget --backend gmr"
+    # available は import + assets チェック（未導入なら False）。例外は投げない。
     assert isinstance(GMR.available(), bool)
 
 

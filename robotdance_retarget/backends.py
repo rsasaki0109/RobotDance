@@ -8,7 +8,7 @@ pose レジストリ（[[pose-backend-registry]] / robotdance_perception.backend
 一覧・選択できるようにする。
 
 GMR は重い依存（mink/MuJoCo/各 URDF）を要するため RobotDance の依存には含めず、`external` 印で
-登録する（available() は遅延 spec チェック、未導入なら一覧で `—`）。関連: docs/RELATED_WORK.md。
+登録する（available() は import + assets を確認、未導入なら一覧で `—`）。関連: docs/RELATED_WORK.md。
 """
 
 from __future__ import annotations
@@ -31,7 +31,16 @@ class RetargetBackend:
     url: str = ""  # external の参照 URL
 
     def available(self) -> bool:
-        """必要モジュールが import 可能か（builtin は modules 空で常に True）。"""
+        """必要モジュールが import 可能か（GMR は assets も要る）。"""
+        if self.name == "gmr":
+            try:
+                from robotdance_retarget.gmr_backend import gmr_available
+
+                return gmr_available()
+            except Exception:
+                return False
+        if not self.modules:
+            return True
         return all(importlib.util.find_spec(m) is not None for m in self.modules)
 
 
@@ -58,8 +67,9 @@ GMR = RetargetBackend(
     method="external",
     real_urdf=True,
     description="GMR: General Motion Retargeting (MIT, 18 機種, CPU 実時間 IK)。外部 OSS。",
-    modules=("general_motion_retargeting",),
+    modules=("general_motion_retargeting", "mink"),
     extras=("external",),
+    cli="retarget --backend gmr",
     url="https://github.com/YanjieZe/GMR",
 )
 

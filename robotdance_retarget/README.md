@@ -33,7 +33,16 @@ robotdance retarget-ik dance.rdmir.json --urdf g1_23dof.urdf -o g1_joints.rdmoti
 IK 位置誤差は「人間の動きを実 G1 の限られた DOF でどれだけ追従できるか」を表す正直な指標
 （例: dance ~0.07m、backflip ~0.16m = G1 では追従困難）。
 
+- `gmr_backend.py` — **GMR 外部 retarget**（v0.153）。MIT [GMR](https://github.com/YanjieZe/GMR) の
+  mink IK を `retarget --backend gmr` で呼ぶ。GMR repo を clone し `pip install -e GMR/` すること
+  （PyPI wheel のみでは robot XML assets が無い）。対応: unitree_g1/h1/h2, booster_t1, fourier_n1。
+
+```bash
+robotdance list-retargeters
+robotdance retarget dance.rdmir.json --backend gmr --robot unitree_g1 -o g1_gmr.rdmotion.json
+```
+
 ## 今後
 
-contact-preserving IK 拡張、torque-aware 最適化、アクチュエータ空間と sim_certificate の連携、
+builtin vs GMR の fight benchmark 列、contact-preserving IK 拡張、torque-aware 最適化、
 実機 bridge（unitree_sdk2）。バランス制御は参照 IK ではなく RL policy（Phase 3）が担う。
