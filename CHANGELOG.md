@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.155.0] - 2026-06-08
+### Added
+- **Fight HUD assisted survival 焼き込み**: `demo-fight` / `demo-tournament` 決勝 GIF の HUD バーに `PD`/`RL` と survival % を表示（assisted コーナー側）。`tests/test_fight_hud.py`。
+
 ## [0.154.0] - 2026-06-08
 ### Added
 - **`benchmark-assisted --retarget-backend`**: fight motion × robot の assisted survival を retarget backend 別に比較（`kinematic` / `gmr`）。CSV/Markdown に `retarget_backend` 列、`rescued_by_gmr` / `regressed_by_gmr` サマリ。GMR 未対応機種（Apollo 等）は自動スキップ。

@@ -76,6 +76,7 @@ The honest unsolved core; better here → a *real* fight instead of choreography
       **v0.149**: `--assisted --rl` — 同枠で PPO tracking 追従（`rollout_rl`）。
       **v0.150**: physical tournament 決勝 assisted/RL + benchmark rescued-by-RL-only。
       **v0.151**: `--assisted champion`（省略時も champion）— 決勝 GIF でチャンピオン側を自動物理追従。
+      **v0.155**: 決勝 GIF HUD に `assisted_survival`（PD/RL %）を焼き込み（`_fight_hud`）。
       2-body contact sparring still open.
 - [~] **Depth frontier** (continues `--stabilize-depth` / `--balance-refine`): **v0.144**:
       `refine_for_fight()` + `demo-fight --depth-refine` / `demo-assisted --depth-refine` wire

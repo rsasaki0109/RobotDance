@@ -1874,18 +1874,32 @@ def _demo_assisted(out: Path, robot: str, style: str, duration: float, stride: i
     return 0
 
 
+def _surv_hud_color(ratio: float) -> tuple[int, int, int]:
+    """assisted survival 比率 → RGB（高いほど緑、低いほど赤）。"""
+    if ratio >= 0.99:
+        return (70, 220, 90)
+    if ratio >= 0.5:
+        return (220, 200, 70)
+    return (80, 90, 220)
+
+
 def _fight_hud(res):
-    """各フレーム上部にコーナー名＋ライブ累積スコア、最終フレームに WINNER を焼き込む。"""
+    """各フレーム上部にコーナー名＋ライブ累積スコア、assisted survival、WINNER を焼き込む。"""
     import cv2
     import numpy as np
 
     red, blue = (210, 60, 60), (60, 130, 210)  # RGB 画像に描く（赤コーナー / 青コーナー）
+    dim = (120, 120, 120)
+    has_assisted = (
+        res.assisted_corner is not None and res.assisted_survival is not None
+    )
+    bar_h = 50 if has_assisted else 34
     out = []
     n = len(res.frames)
     for i, fr in enumerate(res.frames):
         img = np.ascontiguousarray(fr[:, :, :3])
         h, w = img.shape[:2]
-        bar = np.full((34, w, 3), 22, np.uint8)
+        bar = np.full((bar_h, w, 3), 22, np.uint8)
         s1 = res.p1_cum[i] if i < len(res.p1_cum) else res.p1_hits
         s2 = res.p2_cum[i] if i < len(res.p2_cum) else res.p2_hits
         cv2.putText(bar, f"{res.p1}", (8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.5, red, 1, cv2.LINE_AA)
@@ -1894,6 +1908,23 @@ def _fight_hud(res):
         tw = cv2.getTextSize(res.p2, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0][0]
         cv2.putText(bar, f"{res.p2}", (w - tw - 8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.5, blue, 1,
                     cv2.LINE_AA)
+        if has_assisted:
+            mode = (res.assisted_mode or "pd").upper()
+            surv = f"{res.assisted_survival:.0%}"
+            tag = f"◉ {mode} {surv}"
+            scol = _surv_hud_color(res.assisted_survival)
+            if res.assisted_corner == "p1":
+                cv2.putText(bar, tag, (8, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.45, scol, 1, cv2.LINE_AA)
+                kt = "kinematic"
+                ktw = cv2.getTextSize(kt, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0][0]
+                cv2.putText(bar, kt, (w - ktw - 8, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.4, dim, 1,
+                            cv2.LINE_AA)
+            else:
+                cv2.putText(bar, "kinematic", (8, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.4, dim, 1,
+                            cv2.LINE_AA)
+                ttw = cv2.getTextSize(tag, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)[0][0]
+                cv2.putText(bar, tag, (w - ttw - 8, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.45, scol, 1,
+                            cv2.LINE_AA)
         img = np.vstack([bar, img])
         if i > n - max(8, n // 6) and res.winner != "DRAW":  # 終盤に WINNER を表示
             txt = f"WINNER: {res.winner}"
