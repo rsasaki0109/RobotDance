@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.136.0] - 2026-06-08
+### Added
+- **⚔️ HumanoidBattle（`demo-battle`）**: 2 体のヒューマノイドが同じ/別の型を実行し、**実行品質で 1v1 採点**して勝者を描画する新モード。殴り合いではなく型（演武）バトルで、スコアは RobotDance の**実 metrics**（reach 誤差・bone 方向・foot sliding・関節可動域、任意で MuJoCo balance/torque）だけで合成（乱数なし・breakdown 透明）。体格差で点が変わる（G1 vs H1 kata で 80–79、低い体ほど end-effector 目標を精密に突く）。`robot:motion` を 2 つ指定、`--sim` で物理採点追加。スケルトン描画で URDF/GPU 不要（Colab でも動く）。`robotdance_benchmarks/battle.py`（`score_fighter`/`run_battle`）、`demo-battle` CLI、README に ⚔️ セクション + battle GIF。
+
 ## [0.135.0] - 2026-06-08
 ### Added
 - **`--stabilize-depth` の before/after デモ GIF**: ショルダープレス（腕は動くが脚は静止）で、生抽出はロボット脚が前後にスプリット（開脚）するのに対し、`--stabilize-depth` で脚が揃う様子を side-by-side で可視化（足首前後差 0.17→0.09 m）。「以前は使えなかったクリップ」が救済される証拠。README frontier 節に追加。`assets/readme/real/stabilize_depth_beforeafter.gif`。出典 FitnessScape, CC BY 3.0（レンダリングのみ）。

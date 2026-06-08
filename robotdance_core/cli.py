@@ -1508,6 +1508,41 @@ def _demo_multi(out: Path, robots: list[str], stride: int) -> int:
     return 0
 
 
+def _demo_battle(p1: str, p2: str, out: Path, stride: int, sim: bool) -> int:
+    """⚔️ HumanoidBattle: 2 体が型を実行し、実行品質（実 metrics）で 1v1 採点して勝者を描画する。"""
+    from robotdance_benchmarks.battle import run_battle
+    from robotdance_viewer.skeleton_view import render_side_by_side
+
+    res = run_battle(p1, p2, sim=sim)
+    # p2 を左右反転（lateral y を負に）して p1 と対面させる。
+    p2_facing = res.p2_kps.copy()
+    p2_facing[:, :, 1] *= -1.0
+    panels = [
+        (res.p1_kps, f"P1  {res.p1_name}", _ROBOT_COLORS.get(res.p1_name.split(":")[0], "#ff7f0e")),
+        (p2_facing, f"P2  {res.p2_name}", _ROBOT_COLORS.get(res.p2_name.split(":")[0], "#2ca02c")),
+    ]
+    c1, c2 = res.p1_card, res.p2_card
+    # GIF 内テキストは ASCII のみ（matplotlib の既定フォントに絵文字が無く豆腐化するため）。
+    verdicts = [
+        (f"{'WIN ' if res.winner == res.p1_name else ''}{c1.overall:.0f} pts",
+         "#2ca02c" if res.winner == res.p1_name else "#888888"),
+        (f"{'WIN ' if res.winner == res.p2_name else ''}{c2.overall:.0f} pts",
+         "#2ca02c" if res.winner == res.p2_name else "#888888"),
+    ]
+    title = f"HumanoidBattle  —  {'DRAW' if res.winner == 'DRAW' else 'WINNER: ' + res.winner}"
+    render_side_by_side(panels, out, fps=res.fps, stride=stride, verdicts=verdicts, title=title)
+
+    def _card(name: str, c) -> None:
+        bd = "  ".join(f"{k}={v:.0f}" for k, v in c.breakdown.items())
+        print(f"  {name:24s} {c.overall:5.1f} pts  [{bd}]")
+    print(f"⚔️  HumanoidBattle: {res.p1_name}  vs  {res.p2_name}")
+    _card(res.p1_name, c1)
+    _card(res.p2_name, c2)
+    print(f"  🏆 {'引き分け' if res.winner == 'DRAW' else 'WINNER: ' + res.winner}")
+    print(f"✓ battle GIF → {out}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="robotdance", description="RobotDance core CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1550,6 +1585,16 @@ def main(argv: list[str] | None = None) -> int:
     p_multi.add_argument("-o", "--out", type=Path, default=Path("many_humanoids.gif"))
     p_multi.add_argument("--robots", nargs="+", default=["unitree_g1", "unitree_h1"])
     p_multi.add_argument("--stride", type=int, default=2)
+
+    p_battle = sub.add_parser(
+        "demo-battle",
+        help="⚔️ HumanoidBattle: 2 体が型を実行し実行品質で 1v1 採点（robot[:motion] を 2 つ）")
+    p_battle.add_argument("--p1", default="unitree_g1:kata", help="ファイター1 robot[:motion]")
+    p_battle.add_argument("--p2", default="unitree_h1:kata", help="ファイター2 robot[:motion]")
+    p_battle.add_argument("-o", "--out", type=Path, default=Path("battle.gif"))
+    p_battle.add_argument("--stride", type=int, default=2)
+    p_battle.add_argument("--sim", action="store_true",
+                          help="物理 sim（balance/torque）も採点に含める（MuJoCo, 重い）")
 
     p_serve = sub.add_parser("serve", help=".rdmotion を safety guard 越しに再生（--ros2 で ROS2 配信）")
     p_serve.add_argument("rdmotion", type=Path, help="certified .rdmotion JSON")
@@ -1900,6 +1945,8 @@ def main(argv: list[str] | None = None) -> int:
         return _demo_g1(args.out, args.stride)
     if args.command == "demo-multi":
         return _demo_multi(args.out, args.robots, args.stride)
+    if args.command == "demo-battle":
+        return _demo_battle(args.p1, args.p2, args.out, args.stride, args.sim)
     if args.command == "validate-sim":
         return _validate_sim(args.path, args.robot, args.out, args.backend, args.clamp_flexion,
                              args.balance_plot, args.ground_clean, args.lock_foot_xy,

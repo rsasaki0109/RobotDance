@@ -24,6 +24,14 @@ English · [**日本語**](README.ja.md)
 
 <sub><b>…and it's not just karate.</b> A classical <b>kathak</b> dance clip → the same three Unitree humanoids reproduce the dance (actuator-IK error 0.04–0.12 m). Martial art or dance, the monocular pipeline generalizes across motion types. Source: Suyash Dwivedi, CC BY-SA 4.0 (Wikimedia); renders only, raw video not redistributed.</sub>
 
+### ⚔️ HumanoidBattle — 1v1 execution face-off
+
+Two humanoids, one kata, and a winner decided by **how well each body actually executes the motion**. It's a forms battle, not a brawl: each fighter's score is composed entirely from RobotDance's **real metrics** (end-effector reach error, bone-direction fidelity, foot-sliding, joint-ROM feasibility, optionally MuJoCo balance/torque) — no random numbers. Different bodies score differently on the same move, so the matchup is genuine.
+
+<img src="assets/readme/battle.gif" width="560" alt="HumanoidBattle: Unitree G1 vs H1 performing the same kata, scored, G1 wins on reach precision">
+
+<sub>`robotdance demo-battle --p1 unitree_g1:kata --p2 unitree_h1:kata` — G1 (1.29m) edges H1 (1.66m) 80–79: same kata, but the shorter body hits the reference end-effector targets more precisely (reach 55 vs 52). Add `--sim` to fold in MuJoCo balance/torque. Pick any `robot:motion` (kata/march/squat/backflip/bow). Skeleton render — no URDF or GPU needed, so it runs anywhere (even in the [Colab](https://colab.research.google.com/github/rsasaki0109/RobotDance/blob/main/notebooks/quickstart.ipynb)).</sub>
+
 ### 🎬 Many motions × three robots
 
 <table>
@@ -198,7 +206,7 @@ Inputs (synthetic / real video / mocap) → RD-MIR → the pipeline below. See `
 | extraction | `extract` (`--backend`, `--stabilize-depth`) `import-hmr` `import-humanml3d` `import-babel` `import-motionx` `download-hf` (HF Hub fetch → import-*, license-safe alt to YouTube/TikTok) `smooth` `overlay` |
 | pose backends & QC | `list-backends` (mediapipe / 2D+lift / gvhmr·wham) `pose-compare` `motion-doctor` (mirror/depth/grounding) |
 | dataset | `build-dataset` (RD-Manifest + license firewall / Data BOM) `dedupe-dir` |
-| retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle + optional `--with-velocity` CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/H2/T1/Apollo/N1) |
+| retarget | `retarget` `retarget-ik` (real G1 23 joint angles, end-effector-weighted, `--conf-gate` occlusion guard) `export-joints` (joint-angle + optional `--with-velocity` CSV/JSON for real-robot/sim SDKs) `list-retargeters` (builtin / GMR) `demo-multi` (G1/H1/H2/T1/Apollo/N1) `demo-battle` (⚔️ 1v1 execution face-off, metric-scored) |
 | physics check | `validate-sim` (sim_certificate, MuJoCo) `--ground-clean` `--balance-refine` `--balance-plot` `sim-backends` |
 | embedding & search | `demo-motion-map` `train-encoder` `train-text-motion` `search-text` `search-motion` (`--text` zero-dep concept search, `--healthy-only` quality-aware) |
 | generation | `train-tokenizer` (VQ-VAE) `train-prior` `demo-generate` `train-text2motion` `generate-text` `train-denoiser` |
