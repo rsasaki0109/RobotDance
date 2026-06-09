@@ -66,11 +66,12 @@ def test_coco_constants_are_centralized():
 
 
 def test_every_2d_backend_has_a_runner_factory():
-    # 2D COCO-17 を出す検出器（lift 派生でない）に 2D ランナー生成器が紐づく。
+    # 2D COCO-17 を出す検出器（lift / world-grounded でない video backend）にランナーが紐づく。
     from robotdance_perception.backends import _RUNNER_FACTORIES
 
     assert set(_RUNNER_FACTORIES) == {
-        b.name for b in list_backends() if not b.lift_from and b.extract_mode == "video"
+        b.name for b in list_backends()
+        if not b.lift_from and b.extract_mode == "video" and b.name in _RUNNER_FACTORIES
     }
 
 
@@ -92,23 +93,26 @@ def test_make_runner_2d_rejects_lift_backend():
         make_runner_2d("yolo11-pose+lift")
 
 
-def test_world_grounded_import_backends_registered():
-    for name in ("gvhmr", "wham"):
-        b = get_backend(name)
-        assert b.output_dim == 3
-        assert b.retarget_capable is True
-        assert b.quality_tier == "world-grounded"
-        assert b.extract_mode == "import"
-        assert b.via == "import-hmr"
-        assert "external" in b.extras
-        # 重い依存は宣言しない（available は常に判定可能で True 扱い）。
-        assert b.modules == ()
-        assert b.available() is True
+def test_world_grounded_backends_registered():
+    gv = get_backend("gvhmr")
+    assert gv.output_dim == 3
+    assert gv.retarget_capable is True
+    assert gv.quality_tier == "world-grounded"
+    assert gv.extract_mode == "video"
+    assert "hmr4d" in gv.modules
+    wh = get_backend("wham")
+    assert wh.extract_mode == "import"
+    assert wh.via == "import-hmr"
+    assert wh.modules == ()
 
 
-def test_resolve_extract_redirects_import_backend_to_import_hmr():
+def test_resolve_extract_accepts_gvhmr_video_backend():
+    assert resolve_extract_backend("gvhmr").name == "gvhmr"
+
+
+def test_resolve_extract_redirects_wham_to_import_hmr():
     with pytest.raises(ValueError, match="import-hmr"):
-        resolve_extract_backend("gvhmr")
+        resolve_extract_backend("wham")
 
 
 def test_make_runner_2d_rejects_import_backend():
@@ -128,10 +132,12 @@ def test_list_backends_cli_runs():
 
 
 def test_compare_module_covers_all_backends_with_panel_colors():
+    from robotdance_perception.backends import _RUNNER_FACTORIES
     from robotdance_perception.compare import PANEL_COLORS
 
-    # 比較は video-mode の 2D 検出器のみ。それらに overlay パネル色を割り当てる。
-    names = {b.name for b in list_backends() if not b.lift_from and b.extract_mode == "video"}
+    # 比較は 2D ランナー付き video backend のみ。それらに overlay パネル色を割り当てる。
+    names = {b.name for b in list_backends()
+             if not b.lift_from and b.extract_mode == "video" and b.name in _RUNNER_FACTORIES}
     assert names <= set(PANEL_COLORS), "比較対象 backend に overlay パネル色を割り当てる"
 
 

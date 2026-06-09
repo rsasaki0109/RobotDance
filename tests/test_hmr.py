@@ -204,10 +204,13 @@ def test_cli_import_hmr_then_motion_doctor_gvhmr_workflow(tmp_path: Path) -> Non
     assert main(["motion-doctor", str(out)]) in (0, 1)
 
 
-def test_cli_extract_gvhmr_redirects_to_import_hmr(tmp_path: Path, capsys) -> None:
-    """extract --backend gvhmr は推論せず import-hmr ワークフローへ誘導する（exit 2）。"""
+def test_cli_extract_gvhmr_unavailable_shows_install_hint(tmp_path: Path, capsys) -> None:
+    """extract --backend gvhmr は未導入時に install 案内（import-hmr 代替付き）。"""
     from robotdance_core.cli import main
+    from robotdance_perception.gvhmr_backend import gvhmr_available
 
+    if gvhmr_available():
+        pytest.skip("GVHMR 導入済み")
     rc = main(["extract", str(tmp_path / "nope.mp4"), "--backend", "gvhmr"])
-    assert rc == 2
+    assert rc == 1
     assert "import-hmr" in capsys.readouterr().out

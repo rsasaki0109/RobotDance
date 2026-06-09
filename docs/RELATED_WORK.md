@@ -93,8 +93,8 @@ certificate and adds license/provenance discipline on top.
 ## Gaps to close (borrow from the neighbours)
 
 - **World-grounded extraction backend** (GVHMR / WHAM / TRAM) to relax the depth-limited frontier
-  — done as registered `import`-mode backends (v0.94); the open part is running their inference
-  in-process instead of redirecting to `import-hmr`.
+  — **v0.157**: GVHMR runs in-process via `extract --backend gvhmr` when the clone + checkpoint
+  + CUDA are available; WHAM / TRAM still use `import-hmr`.
 - **GMR as an optional retarget backend** — **v0.153**: `retarget --backend gmr` runs GMR mink IK
   when the cloned repo is editable-installed (`pip install -e GMR/`). Shared-clip benchmark vs
   builtin kinematic on fight motions is the next step.

@@ -5,6 +5,14 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.158.0] - 2026-06-08
+### Added
+- **2-body contact sparring（`demo-fight --sparring`）**: 共有 MuJoCo arena で両者を PD-only 物理追従（limb 接触あり）。`p1_survival` / `p2_survival` を HUD に焼き込み。ヒット採点は幾何のまま（honest scope）。`robotdance_sim/sparring.py`、`tests/test_sparring.py`。
+
+## [0.157.0] - 2026-06-08
+### Added
+- **GVHMR in-process 抽出（`extract --backend gvhmr`）**: clone + checkpoint + CUDA があれば動画から world-grounded SMPL を推論し RD-MIR 化。`robotdance_perception/gvhmr_backend.py`。未導入時は `import-hmr` 代替を表示。`--static-cam` / `--use-dpvo` / `--f-mm` オプション。
+
 ## [0.156.0] - 2026-06-08
 ### Added
 - **`demo-fight` / `demo-assisted` / `demo-tournament` `--retarget-backend gmr`**: fight motion の retarget に GMR を選択可能。`run_fight` / `fight_tracking_reference` が `retarget_with_backend` 経由。トーナメントは決勝 GIF のみ（ブラケットは kinematic のまま）。`tests/test_fight_retarget_backend.py`。

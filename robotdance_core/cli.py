@@ -372,17 +372,32 @@ def _import_hmr(path: Path, source: str, fps: float | None, out: Path) -> int:
 
 
 def _extract(video: Path, out: Path, model: Path | None, backend: str, num_poses: int,
-             check: bool = True, stabilize_depth: bool = False) -> int:
+             check: bool = True, stabilize_depth: bool = False,
+             static_cam: bool = False, use_dpvo: bool = False,
+             f_mm: int | None = None) -> int:
     from robotdance_perception.backends import get_backend
 
     b = get_backend(backend)
     if b.extract_mode == "import":
-        # 世界座標抽出（GVHMR/WHAM 等）は外部ツールで推論 → SMPL を import-hmr で取込。
+        # WHAM 等は外部ツールで推論 → SMPL を import-hmr で取込。
         print(f"ℹ️ backend '{backend}'（{b.quality_tier}）は外部ツールで推論する world-grounded 抽出です。")
         print(f"   {backend} で SMPL を出力し → `robotdance {b.via} <smpl_file> -o out.rdmir.json` で取り込んでください。")
         print("   （深度・グローバル軌跡が入り、単眼 MediaPipe の深度律速を緩和します）")
         return 2
-    if b.lift_from:
+    if backend == "gvhmr":
+        from robotdance_perception.gvhmr_backend import (
+            extract_gvhmr_video, gvhmr_available, gvhmr_install_hint,
+        )
+
+        if not gvhmr_available():
+            print(f"✗ {gvhmr_install_hint()}")
+            print("   代替: 外部 GVHMR で SMPL を出力 → `robotdance import-hmr <smpl> --source gvhmr -o out.rdmir.json`")
+            return 1
+        print(f"🌍 GVHMR in-process 抽出（static_cam={static_cam}, world-grounded）...")
+        mir = extract_gvhmr_video(
+            video, static_cam=static_cam, use_dpvo=use_dpvo, f_mm=f_mm,
+        )
+    elif b.lift_from:
         # 2D 検出器 + 解析的 planar lift（coarse, 深度なし）で 3D 化。
         from robotdance_perception.lifting import extract_via_lift
 
@@ -1815,7 +1830,8 @@ def _demo_fight(robot_a: str, robot_b: str, out: Path, duration: float, sep: flo
                 style: str, mesh: bool, urdf_a: Path | None, urdf_b: Path | None,
                 depth_refine: bool = False, retarget_backend: str = "kinematic",
                 assisted: str | None = None,
-                assisted_rl: bool = False, rl_iterations: int = 20) -> int:
+                assisted_rl: bool = False, rl_iterations: int = 20,
+                sparring: bool = False) -> int:
     """🥊 2 体を MuJoCo シーンで対面させ、ヒットを採点した GIF を書き出す。"""
     import imageio.v2 as imageio
 
@@ -1824,6 +1840,9 @@ def _demo_fight(robot_a: str, robot_b: str, out: Path, duration: float, sep: flo
 
     if assisted_rl and not assisted:
         print("✗ --rl は --assisted と併用してください")
+        return 1
+    if sparring and assisted:
+        print("✗ --sparring と --assisted は併用できません")
         return 1
     if err := _check_fight_retarget_backend([robot_a, robot_b], retarget_backend):
         return err
@@ -1836,7 +1855,7 @@ def _demo_fight(robot_a: str, robot_b: str, out: Path, duration: float, sep: flo
                     depth_refine=depth_refine, retarget_backend=retarget_backend,
                     assisted=assisted,
                     assisted_mode="rl" if assisted_rl else "pd",
-                    rl_iterations=rl_iterations)
+                    rl_iterations=rl_iterations, sparring=sparring)
     frames = _fight_hud(res)
     out.parent.mkdir(parents=True, exist_ok=True)
     imageio.mimsave(out, frames[::2], duration=2.0 / res.fps, loop=0)
@@ -1849,6 +1868,11 @@ def _demo_fight(robot_a: str, robot_b: str, out: Path, duration: float, sep: flo
         notes.append("depth-refine")
     if retarget_backend != "kinematic":
         notes.append(f"retarget={retarget_backend}")
+    if sparring:
+        notes.append(
+            f"sparring(PD {res.p1_survival:.0%}/{res.p2_survival:.0%})"
+            if res.p1_survival is not None and res.p2_survival is not None else "sparring"
+        )
     if assisted:
         corner = robot_a if assisted == "p1" else robot_b
         surv = f"{res.assisted_survival:.0%}" if res.assisted_survival is not None else "?"
@@ -1858,7 +1882,9 @@ def _demo_fight(robot_a: str, robot_b: str, out: Path, duration: float, sep: flo
     print(f"🥊 HumanoidBattle FIGHT: {robot_a} (RED) vs {robot_b} (BLUE){note}")
     print(f"   ヒット {robot_a}={res.p1_hits}  {robot_b}={res.p2_hits}  "
           f"→ {'引き分け' if res.winner == 'DRAW' else 'WINNER: ' + res.winner}")
-    if assisted:
+    if sparring:
+        print("  ⚠️ sparring: 2 体同時 PD 物理（limb 接触あり）。ヒット採点は幾何のまま。")
+    elif assisted:
         mode = res.assisted_mode or "pd"
         print(f"  ⚠️ assisted: 1 体のみ {mode.upper()} 物理追従。相手は kinematic。接触反動なし。")
     print(f"✓ fight GIF → {out} ({out.stat().st_size // 1024} KB)")
@@ -1918,10 +1944,13 @@ def _fight_hud(res):
 
     red, blue = (210, 60, 60), (60, 130, 210)  # RGB 画像に描く（赤コーナー / 青コーナー）
     dim = (120, 120, 120)
+    has_sparring = (
+        res.sparring and res.p1_survival is not None and res.p2_survival is not None
+    )
     has_assisted = (
         res.assisted_corner is not None and res.assisted_survival is not None
     )
-    bar_h = 50 if has_assisted else 34
+    bar_h = 50 if (has_assisted or has_sparring) else 34
     out = []
     n = len(res.frames)
     for i, fr in enumerate(res.frames):
@@ -1936,7 +1965,15 @@ def _fight_hud(res):
         tw = cv2.getTextSize(res.p2, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0][0]
         cv2.putText(bar, f"{res.p2}", (w - tw - 8, 22), cv2.FONT_HERSHEY_SIMPLEX, 0.5, blue, 1,
                     cv2.LINE_AA)
-        if has_assisted:
+        if has_sparring:
+            ltag = f"◉ PD {res.p1_survival:.0%}"
+            rtag = f"{res.p2_survival:.0%} PD ◉"
+            cv2.putText(bar, ltag, (8, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                        _surv_hud_color(res.p1_survival), 1, cv2.LINE_AA)
+            rtw = cv2.getTextSize(rtag, cv2.FONT_HERSHEY_SIMPLEX, 0.45, 1)[0][0]
+            cv2.putText(bar, rtag, (w - rtw - 8, 44), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                        _surv_hud_color(res.p2_survival), 1, cv2.LINE_AA)
+        elif has_assisted:
             mode = (res.assisted_mode or "pd").upper()
             surv = f"{res.assisted_survival:.0%}"
             tag = f"◉ {mode} {surv}"
@@ -2083,6 +2120,8 @@ def main(argv: list[str] | None = None) -> int:
                          help="--assisted 時に PPO tracking（省略時 PD-only）")
     p_fight.add_argument("--rl-iterations", type=int, default=20,
                          help="--assisted --rl 時の PPO 学習イテレーション数")
+    p_fight.add_argument("--sparring", action="store_true",
+                         help="2 体同時 PD 物理追従（limb 接触あり）。--assisted と併用不可")
 
     p_assist = sub.add_parser(
         "demo-assisted",
@@ -2282,7 +2321,7 @@ def main(argv: list[str] | None = None) -> int:
     p_overlay.add_argument("-o", "--out", type=Path, default=Path("overlay.gif"))
     p_overlay.add_argument("--stride", type=int, default=2)
 
-    p_extract = sub.add_parser("extract", help="local 動画から MediaPipe で RD-MIR を抽出")
+    p_extract = sub.add_parser("extract", help="local 動画から pose backend で RD-MIR を抽出")
     p_extract.add_argument("video", type=Path, help="入力動画（ローカルファイル）")
     p_extract.add_argument("-o", "--out", type=Path, default=Path("video.rdmir.json"))
     p_extract.add_argument("--model", type=Path, default=None, help="pose model (.task) パス")
@@ -2294,6 +2333,12 @@ def main(argv: list[str] | None = None) -> int:
                            help="抽出直後の健全性チェック（motion-doctor）をスキップ")
     p_extract.add_argument("--stabilize-depth", action="store_true",
                            help="単眼 ill-posed な前後 x 深度を観測性で安定化（静的脚の front-back split 抑制, y/z 不変）")
+    p_extract.add_argument("-s", "--static-cam", action="store_true",
+                           help="--backend gvhmr 時: カメラ静止とみなし VO をスキップ（推奨）")
+    p_extract.add_argument("--use-dpvo", action="store_true",
+                           help="--backend gvhmr 時: SimpleVO の代わりに DPVO を使う")
+    p_extract.add_argument("--f-mm", type=int, default=None,
+                           help="--backend gvhmr 時: フルフレームカメラの焦点距離[mm]（iPhone 1x ≈ 24）")
 
     p_doc = sub.add_parser("motion-doctor",
                            help="RD-MIR の健全性チェック（mirror/深度/接地/多人数 等）。ディレクトリで一括診断")
@@ -2510,7 +2555,7 @@ def main(argv: list[str] | None = None) -> int:
         return _demo_fight(
             args.p1, args.p2, args.out, args.duration, args.separation, args.style,
             args.mesh, args.urdf_a, args.urdf_b, args.depth_refine, args.retarget_backend,
-            args.assisted, args.rl, args.rl_iterations,
+            args.assisted, args.rl, args.rl_iterations, args.sparring,
         )
     if args.command == "demo-assisted":
         return _demo_assisted(args.out, args.robot, args.style, args.duration, args.stride,
@@ -2599,7 +2644,8 @@ def main(argv: list[str] | None = None) -> int:
         return _overlay(args.video, args.mir, args.out, args.stride)
     if args.command == "extract":
         return _extract(args.video, args.out, args.model, args.backend, args.num_poses,
-                        check=not args.no_check, stabilize_depth=args.stabilize_depth)
+                        check=not args.no_check, stabilize_depth=args.stabilize_depth,
+                        static_cam=args.static_cam, use_dpvo=args.use_dpvo, f_mm=args.f_mm)
     if args.command == "motion-doctor":
         return _motion_doctor(args.rdmir)
     if args.command == "list-backends":

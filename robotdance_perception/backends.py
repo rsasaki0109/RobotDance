@@ -38,6 +38,10 @@ class PoseBackend:
 
     def available(self) -> bool:
         """必要モジュールが import 可能か（heavy 依存を実際には読み込まずに判定）。"""
+        if self.name == "gvhmr":
+            from robotdance_perception.gvhmr_backend import gvhmr_available
+
+            return gvhmr_available()
         return all(importlib.util.find_spec(m) is not None for m in self.modules)
 
 
@@ -104,12 +108,11 @@ GVHMR = PoseBackend(
     output_dim=3,
     keypoint_format="smpl",
     retarget_capable=True,
-    modules=(),
-    description="GVHMR (世界座標 SMPL, gravity-view)。外部ツールで推論し import-hmr で取込。",
+    modules=("hmr4d", "torch"),
+    description="GVHMR (世界座標 SMPL, gravity-view)。clone + ckpt + CUDA で extract から in-process 推論。",
     extras=("external",),
     quality_tier="world-grounded",
-    extract_mode="import",
-    via="import-hmr",
+    extract_mode="video",
 )
 WHAM = PoseBackend(
     name="wham",

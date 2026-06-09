@@ -50,6 +50,9 @@ class FightResult:
     assisted_corner: str | None = None  # "p1" | "p2" — 物理追従コーナー
     assisted_mode: str | None = None  # "pd" | "rl"
     assisted_survival: float | None = None
+    sparring: bool = False  # 2 体同時 PD 物理（接触あり）
+    p1_survival: float | None = None
+    p2_survival: float | None = None
 
 
 def _single_model(morph):
@@ -120,7 +123,8 @@ def run_fight(morph_a, morph_b, *, name_a: str, name_b: str, separation: float =
               retarget_backend: str = "kinematic",
               assisted: str | None = None,
               assisted_mode: str = "pd",
-              rl_iterations: int = 20) -> FightResult:
+              rl_iterations: int = 20,
+              sparring: bool = False) -> FightResult:
     """2 体を対面させ motion を再生し、拳→相手頭/胸の幾何ヒットを採点して GIF フレームを返す。
 
     style: `boxing`/`hook`/`kick`/`dodge` または `karate`/`kathak`（実動画）。
@@ -128,7 +132,10 @@ def run_fight(morph_a, morph_b, *, name_a: str, name_b: str, separation: float =
     retarget_backend: "kinematic" または "gmr"（`retarget --backend gmr` と同系）。
     assisted: "p1" または "p2" — 指定コーナーだけ物理追従、相手は kinematic のまま。
     assisted_mode: "pd"（残差ゼロ）または "rl"（PPO tracking）。
+    sparring: True で両者を共有 arena 上で PD 物理追従（limb 接触あり）。assisted と併用不可。
     """
+    if sparring and assisted:
+        raise ValueError("sparring と assisted は併用できません（v0.158）")
     import mujoco
 
     from robotdance_retarget.dispatch import check_retarget_backend_for_robots, retarget_with_backend
@@ -175,13 +182,25 @@ def run_fight(morph_a, morph_b, *, name_a: str, name_b: str, separation: float =
     model, info = _build_arena(morph_a, morph_b, separation, ak_a, ak_b)
     data = mujoco.MjData(model)
 
-    # 3. ヒット判定（striker→的の幾何距離, 体格差で reach/precision 補正）。
-    p1_hits, p2_hits, p1_body, p2_body, frames, p1_cum, p2_cum = _play_and_score(
-        model, data, ma, mb, qa, qb, ak_a, ak_b, info, separation,
-        morph_a, morph_b, cfg, fps, width, height, render and not mesh)
+    p1_survival = p2_survival = None
+    if sparring:
+        from .sparring import play_sparring
 
-    if mesh and assisted:
-        mesh = False  # assisted は MuJoCo カプセル描画のみ（v0.148）
+        (
+            p1_hits, p2_hits, p1_body, p2_body, frames, p1_cum, p2_cum,
+            p1_survival, p2_survival,
+        ) = play_sparring(
+            model, data, ma, mb, qa, qb, info, separation,
+            morph_a, morph_b, cfg, fps, width, height, render and not mesh,
+        )
+    else:
+        # 3. ヒット判定（striker→的の幾何距離, 体格差で reach/precision 補正）。
+        p1_hits, p2_hits, p1_body, p2_body, frames, p1_cum, p2_cum = _play_and_score(
+            model, data, ma, mb, qa, qb, ak_a, ak_b, info, separation,
+            morph_a, morph_b, cfg, fps, width, height, render and not mesh)
+
+    if mesh and (assisted or sparring):
+        mesh = False  # assisted/sparring は MuJoCo カプセル描画のみ（v0.148）
 
     if mesh:
         from pathlib import Path
@@ -213,6 +232,7 @@ def run_fight(morph_a, morph_b, *, name_a: str, name_b: str, separation: float =
         name_a, name_b, p1_hits, p2_hits, winner, frames, fps, p1_cum, p2_cum,
         assisted_corner=assisted, assisted_mode=track_mode,
         assisted_survival=assisted_survival,
+        sparring=sparring, p1_survival=p1_survival, p2_survival=p2_survival,
     )
 
 

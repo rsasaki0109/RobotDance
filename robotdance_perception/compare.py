@@ -17,7 +17,7 @@ from typing import Optional
 
 import numpy as np
 
-from robotdance_perception.backends import COCO_EDGES, list_backends, make_runner_2d
+from robotdance_perception.backends import COCO_EDGES, _RUNNER_FACTORIES, list_backends, make_runner_2d
 
 # overlay のバックエンド別パネル色（BGR）。
 PANEL_COLORS = {
@@ -65,7 +65,7 @@ def compare_backends(
     # 比較は 2D COCO-17 を出す検出器のみ（lift 派生・import 系 backend は 2D ランナーが無いので除外）。
     runners, skipped = {}, []
     for b in list_backends():
-        if b.lift_from or b.extract_mode != "video":
+        if b.lift_from or b.extract_mode != "video" or b.name not in _RUNNER_FACTORIES:
             continue
         (runners.__setitem__(b.name, make_runner_2d(b.name)) if b.available()
          else skipped.append(b.name))

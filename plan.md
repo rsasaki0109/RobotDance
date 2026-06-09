@@ -77,7 +77,8 @@ The honest unsolved core; better here → a *real* fight instead of choreography
       **v0.150**: physical tournament 決勝 assisted/RL + benchmark rescued-by-RL-only。
       **v0.151**: `--assisted champion`（省略時も champion）— 決勝 GIF でチャンピオン側を自動物理追従。
       **v0.155**: 決勝 GIF HUD に `assisted_survival`（PD/RL %）を焼き込み（`_fight_hud`）。
-      2-body contact sparring still open.
+      **v0.158**: `demo-fight --sparring` — 2 体同時 PD 物理（limb 接触、幾何採点は維持）。
+      Full contact-dynamics scoring still open.
 - [~] **Depth frontier** (continues `--stabilize-depth` / `--balance-refine`): **v0.144**:
       `refine_for_fight()` + `demo-fight --depth-refine` / `demo-assisted --depth-refine` wire
       stabilize + balance into the fight pipeline. **v0.145**: assisted survival benchmark で効果を
@@ -87,6 +88,8 @@ The honest unsolved core; better here → a *real* fight instead of choreography
       G1/H1/H2/T1/N1。**v0.154**: `benchmark-assisted --retarget-backend kinematic gmr` で
       survival を backend 別比較（`rescued_by_gmr` サマリ）。**v0.156**: `demo-fight` /
       `demo-assisted` / トーナメント決勝に `--retarget-backend gmr`。
+- [x] **GVHMR in-process 抽出** — **v0.157**: `extract --backend gvhmr` が GVHMR 推論を
+      in-process 実行（`gvhmr_backend.py`、clone + ckpt + CUDA 要）。WHAM は import-hmr のまま。
 
 ## Non-goals / decisions
 
