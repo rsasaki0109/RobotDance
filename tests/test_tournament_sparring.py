@@ -39,3 +39,24 @@ def test_cli_tournament_sparring_assisted_conflict(tmp_path: Path) -> None:
         "--moves", "boxing", "-o", str(tmp_path / "x.gif"),
     ])
     assert code == 1
+
+
+def test_final_sparring_contact_scoring_runs() -> None:
+    pytest.importorskip("mujoco")
+    t = run_fight_tournament(["unitree_g1", "unitree_h1"], ["boxing"], duration=2.5)
+    fin = run_fight(
+        get_morphology(t.final.p1), get_morphology(t.final.p2),
+        name_a=t.final.p1, name_b=t.final.p2, duration=2.5, style=t.final.hi_style,
+        render=False, sparring=True, contact_scoring=True,
+    )
+    assert fin.scoring_mode == "contact"
+    assert fin.p1_geom_hits is not None
+
+
+def test_cli_tournament_contact_requires_sparring(tmp_path: Path) -> None:
+    code = main([
+        "demo-tournament", "--physical", "--contact-scoring",
+        "--robots", "unitree_g1", "unitree_h1",
+        "--moves", "boxing", "-o", str(tmp_path / "x.gif"),
+    ])
+    assert code == 1

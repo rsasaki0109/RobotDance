@@ -844,6 +844,47 @@ def _benchmark_sparring(
     return 0
 
 
+def _benchmark_fight_scoring(
+    robots: list[str],
+    opponent: str,
+    styles: list[str],
+    duration: float,
+    separation: float,
+    compare_refine: bool,
+    out_dir: Path,
+    retarget_backends: list[str] | None = None,
+) -> int:
+    from robotdance_benchmarks.fight_scoring_compare import (
+        render_fight_scoring_compare_markdown,
+        run_fight_scoring_compare_benchmark,
+        write_fight_scoring_compare_csv,
+    )
+
+    try:
+        report = run_fight_scoring_compare_benchmark(
+            robots, opponent=opponent, styles=styles,
+            duration=duration, separation=separation,
+            compare_refine=compare_refine,
+            retarget_backends=retarget_backends,
+        )
+    except (RuntimeError, ValueError) as exc:
+        print(f"✗ {exc}")
+        return 1
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = write_fight_scoring_compare_csv(report, out_dir / "fight_scoring_compare.csv")
+    md_path = out_dir / "FIGHT_SCORING_COMPARE.md"
+    md_path.write_text(render_fight_scoring_compare_markdown(report), encoding="utf-8")
+    n = len(report["rows"])
+    agree = report["winner_agreement_rate"]
+    print(f"✓ fight scoring compare: {n} bouts, winner agreement {agree:.1%}")
+    print(f"  {csv_path}\n  {md_path}")
+    for row in report["winner_disagreements"]:
+        refine = "refine" if row["depth_refine"] else "raw"
+        print(f"  disagree ({refine}): {row['p1']:12s} {row['style']:8s} "
+              f"geom→{row['geom_winner']} contact→{row['contact_winner']}")
+    return 0
+
+
 def _retarget_ik(path: Path, urdf: Path, out: Path, steps: int,
                  conf_gate: float | None = None) -> int:
     from .rd_mir import RdMir
@@ -1732,7 +1773,8 @@ def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int
                      assisted: str | None = None, assisted_rl: bool = False,
                      rl_iterations: int = 20, depth_refine: bool = False,
                      retarget_backend: str = "kinematic",
-                     sparring: bool = False) -> int:
+                     sparring: bool = False,
+                     contact_scoring: bool = False) -> int:
     """🏆 HumanoidBattle トーナメント: 単欠ブラケット→チャンピオン（型採点 or 物理 fight）。"""
     labels = ["準々決勝", "準決勝", "決勝"]
 
@@ -1784,6 +1826,9 @@ def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int
         if sparring and assisted:
             print("✗ --sparring と --assisted は併用できません")
             return 1
+        if contact_scoring and not sparring:
+            print("✗ --contact-scoring は --sparring と併用してください")
+            return 1
 
         from robotdance_benchmarks.fight_tournament import resolve_assisted_corner
 
@@ -1803,6 +1848,7 @@ def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int
             assisted_mode="rl" if assisted_rl else "pd",
             rl_iterations=rl_iterations,
             sparring=sparring,
+            contact_scoring=contact_scoring,
         )
         frames = _fight_hud(fin)
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -1814,7 +1860,12 @@ def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int
                 if fin.p1_survival is not None and fin.p2_survival is not None
                 else "PD"
             )
-            notes.append(f"sparring({surv})")
+            tag = f"sparring({surv})"
+            if fin.scoring_mode == "contact":
+                tag = f"contact({surv})"
+                if fin.p1_geom_hits is not None and fin.p2_geom_hits is not None:
+                    tag += f" geom={fin.p1_geom_hits}-{fin.p2_geom_hits}"
+            notes.append(tag)
         if assisted:
             corner = f.p1 if assisted_corner == "p1" else f.p2
             if assisted == "champion":
@@ -1829,7 +1880,10 @@ def _demo_tournament(robots: list[str], moves: list[str], out: Path, stride: int
         note = f" ({', '.join(notes)})" if notes else ""
         print(f"✓ fight tournament FINAL GIF{note} → {out} ({out.stat().st_size // 1024} KB)")
         if sparring:
-            print("  ⚠️ ブラケット試合は kinematic。決勝 GIF のみ 2 体 PD sparring（幾何採点）。")
+            if fin.scoring_mode == "contact":
+                print("  ⚠️ ブラケット試合は kinematic。決勝 GIF のみ 2 体 PD sparring + 接触力採点。")
+            else:
+                print("  ⚠️ ブラケット試合は kinematic。決勝 GIF のみ 2 体 PD sparring（幾何採点）。")
         elif assisted:
             print("  ⚠️ ブラケット試合は kinematic。決勝 GIF のみ assisted 物理追従。")
         return 0
@@ -2173,6 +2227,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="--physical --assisted --rl 時の PPO 学習量")
     p_tour.add_argument("--sparring", action="store_true",
                         help="--physical 決勝 GIF を 2 体 PD sparring で描画（ブラケットは kinematic）")
+    p_tour.add_argument("--contact-scoring", action="store_true",
+                        help="--physical --sparring 決勝を MuJoCo 接触力で採点（幾何は比較用）")
 
     p_fight = sub.add_parser(
         "demo-fight",
@@ -2287,6 +2343,22 @@ def main(argv: list[str] | None = None) -> int:
                           choices=["kinematic", "gmr"],
                           help="retarget バックエンド比較（例: kinematic gmr）")
     p_sbench.add_argument("-o", "--out", type=Path, default=Path("docs/benchmark"))
+
+    p_fsc = sub.add_parser(
+        "benchmark-fight-scoring",
+        help="幾何 vs 接触力ヒット採点を同一 sparring bout で比較（要 sim）",
+    )
+    p_fsc.add_argument("--robots", nargs="+",
+                       default=["unitree_g1", "unitree_h1", "unitree_h2", "booster_t1",
+                                "apptronik_apollo", "fourier_n1"])
+    p_fsc.add_argument("--opponent", default="unitree_h1")
+    p_fsc.add_argument("--styles", nargs="+", default=sorted(FIGHT_STYLE_NAMES))
+    p_fsc.add_argument("--duration", type=float, default=3.0)
+    p_fsc.add_argument("--separation", type=float, default=0.17)
+    p_fsc.add_argument("--no-compare", action="store_true")
+    p_fsc.add_argument("--retarget-backend", nargs="+", default=["kinematic"],
+                       choices=["kinematic", "gmr"])
+    p_fsc.add_argument("-o", "--out", type=Path, default=Path("docs/benchmark"))
 
     p_mmap = sub.add_parser("demo-motion-map", help="合成モーションを埋め込み Motion Map を描く")
     p_mmap.add_argument("-o", "--out", type=Path, default=Path("motion_map.png"))
@@ -2655,6 +2727,7 @@ def main(argv: list[str] | None = None) -> int:
             assisted=args.assisted, assisted_rl=args.rl,
             rl_iterations=args.rl_iterations, depth_refine=args.depth_refine,
             retarget_backend=args.retarget_backend, sparring=args.sparring,
+            contact_scoring=args.contact_scoring,
         )
     if args.command == "demo-fight":
         return _demo_fight(
@@ -2707,6 +2780,11 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.command == "benchmark-sparring":
         return _benchmark_sparring(
+            args.robots, args.opponent, args.styles, args.duration, args.separation,
+            not args.no_compare, args.out, args.retarget_backend,
+        )
+    if args.command == "benchmark-fight-scoring":
+        return _benchmark_fight_scoring(
             args.robots, args.opponent, args.styles, args.duration, args.separation,
             not args.no_compare, args.out, args.retarget_backend,
         )

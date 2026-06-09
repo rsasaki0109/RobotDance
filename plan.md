@@ -84,6 +84,10 @@ The honest unsolved core; better here → a *real* fight instead of choreography
       （`SPARRING_SURVIVAL.md`）。
       **v0.161**: `demo-fight --sparring --contact-scoring` — MuJoCo 接触力ベースヒット採点
       （幾何は比較用に併記）。contact-dynamics scoring の第一歩。
+      **v0.162**: `demo-tournament --physical --sparring --contact-scoring` — 決勝 GIF のみ
+      接触力採点（ブラケットは kinematic のまま）。
+      **v0.163**: `benchmark-fight-scoring` — 幾何 vs 接触力ヒット・勝者一致率の比較表
+      （`FIGHT_SCORING_COMPARE.md`）。
 - [~] **Depth frontier** (continues `--stabilize-depth` / `--balance-refine`): **v0.144**:
       `refine_for_fight()` + `demo-fight --depth-refine` / `demo-assisted --depth-refine` wire
       stabilize + balance into the fight pipeline. **v0.145**: assisted survival benchmark で効果を
